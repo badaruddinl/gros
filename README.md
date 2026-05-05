@@ -5,17 +5,18 @@ Gr is an ecosystem that starts from the most basic machine bytes.
 - `.gr` = low-level source / root / grain
 - `.gro` = build output / grown form
 
-This repository is the development workspace for GrOS v0.1: a 512-byte x86 BIOS boot sector that prints:
+This repository is the development workspace for GrOS v0.2: a 512-byte x86 BIOS boot sector that prints a banner, shows a prompt, and echoes keyboard input.
 
 ```txt
-GrOS v0.1
+GrOS v0.2
+gr>
 ```
 
-## Initial Target
+## Current Target
 
 - CPU/firmware: x86 BIOS real mode
-- Product output: `build/gros-v0.1.gro`
-- Initial product form: raw 512-byte boot sector
+- Product output: `build/gros-v0.2.gro`
+- Product form: raw 512-byte boot sector
 
 ## Run
 
@@ -48,14 +49,6 @@ Or use the Makefile:
 
 ```bash
 make run
-```
-
-## Git Initialization
-
-```bash
-git init
-git add .
-git commit -m "birth: GrOS v0.1 boot sector"
 ```
 
 ## Naming Philosophy
