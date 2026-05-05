@@ -43,6 +43,16 @@ require_instruction() {
     grep -E "$pattern" "$disasm" > /dev/null || fail "missing expected instruction: $name"
 }
 
+require_instruction_count() {
+    local disasm=$1
+    local pattern=$2
+    local minimum=$3
+    local name=$4
+    local count
+    count=$(grep -Ec "$pattern" "$disasm" || true)
+    [ "$count" -ge "$minimum" ] || fail "missing expected instruction count: $name"
+}
+
 require_text() {
     local file=$1
     local text=$2
@@ -89,7 +99,12 @@ require_stage2_runtime_gate() {
     [ "$handler_value" -ge $((0x8000)) ] || fail "int 30h handler must be inside stage-2 payload"
     [ "$handler_value" -le $((0x87ff)) ] || fail "int 30h handler must be inside stage-2 payload"
 
+    require_instruction_count "$disasm" '[[:space:]]int[[:space:]]+0x30' 2 'runtime service probe and console write calls'
+    require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x100' 'console/text write selector call'
     require_instruction "$disasm" '[[:space:]]or[[:space:]]+ax,ax' 'runtime/control probe selector check'
+    require_instruction "$disasm" '[[:space:]]cmp[[:space:]]+ax,0x100' 'console/text write selector dispatch'
+    require_instruction "$disasm" '[[:space:]]push[[:space:]]+si' 'console/text SI preservation entry'
+    require_instruction "$disasm" '[[:space:]]pop[[:space:]]+si' 'console/text SI preservation exit'
     require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x1' 'unsupported runtime service error code'
     require_instruction "$disasm" '[[:space:]]or[[:space:]]+word[[:space:]]+\[bp\+0x6\],byte[[:space:]]+\+0x1' 'unsupported runtime service CF=1 return'
     require_instruction "$disasm" '[[:space:]]and[[:space:]]+word[[:space:]]+\[bp\+0x6\],byte[[:space:]]+-0x2' 'runtime/control probe CF=0 return'

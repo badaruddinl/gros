@@ -167,13 +167,12 @@ The graph database and generated wiki are local development aids. They are not s
 
 ## Next Solid Development Step
 
-Stage-2 now owns the first runtime service gate shape through `int 30h` and the minimal `runtime/control.probe` selector. The next strong technical step is to define and implement the first useful runtime service after that probe, likely a very small console/text service.
+Stage-2 now owns the first runtime service gate shape through `int 30h`. It implements `runtime/control.probe` and a minimal `console/text.write_cstr` service. The stage-2 prompt uses that runtime gate for its fixed string output while the low-level service body still writes through BIOS teletype output.
 
-That next step should still stay narrow:
+The next strong technical step should still stay narrow:
 
-- one service group
-- one or two service IDs
-- explicit register inputs and return values
-- clear register preservation behavior
-- static validation through the existing `.gro` image checks
+- add a tiny runtime self-check or fixture for service return values
+- keep explicit register inputs and return values
+- keep static validation through the existing `.gro` image checks
+- decide the next runtime service only after the console ABI stays stable
 - no `.gn` compiler or hosted-native executable implementation yet
