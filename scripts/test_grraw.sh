@@ -132,8 +132,8 @@ GR
 
 "$ROOT/scripts/build_boot.sh" > /dev/null
 "$ROOT/scripts/check_boot.sh" > /dev/null
-"$ROOT/scripts/check_boot.sh" "$ROOT/dist/gros-v0.4.gro" > /dev/null
-cmp -s "$ROOT/build/gros-v0.4.gro" "$ROOT/dist/gros-v0.4.gro" || fail "v0.4 build differs from dist artifact"
-pass "v0.4 artifact"
+"$ROOT/scripts/check_boot.sh" "$ROOT/dist/gros-v0.5.gro" > /dev/null
+cmp -s "$ROOT/build/gros-v0.5.gro" "$ROOT/dist/gros-v0.5.gro" || fail "v0.5 build differs from dist artifact"
+pass "v0.5 artifact"
 
 echo "passed: $pass_count"

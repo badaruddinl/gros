@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SRC="$ROOT/boot/grboot_v0_4.gr"
-OUT="$ROOT/build/gros-v0.4.gro"
+SRC="$ROOT/boot/grboot_v0_5.gr"
+OUT="$ROOT/build/gros-v0.5.gro"
 
 mkdir -p "$ROOT/build"
 rm -f "$OUT"
