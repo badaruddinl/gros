@@ -1,6 +1,6 @@
 # GrOS Runtime ABI Seed
 
-This document defines the first runtime ABI seed for Grown and GrOS stage-2 payloads. It is a profile contract, not an implementation. It does not add a syscall table, kernel service layer, compiler, interpreter, parser, runtime, build step, output artifact, or boot banner change.
+This document defines the first runtime ABI seed for Grown and GrOS stage-2 payloads. It is a profile contract with one minimal implemented probe service. It does not add a syscall table, compiler, interpreter, parser, `.gn` toolchain, hosted-native output, or boot banner change.
 
 ## Profile
 
@@ -69,15 +69,15 @@ Rules:
 - The callee must restore `SP` before return.
 - No heap, allocator, or stack probing contract exists yet.
 
-## Runtime Service Seed
+## Runtime Service Gate
 
-The reserved future GrOS runtime service gate is:
+The current GrOS runtime service gate is:
 
 ```txt
 int 30h
 ```
 
-This gate is reserved only. It is not implemented by the current boot or stage-2 image.
+The stage-2 image installs this real-mode interrupt vector at boot. The current implementation exposes only the runtime/control probe service defined below.
 
 Service selector:
 
@@ -101,19 +101,58 @@ CF = 1  error, error code in AX
 
 Service calls may clobber caller-saved registers unless a future service definition says otherwise.
 
-## Initial Reserved Service Groups
+Interrupt handlers must return through `iret`. To return `CF` to the caller, the handler must update the saved FLAGS word in the interrupt stack frame before `iret`.
 
-These groups are reserved for future specification:
+## Implemented Service
+
+Runtime/control probe:
 
 ```txt
-00h  runtime/control
+AH = 00h
+AL = 00h
+```
+
+Inputs:
+
+```txt
+none beyond the selector in AX
+```
+
+Success return:
+
+```txt
+CF = 0
+AX = 0000h
+```
+
+Meaning:
+
+```txt
+int 30h is installed and the runtime/control group can answer the probe.
+```
+
+Unsupported selectors return:
+
+```txt
+CF = 1
+AX = 0001h
+```
+
+`0001h` means unsupported service selector.
+
+## Initial Service Groups
+
+These groups are reserved for future specification, except where an implemented service is explicitly listed:
+
+```txt
+00h  runtime/control, AL=00h probe implemented
 01h  console/text
 02h  storage/block
 03h  process/task
 04h  memory
 ```
 
-No service IDs are implemented yet.
+No other service IDs are implemented yet.
 
 ## Failure And Halt Behavior
 
@@ -150,7 +189,7 @@ Future `.gro` executable subformats are reserved. They must define:
 
 This seed does not add:
 
-- implemented `int 30h` handling
+- additional `int 30h` services beyond runtime/control probe
 - a syscall table
 - a standard library
 - `.gn` code generation

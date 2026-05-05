@@ -3,7 +3,7 @@
 Gr is an ecosystem that starts from the most basic machine bytes and grows upward into native GrOS systems code.
 
 - `.gr` = ground/root/raw source and low-level backend layer
-- `.gn` = unified Grown source, the native low-level systems language for GrOS
+- `.gn` = unified Grown source, native to the GrOS ecosystem and usable by hosted-native profiles
 - `.gro` = grown output artifact for the GrOS ecosystem
 
 This repository is the development workspace for GrOS v0.5: a 512-byte x86 BIOS boot sector with a small interactive prompt.
@@ -119,7 +119,7 @@ Public meaning:
 
 ```txt
 Gr  = root / grain / ground
-Gn  = GrOS-native unified Grown source
+Gn  = unified Grown source
 Gro = grown form
 ```
 
