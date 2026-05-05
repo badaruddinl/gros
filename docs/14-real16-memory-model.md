@@ -204,17 +204,16 @@ Current status:
 seeded, not stable for generated `.gn` code
 ```
 
-Existing validation still covers:
+Existing validation covers:
 
 - stage-1 size and boot signature
 - stage-2 image size and load contract
+- static memory map boundaries through `scripts/check_memory_model.sh`
 - runtime ABI byte fixtures
 - QEMU stage-2 smoke start
 
 Missing validation:
 
-- static memory map fixture
-- stack boundary fixture
 - generated-code fixture
 - payload data-region fixture
 - pointer representation fixture
