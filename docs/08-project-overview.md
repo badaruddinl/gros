@@ -138,6 +138,7 @@ docs/10-runtime-abi-seed.md
 docs/11-gro-payload-header.md
 docs/12-gn-front-end-seed.md
 docs/13-abi-stability-gate.md
+docs/14-real16-memory-model.md
 ```
 
 Their current responsibilities:
@@ -151,6 +152,7 @@ Their current responsibilities:
 - `11-gro-payload-header.md` reserves the future header shape for executable `.gro` payloads.
 - `12-gn-front-end-seed.md` reserves the first source front-end shape for `.gn`.
 - `13-abi-stability-gate.md` defines the stability gate before `.gn` compiler work can start.
+- `14-real16-memory-model.md` defines the first memory model seed for the current real16 stage-2 profile.
 
 Runtime ABI validation is implemented in:
 

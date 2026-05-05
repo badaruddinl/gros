@@ -38,6 +38,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [`.gro` payload header seed](docs/11-gro-payload-header.md)
 - [Grown `.gn` front-end seed](docs/12-gn-front-end-seed.md)
 - [ABI stability gate](docs/13-abi-stability-gate.md)
+- [Real16 memory model seed](docs/14-real16-memory-model.md)
 
 ## Stage-2 Loader Target
 

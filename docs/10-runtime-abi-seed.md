@@ -232,6 +232,16 @@ These groups are reserved for future specification, except where an implemented 
 
 No other service IDs are implemented yet.
 
+## Memory Model
+
+The current memory model seed for this runtime profile is defined in:
+
+```txt
+docs/14-real16-memory-model.md
+```
+
+The seed keeps near pointers as 16-bit offsets in segment `0000`, reserves far pointers, and does not define a heap. Pointer-sized `.gn` types remain reserved until memory fixtures and generated-code validation exist.
+
 ## Failure And Halt Behavior
 
 Returning from the stage-2 entrypoint is undefined.
