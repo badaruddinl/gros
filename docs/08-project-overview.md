@@ -135,6 +135,7 @@ docs/06-abi-handoff.md
 docs/07-grown-language.md
 docs/09-grown-ecosystem-mapping.md
 docs/10-runtime-abi-seed.md
+docs/11-gro-payload-header.md
 ```
 
 Their current responsibilities:
@@ -145,6 +146,7 @@ Their current responsibilities:
 - `07-grown-language.md` defines Grown as the unified native low-level GrOS systems language and reserves `.gn`.
 - `09-grown-ecosystem-mapping.md` defines how `.gn`, `.gr`, `.gro`, and hosted-native profiles map together.
 - `10-runtime-abi-seed.md` defines the first calling convention and runtime service seed for the current GrOS profile.
+- `11-gro-payload-header.md` reserves the future header shape for executable `.gro` payloads.
 
 Runtime ABI validation is implemented in:
 

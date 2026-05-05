@@ -35,6 +35,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Project overview](docs/08-project-overview.md)
 - [Grown hosted-native ecosystem mapping](docs/09-grown-ecosystem-mapping.md)
 - [GrOS runtime ABI seed](docs/10-runtime-abi-seed.md)
+- [`.gro` payload header seed](docs/11-gro-payload-header.md)
 
 ## Stage-2 Loader Target
 
