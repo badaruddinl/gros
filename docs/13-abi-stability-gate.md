@@ -146,7 +146,7 @@ docs/14-real16-memory-model.md
 Status:
 
 ```txt
-seeded with static memory and near-pointer fixtures, not proven by generated code
+seeded with static memory, near-pointer, and data-region fixtures, not proven by generated code
 ```
 
 This blocks pointer types, arrays, strings, global data, and most useful generated `.gn` code.

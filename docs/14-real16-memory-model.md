@@ -210,15 +210,15 @@ Existing validation covers:
 - stage-2 image size and load contract
 - static memory map boundaries through `scripts/check_memory_model.sh`
 - seeded near pointers through `scripts/check_near_pointers.sh`
+- static text/data bytes through `scripts/check_stage2_data.sh`
 - runtime ABI byte fixtures
 - QEMU stage-2 smoke start
 
 Missing validation:
 
 - generated-code fixture
-- payload data-region fixture
 
-These missing checks block `.gn` pointer types and generated `.gro` payloads.
+The missing generated-code fixture still blocks `.gn` pointer types and generated `.gro` payloads.
 
 ## Non-Goals
 
