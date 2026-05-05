@@ -43,6 +43,22 @@ require_instruction() {
     grep -E "$pattern" "$disasm" > /dev/null || fail "missing expected instruction: $name"
 }
 
+require_near_boot_drive_reload() {
+    local disasm=$1
+    local jump_line reload_line
+
+    jump_line=$(grep -nE '[[:space:]]jmp[[:space:]]+0x0:0x8000' "$disasm" | head -n 1 | cut -d: -f1)
+    [ -n "$jump_line" ] || fail "missing expected instruction: stage-2 far jump"
+
+    reload_line=$(awk -v jump="$jump_line" '
+        NR < jump && /[[:space:]]mov[[:space:]]+dl,\[0x[0-9a-fA-F]+\]/ { line = NR }
+        END { if (line) print line }
+    ' "$disasm")
+
+    [ -n "$reload_line" ] || fail "missing expected instruction: boot drive reload before stage-2 jump"
+    [ "$((jump_line - reload_line))" -le 2 ] || fail "boot drive reload must be adjacent to stage-2 jump"
+}
+
 if [ ! -f "$FILE" ] && [ "$FILE" = "$DEFAULT_FILE" ]; then
     "$ROOT/scripts/build_stage2_image.sh"
 fi
@@ -76,6 +92,7 @@ if command -v ndisasm > /dev/null 2>&1; then
     require_instruction "$DISASM" '[[:space:]]mov[[:space:]]+cx,0x2' 'stage-2 starting sector'
     require_instruction "$DISASM" '[[:space:]]int[[:space:]]+0x13' 'BIOS disk read interrupt'
     require_instruction "$DISASM" '[[:space:]]jmp[[:space:]]+0x0:0x8000' 'stage-2 far jump'
+    require_near_boot_drive_reload "$DISASM"
     echo "ndisasm  : ok"
 elif [ "$REQUIRE_NDISASM" -eq 1 ]; then
     fail "ndisasm is required for this validation"
