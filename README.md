@@ -54,6 +54,14 @@ Run builder tests:
 make test
 ```
 
+Run the full validation path:
+
+```bash
+make validate
+```
+
+This runs the raw builder tests, checks the generated boot sector, checks the committed `dist/` artifact, and verifies that `build/gros-v0.5.gro` matches `dist/gros-v0.5.gro`. If `ndisasm` is installed, the validation script also disassembles the generated image and checks the expected BIOS interrupt path. Disassembly is validation-only; the build source of truth remains the `.gr` raw source and Bash tooling.
+
 Run in QEMU:
 
 ```bash
