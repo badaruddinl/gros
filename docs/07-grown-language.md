@@ -1,6 +1,8 @@
-# Grown Language Seed Spec
+# Grown Language Spec
 
-Grown is the future higher-level language layer for the Gr ecosystem. Its source extension is:
+Grown is the planned native low-level systems language for GrOS. It belongs to the Gr ecosystem, but its primary semantic target is GrOS: kernels, loaders, drivers, runtime services, ABI/profile-aware libraries, hosted-native compatibility layers, and device/profile-specific payloads.
+
+Its source extension is:
 
 ```txt
 .gn
@@ -11,9 +13,9 @@ This document is a seed specification only. It does not implement a compiler, in
 ## Naming
 
 ```txt
-Grown  language name
-.gn    Grown source
-.gr    ground/root/raw low-level source
+Grown  native low-level GrOS systems language
+.gn    unified Grown source
+.gr    ground/root/raw source and low-level backend layer
 .gro   grown output artifact
 ```
 
@@ -28,13 +30,14 @@ The name is **Grown**.
 - early kernel/runtime source
 - validation-friendly machine-level source
 
-`.gn` is reserved for future Grown source:
+`.gn` is unified Grown source:
 
-- structured code above raw boot source
-- code that targets a defined GrOS ABI profile
-- code that can be lowered into a `.gro` artifact through a future toolchain
+- structured systems code above raw boot source
+- GrOS kernel, driver, runtime, and ABI/profile-aware source
+- hosted-native compatibility source for future host profiles
+- code that can be lowered through `.gr` into a `.gro` artifact or a hosted-native executable
 
-`.gro` remains a build artifact:
+`.gro` remains the canonical GrOS ecosystem artifact:
 
 - boot image
 - stage payload
@@ -91,8 +94,28 @@ isize
 The seed syntax shape is C-like but intentionally incomplete:
 
 ```gn
+target "gros.x86.bios.real16.stage2.v0"
+
 fn main() -> void {
     return;
+}
+```
+
+Hosted-native compatibility profiles use the same source language shape:
+
+```gn
+target "host.linux.x86_64.v0"
+
+fn main() -> i32 {
+    return 0;
+}
+```
+
+Raw ground boundaries are profile-specific:
+
+```gn
+raw gr("host.linux.x86_64.v0") {
+    // profile-specific low-level body
 }
 ```
 
@@ -110,14 +133,19 @@ The following are not specified yet:
 - macros
 - error handling model
 
-## Output Targets
+## Output Profiles
 
-Future Grown output targets may include:
+In this spec, target means a GrOS execution profile, device/profile contract, or hosted-native compatibility profile. Windows, Linux, macOS, and Android are not GrOS replacements; future hosted-native profiles may use them as adoption surfaces where Grown programs run as native host executables while keeping GrOS language and ground-layer semantics.
 
-- raw stage payload `.gro`
+Future Grown output profiles may include:
+
+- raw GrOS stage payload `.gro`
 - GrOS kernel `.gro`
-- executable `.gro`
-- library/package `.gro`
+- GrOS executable `.gro`
+- GrOS library/package `.gro`
+- hosted-native Linux executable
+- hosted-native Windows executable
+- hosted-native Darwin executable
 
 The current concrete build path remains:
 
@@ -129,7 +157,7 @@ No `.gn` source is part of the active build yet.
 
 ## ABI Dependency
 
-Grown cannot become an implementation target until GrOS defines enough ABI surface for generated code.
+Complete native `.gn` code generation and runtime mapping await enough GrOS ABI surface for generated code.
 
 The minimum required contracts are:
 
@@ -141,7 +169,7 @@ The minimum required contracts are:
 - object/executable `.gro` layout
 - panic or halt behavior
 
-The existing `x86.bios.real16.stage2.v0` handoff profile is a machine-level payload entry contract. It is necessary, but not sufficient, for a full Grown language target.
+The existing `x86.bios.real16.stage2.v0` handoff profile is a machine-level payload entry contract. It is necessary, but not sufficient, for a full Grown language runtime mapping.
 
 ## Non-Goals
 
@@ -151,6 +179,7 @@ This seed spec does not add:
 - a `.gn` interpreter
 - a `.gn` parser
 - generated `.gro` output from `.gn`
+- hosted-native executable output
 - a standard library
 - a language version bump
 - a GrOS boot banner change
