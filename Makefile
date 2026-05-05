@@ -1,4 +1,4 @@
-.PHONY: build check test validate stage2 check-stage2 runtime-abi memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy validate stage2 check-stage2 runtime-abi memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gro
 DIST_IMAGE := dist/gros-v0.5.gro
@@ -14,7 +14,10 @@ check: build
 test:
 	./scripts/test_grraw.sh
 
-validate: test check stage2
+policy:
+	./scripts/check_project_policy.sh
+
+validate: policy test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)

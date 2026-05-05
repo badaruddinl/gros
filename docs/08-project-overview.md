@@ -108,6 +108,7 @@ make validate
 
 It checks:
 
+- project policy rules for local-only and generated files
 - raw builder tests
 - v0.5 boot sector size and signature
 - stage-2 image size and signature
