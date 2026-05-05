@@ -1,0 +1,96 @@
+; GrOS stage-1 loader
+; .gr is low-level source.
+; This raw-byte source is consumed by scripts/grraw.sh.
+
+raw x86.bios.stage1 {
+    origin 7C00
+
+    ; setup segments and stack
+    bytes FA
+    bytes 31 C0
+    bytes 8E D8
+    bytes 8E C0
+    bytes 8E D0
+    bytes BC 00 7C
+    bytes FB
+    bytes FC
+
+    ; preserve BIOS boot drive
+    bytes 88 16
+    addr16 boot_drive
+
+    ; reset disk
+    bytes 31 C0
+    bytes 8A 16
+    addr16 boot_drive
+    bytes CD 13
+    bytes 72
+    rel8 disk_error
+
+    ; restore data/load segments before the read
+    bytes 31 C0
+    bytes 8E D8
+    bytes 8E C0
+
+    ; read stage-2 sectors from CHS 0:0:2 into 0000:8000
+    bytes B8 04 02
+    bytes BB 00 80
+    bytes B9 02 00
+    bytes 30 F6
+    bytes 8A 16
+    addr16 boot_drive
+    bytes CD 13
+    bytes 72
+    rel8 disk_error
+
+    ; restore stage-2 entry state
+    bytes FA
+    bytes 31 C0
+    bytes 8E D8
+    bytes 8E C0
+    bytes 8E D0
+    bytes BC 00 7C
+    bytes FB
+    bytes FC
+
+    ; jump to stage-2 entry at 0000:8000
+    bytes EA 00 80 00 00
+
+    label disk_error
+    bytes 31 C0
+    bytes 8E D8
+    bytes BE
+    addr16 disk_error_text
+    bytes E8
+    rel16 print_string
+    bytes FA
+
+    label halt
+    bytes F4
+    bytes EB
+    rel8 halt
+
+    ; print_string subroutine
+    label print_string
+    bytes AC
+    bytes 84 C0
+    bytes 74
+    rel8 print_done
+    bytes B4 0E
+    bytes CD 10
+    bytes EB
+    rel8 print_string
+
+    label print_done
+    bytes C3
+
+    label disk_error_text
+    ascii "disk\r\n"
+    byte 00
+
+    label boot_drive
+    byte 00
+
+    pad_to 510 with 00
+    signature 55 AA
+}

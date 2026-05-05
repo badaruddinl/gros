@@ -30,6 +30,34 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Raw `.gr` format](docs/04-raw-gr-format.md)
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
 
+## Stage-2 Loader Target
+
+The experimental stage-2 image keeps the `GrOS v0.5` banner and moves the prompt runtime behind a 512-byte stage-1 loader.
+
+- Stage-1 source: `boot/stage1_loader.gr`
+- Stage-2 source: `boot/stage2_min.gr`
+- Product output: `build/gros-stage2.gro`
+- Product form: 512-byte stage-1 plus a 2048-byte stage-2 payload
+
+Build and validate:
+
+```bash
+make stage2
+make check-stage2
+```
+
+Run the QEMU smoke start:
+
+```bash
+make smoke-stage2
+```
+
+Run interactively:
+
+```bash
+make run-stage2
+```
+
 ## Run
 
 Ubuntu / WSL:
