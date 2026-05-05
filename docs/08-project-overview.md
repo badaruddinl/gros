@@ -176,7 +176,7 @@ The graph database and generated wiki are local development aids. They are not s
 
 ## Next Solid Development Step
 
-Stage-2 now owns the first runtime service gate shape through `int 30h`. It implements `runtime/control.probe` and a minimal `console/text.write_cstr` service. The stage-2 prompt uses that runtime gate for its fixed string output while the low-level service body still writes through BIOS teletype output.
+Stage-2 now owns the first runtime service gate shape through `int 30h`. It implements `runtime/control.probe`, `console/text.write_cstr`, and `console/text.write_char`. The stage-2 prompt uses that runtime gate for fixed string output and typed key echo while the low-level service body still writes through BIOS teletype output.
 
 The next strong technical step should still stay narrow:
 
