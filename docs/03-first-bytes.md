@@ -1,26 +1,66 @@
-# GrBoot v0.2 bytes
+# GrBoot v0.3 bytes
 
 Main bytes:
 
 ```txt
+FA
 31 C0
 8E D8
-BE 38 7C
-E8 22 00
-BE 44 7C
-E8 1C 00
+8E C0
+8E D0
+BC 00 7C
+FB
+BE 9E 7C
+E8 73 00
+BE AA 7C
+E8 6D 00
+BF DA 7C
+31 C9
 31 C0
 CD 16
 3C 0D
-74 06
+74 24
+3C 08
+74 11
+3C 20
+72 F0
+83 F9 0F
+73 EB
+AA
+41
 B4 0E
 CD 10
-EB F2
-BE 49 7C
-E8 08 00
-BE 44 7C
+EB E3
+83 F9 00
+74 DE
+4F
+49
+BE B2 7C
+E8 3E 00
+EB D4
+B0 00
+AA
+BE AF 7C
+E8 33 00
+83 F9 00
+74 BB
+BE DA 7C
+BF B6 7C
+E8 31 00
+72 13
+BE DA 7C
+BF BB 7C
+E8 26 00
+72 10
+BE D6 7C
+E8 12 00
+EB 9D
+BE BF 7C
+E8 0A 00
+EB 95
+BE CA 7C
 E8 02 00
-EB E4
+EB 8D
 AC
 84 C0
 74 06
@@ -28,22 +68,43 @@ B4 0E
 CD 10
 EB F5
 C3
+AC
+AE
+75 06
+84 C0
+75 F8
+F9
+C3
+F8
+C3
 ```
 
 Strings:
 
 ```txt
-47 72 4F 53 20 76 30 2E 32 0D 0A 00
+47 72 4F 53 20 76 30 2E 33 0D 0A 00
 67 72 3E 20 00
 0D 0A 00
+08 20 08 00
+68 65 6C 70 00
+76 65 72 00
+68 65 6C 70 20 76 65 72 0D 0A 00
+47 72 4F 53 20 76 30 2E 33 0D 0A 00
+3F 0D 0A 00
 ```
 
 ASCII:
 
 ```txt
-GrOS v0.2\r\n\0
+GrOS v0.3\r\n\0
 gr> \0
 \r\n\0
+\b \b\0
+help\0
+ver\0
+help ver\r\n\0
+GrOS v0.3\r\n\0
+?\r\n\0
 ```
 
 Signature:

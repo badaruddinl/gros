@@ -1,0 +1,135 @@
+; GrBoot v0.3
+; .gr is low-level source.
+; This file is the initial conceptual form: raw machine bytes.
+; The Gr parser does not exist yet, so scripts/build_boot.sh still writes bytes directly.
+
+raw x86.bios.bootsector {
+    ; setup segments and stack
+    bytes FA
+    bytes 31 C0
+    bytes 8E D8
+    bytes 8E C0
+    bytes 8E D0
+    bytes BC 00 7C
+    bytes FB
+
+    ; print banner
+    bytes BE 9E 7C
+    bytes E8 73 00
+
+    ; print prompt
+    bytes BE AA 7C
+    bytes E8 6D 00
+    bytes BF DA 7C
+    bytes 31 C9
+
+    ; read key
+    bytes 31 C0
+    bytes CD 16
+
+    ; enter executes the current line
+    bytes 3C 0D
+    bytes 74 24
+
+    ; backspace deletes one character
+    bytes 3C 08
+    bytes 74 11
+
+    ; ignore control characters and long lines
+    bytes 3C 20
+    bytes 72 F0
+    bytes 83 F9 0F
+    bytes 73 EB
+
+    ; store and echo key
+    bytes AA
+    bytes 41
+    bytes B4 0E
+    bytes CD 10
+    bytes EB E3
+
+    ; handle backspace
+    bytes 83 F9 00
+    bytes 74 DE
+    bytes 4F
+    bytes 49
+    bytes BE B2 7C
+    bytes E8 3E 00
+    bytes EB D4
+
+    ; handle enter
+    bytes B0 00
+    bytes AA
+    bytes BE AF 7C
+    bytes E8 33 00
+    bytes 83 F9 00
+    bytes 74 BB
+
+    ; command dispatch
+    bytes BE DA 7C
+    bytes BF B6 7C
+    bytes E8 31 00
+    bytes 72 13
+    bytes BE DA 7C
+    bytes BF BB 7C
+    bytes E8 26 00
+    bytes 72 10
+    bytes BE D6 7C
+    bytes E8 12 00
+    bytes EB 9D
+
+    ; help command
+    bytes BE BF 7C
+    bytes E8 0A 00
+    bytes EB 95
+
+    ; ver command
+    bytes BE CA 7C
+    bytes E8 02 00
+    bytes EB 8D
+
+    ; print_string subroutine
+    bytes AC
+    bytes 84 C0
+    bytes 74 06
+    bytes B4 0E
+    bytes CD 10
+    bytes EB F5
+
+    bytes C3
+
+    ; string_equal subroutine
+    bytes AC
+    bytes AE
+    bytes 75 06
+    bytes 84 C0
+    bytes 75 F8
+    bytes F9
+    bytes C3
+    bytes F8
+    bytes C3
+
+    ascii "GrOS v0.3\r\n"
+    byte 00
+    ascii "gr> "
+    byte 00
+    ascii "\r\n"
+    byte 00
+    bytes 08 20 08
+    byte 00
+    ascii "help"
+    byte 00
+    ascii "ver"
+    byte 00
+    ascii "help ver\r\n"
+    byte 00
+    ascii "GrOS v0.3\r\n"
+    byte 00
+    ascii "?\r\n"
+    byte 00
+
+    ; 16-byte command buffer starts in zero-filled padding.
+
+    pad_to 510 with 00
+    signature 55 AA
+}
