@@ -3,6 +3,7 @@
 Gr is an ecosystem that starts from the most basic machine bytes.
 
 - `.gr` = low-level source / root / grain
+- `.gn` = Grown language source
 - `.gro` = build output / grown form
 
 This repository is the development workspace for GrOS v0.5: a 512-byte x86 BIOS boot sector with a small interactive prompt.
@@ -30,6 +31,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Raw `.gr` format](docs/04-raw-gr-format.md)
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
 - [GrOS ABI handoff profile](docs/06-abi-handoff.md)
+- [Grown language seed spec](docs/07-grown-language.md)
 
 ## Stage-2 Loader Target
 
@@ -114,6 +116,7 @@ Public meaning:
 
 ```txt
 Gr  = root / grain / ground
+Gn  = Grown source
 Gro = grown form
 ```
 
