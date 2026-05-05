@@ -38,7 +38,7 @@ Build:
 ./scripts/build_boot.sh
 ```
 
-The boot image is built from the raw-byte `.gr` source in `boot/` through `scripts/grraw.sh`.
+The boot image is built from the raw-byte `.gr` source in `boot/` through `scripts/grraw.sh`. The source format supports labels plus absolute and relative label references, so boot code can move without manually recalculating offsets.
 
 Check size and boot signature:
 

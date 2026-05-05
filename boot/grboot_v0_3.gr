@@ -3,6 +3,8 @@
 ; This raw-byte source is consumed by scripts/grraw.sh.
 
 raw x86.bios.bootsector {
+    origin 7C00
+
     ; setup segments and stack
     bytes FA
     bytes 31 C0
@@ -13,120 +15,179 @@ raw x86.bios.bootsector {
     bytes FB
 
     ; print banner
-    bytes BE 9E 7C
-    bytes E8 73 00
+    bytes BE
+    addr16 banner
+    bytes E8
+    rel16 print_string
 
     ; print prompt
-    bytes BE AA 7C
-    bytes E8 6D 00
-    bytes BF DA 7C
+    label prompt
+    bytes BE
+    addr16 prompt_text
+    bytes E8
+    rel16 print_string
+    bytes BF
+    addr16 input_buffer
     bytes 31 C9
 
     ; read key
+    label read_key
     bytes 31 C0
     bytes CD 16
 
     ; enter executes the current line
     bytes 3C 0D
-    bytes 74 24
+    bytes 74
+    rel8 handle_enter
 
     ; backspace deletes one character
     bytes 3C 08
-    bytes 74 11
+    bytes 74
+    rel8 handle_backspace
 
     ; ignore control characters and long lines
     bytes 3C 20
-    bytes 72 F0
+    bytes 72
+    rel8 read_key
     bytes 83 F9 0F
-    bytes 73 EB
+    bytes 73
+    rel8 read_key
 
     ; store and echo key
     bytes AA
     bytes 41
     bytes B4 0E
     bytes CD 10
-    bytes EB E3
+    bytes EB
+    rel8 read_key
 
     ; handle backspace
+    label handle_backspace
     bytes 83 F9 00
-    bytes 74 DE
+    bytes 74
+    rel8 read_key
     bytes 4F
     bytes 49
-    bytes BE B2 7C
-    bytes E8 3E 00
-    bytes EB D4
+    bytes BE
+    addr16 backspace_text
+    bytes E8
+    rel16 print_string
+    bytes EB
+    rel8 read_key
 
     ; handle enter
+    label handle_enter
     bytes B0 00
     bytes AA
-    bytes BE AF 7C
-    bytes E8 33 00
+    bytes BE
+    addr16 newline
+    bytes E8
+    rel16 print_string
     bytes 83 F9 00
-    bytes 74 BB
+    bytes 74
+    rel8 prompt
 
     ; command dispatch
-    bytes BE DA 7C
-    bytes BF B6 7C
-    bytes E8 31 00
-    bytes 72 13
-    bytes BE DA 7C
-    bytes BF BB 7C
-    bytes E8 26 00
-    bytes 72 10
-    bytes BE D6 7C
-    bytes E8 12 00
-    bytes EB 9D
+    bytes BE
+    addr16 input_buffer
+    bytes BF
+    addr16 cmd_help
+    bytes E8
+    rel16 string_equal
+    bytes 72
+    rel8 run_help
+    bytes BE
+    addr16 input_buffer
+    bytes BF
+    addr16 cmd_ver
+    bytes E8
+    rel16 string_equal
+    bytes 72
+    rel8 run_ver
+    bytes BE
+    addr16 unknown_text
+    bytes E8
+    rel16 print_string
+    bytes EB
+    rel8 prompt
 
     ; help command
-    bytes BE BF 7C
-    bytes E8 0A 00
-    bytes EB 95
+    label run_help
+    bytes BE
+    addr16 help_text
+    bytes E8
+    rel16 print_string
+    bytes EB
+    rel8 prompt
 
     ; ver command
-    bytes BE CA 7C
-    bytes E8 02 00
-    bytes EB 8D
+    label run_ver
+    bytes BE
+    addr16 version_text
+    bytes E8
+    rel16 print_string
+    bytes EB
+    rel8 prompt
 
     ; print_string subroutine
+    label print_string
     bytes AC
     bytes 84 C0
-    bytes 74 06
+    bytes 74
+    rel8 print_done
     bytes B4 0E
     bytes CD 10
-    bytes EB F5
+    bytes EB
+    rel8 print_string
 
+    label print_done
     bytes C3
 
     ; string_equal subroutine
+    label string_equal
     bytes AC
     bytes AE
-    bytes 75 06
+    bytes 75
+    rel8 string_not_equal
     bytes 84 C0
-    bytes 75 F8
+    bytes 75
+    rel8 string_equal
     bytes F9
     bytes C3
+
+    label string_not_equal
     bytes F8
     bytes C3
 
+    label banner
     ascii "GrOS v0.3\r\n"
     byte 00
+    label prompt_text
     ascii "gr> "
     byte 00
+    label newline
     ascii "\r\n"
     byte 00
+    label backspace_text
     bytes 08 20 08
     byte 00
+    label cmd_help
     ascii "help"
     byte 00
+    label cmd_ver
     ascii "ver"
     byte 00
+    label help_text
     ascii "help ver\r\n"
     byte 00
+    label version_text
     ascii "GrOS v0.3\r\n"
     byte 00
+    label unknown_text
     ascii "?\r\n"
     byte 00
 
+    label input_buffer
     ; 16-byte command buffer starts in zero-filled padding.
 
     pad_to 510 with 00
