@@ -1,6 +1,6 @@
 # GrOS Runtime ABI Seed
 
-This document defines the first runtime ABI seed for Grown and GrOS stage-2 payloads. It is a profile contract with one minimal implemented probe service. It does not add a syscall table, compiler, interpreter, parser, `.gn` toolchain, hosted-native output, or boot banner change.
+This document defines the first runtime ABI seed for Grown and GrOS stage-2 payloads. It is a profile contract with minimal runtime/control and console/text services. It does not add a syscall table, compiler, interpreter, parser, `.gn` toolchain, hosted-native output, or boot banner change.
 
 ## Profile
 
@@ -77,7 +77,7 @@ The current GrOS runtime service gate is:
 int 30h
 ```
 
-The stage-2 image installs this real-mode interrupt vector at boot. The current implementation exposes only the runtime/control probe service defined below.
+The stage-2 image installs this real-mode interrupt vector at boot. The current implementation exposes only the services defined below.
 
 Service selector:
 
@@ -103,9 +103,9 @@ Service calls may clobber caller-saved registers unless a future service definit
 
 Interrupt handlers must return through `iret`. To return `CF` to the caller, the handler must update the saved FLAGS word in the interrupt stack frame before `iret`.
 
-## Implemented Service
+## Implemented Services
 
-Runtime/control probe:
+### Runtime/control Probe
 
 ```txt
 AH = 00h
@@ -140,13 +140,43 @@ AX = 0001h
 
 `0001h` means unsupported service selector.
 
+### Console/text Write C String
+
+```txt
+AH = 01h
+AL = 00h
+```
+
+Inputs:
+
+```txt
+DS:SI  NUL-terminated byte string
+```
+
+Success return:
+
+```txt
+CF = 0
+AX = 0000h
+```
+
+Meaning:
+
+```txt
+Write each byte from `DS:SI` until the first `00h` byte.
+```
+
+The current implementation writes through BIOS teletype output. It does not define colors, cursor policy beyond BIOS behavior, page selection, encoding beyond bytes, or CR/LF normalization.
+
+The service preserves `SI` so callers can reuse the original string pointer after the call.
+
 ## Initial Service Groups
 
 These groups are reserved for future specification, except where an implemented service is explicitly listed:
 
 ```txt
 00h  runtime/control, AL=00h probe implemented
-01h  console/text
+01h  console/text, AL=00h write C string implemented
 02h  storage/block
 03h  process/task
 04h  memory
@@ -189,7 +219,7 @@ Future `.gro` executable subformats are reserved. They must define:
 
 This seed does not add:
 
-- additional `int 30h` services beyond runtime/control probe
+- additional `int 30h` services beyond runtime/control probe and console/text write C string
 - a syscall table
 - a standard library
 - `.gn` code generation

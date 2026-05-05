@@ -44,6 +44,8 @@ The experimental stage-2 image keeps the `GrOS v0.5` banner and moves the prompt
 - Stage-2 source: `boot/stage2_min.gr`
 - Product output: `build/gros-stage2.gro`
 - Product form: 512-byte stage-1 plus a 2048-byte stage-2 payload
+- Runtime gate: `int 30h`
+- Implemented runtime services: `runtime/control.probe` and `console/text.write_cstr`
 
 Build and validate:
 
