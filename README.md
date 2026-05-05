@@ -1,10 +1,10 @@
 # GrOS / Gr Ecosystem Development Repository
 
-Gr is an ecosystem that starts from the most basic machine bytes.
+Gr is an ecosystem that starts from the most basic machine bytes and grows upward into native GrOS systems code.
 
-- `.gr` = low-level source / root / grain
-- `.gn` = Grown language source
-- `.gro` = build output / grown form
+- `.gr` = ground/root/raw source and low-level backend layer
+- `.gn` = unified Grown source, the native low-level systems language for GrOS
+- `.gro` = grown output artifact for the GrOS ecosystem
 
 This repository is the development workspace for GrOS v0.5: a 512-byte x86 BIOS boot sector with a small interactive prompt.
 
@@ -20,7 +20,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - `cls` clears the screen.
 - `reboot` restarts through BIOS bootstrap.
 
-## Current Target
+## Current GrOS Profile
 
 - CPU/firmware: x86 BIOS real mode
 - Product output: `build/gros-v0.5.gro`
@@ -31,8 +31,10 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Raw `.gr` format](docs/04-raw-gr-format.md)
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
 - [GrOS ABI handoff profile](docs/06-abi-handoff.md)
-- [Grown language seed spec](docs/07-grown-language.md)
+- [Grown language spec](docs/07-grown-language.md)
 - [Project overview](docs/08-project-overview.md)
+- [Grown hosted-native ecosystem mapping](docs/09-grown-ecosystem-mapping.md)
+- [GrOS runtime ABI seed](docs/10-runtime-abi-seed.md)
 
 ## Stage-2 Loader Target
 
@@ -97,7 +99,7 @@ Run the full validation path:
 make validate
 ```
 
-This runs the raw builder tests, checks the generated boot images, checks the committed `dist/` artifacts, and verifies that build outputs match committed artifacts. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; the build source of truth remains the `.gr` raw source and Bash tooling.
+This runs the raw builder tests, checks the generated boot images, checks the committed `dist/` artifacts, and verifies that build outputs match committed artifacts. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for the current boot artifacts, the build source of truth remains `.gr` raw source and Bash tooling.
 
 Run in QEMU:
 
@@ -117,7 +119,7 @@ Public meaning:
 
 ```txt
 Gr  = root / grain / ground
-Gn  = Grown source
+Gn  = GrOS-native unified Grown source
 Gro = grown form
 ```
 

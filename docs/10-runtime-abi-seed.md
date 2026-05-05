@@ -1,0 +1,159 @@
+# GrOS Runtime ABI Seed
+
+This document defines the first runtime ABI seed for Grown and GrOS stage-2 payloads. It is a profile contract, not an implementation. It does not add a syscall table, kernel service layer, compiler, interpreter, parser, runtime, build step, output artifact, or boot banner change.
+
+## Profile
+
+```txt
+gros.x86.bios.real16.stage2.v0
+```
+
+Current machine mode:
+
+```txt
+x86 BIOS real mode, 16-bit
+```
+
+This is not an `x86_64` profile.
+
+## Function Call Seed
+
+The seed calling convention is for future `.gn` lowering and `.gr` ground layer code that runs inside the GrOS stage-2 profile.
+
+Argument registers:
+
+```txt
+AX  argument 0
+BX  argument 1
+CX  argument 2
+DX  argument 3
+```
+
+Additional arguments are passed on the stack, right to left, as 16-bit words.
+
+Return registers:
+
+```txt
+AX     primary return value
+DX:AX  32-bit return value when a profile explicitly requires it
+```
+
+Caller-saved registers:
+
+```txt
+AX BX CX DX FLAGS
+```
+
+Callee-saved registers:
+
+```txt
+SI DI BP SP DS ES SS
+```
+
+Direction flag must be clear on function entry and on return.
+
+## Stack Rules
+
+The stack starts from the stage-2 handoff state:
+
+```txt
+SS = 0000
+SP = 7C00
+```
+
+Rules:
+
+- Stack entries are 16-bit words.
+- The stack grows downward.
+- The caller owns pushed arguments.
+- The callee must restore `SP` before return.
+- No heap, allocator, or stack probing contract exists yet.
+
+## Runtime Service Seed
+
+The reserved future GrOS runtime service gate is:
+
+```txt
+int 30h
+```
+
+This gate is reserved only. It is not implemented by the current boot or stage-2 image.
+
+Service selector:
+
+```txt
+AH  service group
+AL  service id
+```
+
+Argument registers:
+
+```txt
+BX CX DX SI DI
+```
+
+Return convention:
+
+```txt
+CF = 0  success, result in AX
+CF = 1  error, error code in AX
+```
+
+Service calls may clobber caller-saved registers unless a future service definition says otherwise.
+
+## Initial Reserved Service Groups
+
+These groups are reserved for future specification:
+
+```txt
+00h  runtime/control
+01h  console/text
+02h  storage/block
+03h  process/task
+04h  memory
+```
+
+No service IDs are implemented yet.
+
+## Failure And Halt Behavior
+
+Returning from the stage-2 entrypoint is undefined.
+
+Runtime fatal behavior is reserved. A future profile may define:
+
+- halt
+- reboot
+- panic text
+- structured error code
+- return to monitor
+
+Until then, payloads must choose their own halt or loop behavior.
+
+## Executable Artifact Seed
+
+For the current GrOS stage-2 profile, executable payload layout remains the stage-2 raw payload inside:
+
+```txt
+dist/gros-stage2.gro
+```
+
+Future `.gro` executable subformats are reserved. They must define:
+
+- header shape
+- entrypoint representation
+- relocation rules
+- symbol visibility
+- service import rules
+- profile compatibility marker
+
+## Non-Goals
+
+This seed does not add:
+
+- implemented `int 30h` handling
+- a syscall table
+- a standard library
+- `.gn` code generation
+- `.gro` executable headers
+- protected mode or long mode
+- `x86_64` execution

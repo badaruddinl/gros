@@ -10,6 +10,8 @@ x86.bios.real16.stage2.v0
 
 This profile targets:
 
+Here, target means the GrOS machine/profile environment named by the profile. It does not mean Windows, Linux, macOS, or Android priority.
+
 - x86 BIOS firmware.
 - 16-bit real mode.
 - A raw sector-backed `.gro` image.
@@ -120,7 +122,7 @@ The following are intentionally not defined by this profile:
 - Executable `.gro` subformat.
 - Grown `.gn` runtime mapping.
 
-These must be defined before a Grown compiler or interpreter can target GrOS as more than raw payload output.
+These must be defined before a complete native `.gn` implementation and runtime mapping can produce more than raw GrOS payload output.
 
 ## Validation
 

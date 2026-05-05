@@ -10,7 +10,7 @@ The generated graph wiki is available locally at:
 
 ## Current Purpose
 
-GrOS is a low-level operating system development repository for the Gr ecosystem. The current runtime target is x86 BIOS real mode.
+GrOS is a low-level operating system development repository for the Gr ecosystem. The current runtime profile is x86 BIOS real mode.
 
 The active baseline remains:
 
@@ -23,12 +23,12 @@ The boot banner is not bumped by documentation, validation, or spec-only changes
 ## File Role Model
 
 ```txt
-.gr   ground/root/raw low-level source
-.gn   future Grown language source
-.gro  grown output artifact
+.gr   ground/root/raw source and low-level backend layer
+.gn   unified Grown source, the native low-level systems language for GrOS
+.gro  grown output artifact for the GrOS ecosystem
 ```
 
-Current boot and stage code is still written as raw `.gr` source and built with Bash tooling. Grown `.gn` is specified but not implemented as a compiler, interpreter, parser, runtime, or build step.
+Current boot and stage code is still written as raw `.gr` source and built with Bash tooling. Grown `.gn` is the unified native low-level language surface for GrOS; compiler, interpreter, parser, runtime, and build integration are not implemented yet.
 
 ## Main Directories
 
@@ -132,6 +132,8 @@ docs/04-raw-gr-format.md
 docs/05-stage2-contract.md
 docs/06-abi-handoff.md
 docs/07-grown-language.md
+docs/09-grown-ecosystem-mapping.md
+docs/10-runtime-abi-seed.md
 ```
 
 Their current responsibilities:
@@ -139,7 +141,9 @@ Their current responsibilities:
 - `04-raw-gr-format.md` defines the raw `.gr` source format.
 - `05-stage2-contract.md` defines the stage-1 to stage-2 boot contract.
 - `06-abi-handoff.md` defines the first machine-level handoff profile.
-- `07-grown-language.md` reserves Grown `.gn` and describes the seed language shape.
+- `07-grown-language.md` defines Grown as the unified native low-level GrOS systems language and reserves `.gn`.
+- `09-grown-ecosystem-mapping.md` defines how `.gn`, `.gr`, `.gro`, and hosted-native profiles map together.
+- `10-runtime-abi-seed.md` defines the first calling convention and runtime service seed for the current GrOS profile.
 
 ## Code-Review Graph Snapshot
 
@@ -163,7 +167,7 @@ The graph database and generated wiki are local development aids. They are not s
 
 ## Next Solid Development Step
 
-The next strong technical step is to define a small calling convention and syscall seed contract before any Grown `.gn` implementation work.
+The next strong technical step is to implement a minimal runtime service in stage-2 after the calling convention and syscall seed contract are reviewed.
 
 That should cover:
 
