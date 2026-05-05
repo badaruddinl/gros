@@ -64,7 +64,7 @@ Ubuntu / WSL:
 
 ```bash
 sudo apt update
-sudo apt install qemu-system-x86 git make
+sudo apt install qemu-system-x86 git make nasm
 ```
 
 Build:
@@ -93,7 +93,7 @@ Run the full validation path:
 make validate
 ```
 
-This runs the raw builder tests, checks the generated boot sector, checks the committed `dist/` artifact, and verifies that `build/gros-v0.5.gro` matches `dist/gros-v0.5.gro`. If `ndisasm` is installed, the validation script also disassembles the generated image and checks the expected BIOS interrupt path. Disassembly is validation-only; the build source of truth remains the `.gr` raw source and Bash tooling.
+This runs the raw builder tests, checks the generated boot images, checks the committed `dist/` artifacts, and verifies that build outputs match committed artifacts. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; the build source of truth remains the `.gr` raw source and Bash tooling.
 
 Run in QEMU:
 

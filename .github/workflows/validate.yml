@@ -24,19 +24,10 @@ jobs:
       - name: Install validation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y make nasm
+          sudo apt-get install -y make nasm qemu-system-x86
 
-      - name: Run raw builder tests
-        run: make test
+      - name: Run full validation
+        run: make validate
 
-      - name: Build and check boot sector
-        run: make check
-
-      - name: Validate generated boot image
-        run: ./scripts/validate_boot_image.sh --require-ndisasm build/gros-v0.5.gro
-
-      - name: Validate committed dist artifact
-        run: ./scripts/validate_boot_image.sh --require-ndisasm dist/gros-v0.5.gro
-
-      - name: Check artifact parity
-        run: cmp -s build/gros-v0.5.gro dist/gros-v0.5.gro
+      - name: Smoke stage-2 boot
+        run: make smoke-stage2
