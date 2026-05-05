@@ -143,6 +143,7 @@ docs/11-gro-payload-header.md
 docs/12-gn-front-end-seed.md
 docs/13-abi-stability-gate.md
 docs/14-real16-memory-model.md
+docs/15-generated-code-fixture-contract.md
 ```
 
 Their current responsibilities:
@@ -157,6 +158,7 @@ Their current responsibilities:
 - `12-gn-front-end-seed.md` reserves the first source front-end shape for `.gn`.
 - `13-abi-stability-gate.md` defines the stability gate before `.gn` compiler work can start.
 - `14-real16-memory-model.md` defines the first memory model seed for the current real16 stage-2 profile.
+- `15-generated-code-fixture-contract.md` defines how expected generated-code fixtures must be represented before compiler work starts.
 
 Runtime ABI validation is implemented in:
 

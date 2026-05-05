@@ -39,6 +39,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Grown `.gn` front-end seed](docs/12-gn-front-end-seed.md)
 - [ABI stability gate](docs/13-abi-stability-gate.md)
 - [Real16 memory model seed](docs/14-real16-memory-model.md)
+- [Generated-code fixture contract seed](docs/15-generated-code-fixture-contract.md)
 
 ## Stage-2 Loader Target
 

@@ -25,7 +25,6 @@ not stable for `.gn` compiler implementation
 Reason:
 
 - runtime services are minimal
-- memory model is not specified
 - payload loading is not implemented
 - headered `.gro` execution is not implemented
 - no generated-code fixture exists
@@ -187,7 +186,13 @@ Required before `.gn` lowering starts:
 Current status:
 
 ```txt
-manual `.gr` runtime fixtures only
+manual `.gr` runtime fixtures only; generated-code fixture contract seeded
+```
+
+The fixture representation contract is defined in:
+
+```txt
+docs/15-generated-code-fixture-contract.md
 ```
 
 ## Allowed Before Gate Completion
