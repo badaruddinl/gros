@@ -55,7 +55,15 @@ expect_fails() {
     pass "$name"
 }
 
-bash -n "$ROOT/scripts/grraw.sh" "$ROOT/scripts/build_boot.sh" "$ROOT/scripts/check_boot.sh" "$ROOT/scripts/run_qemu.sh"
+bash -n \
+    "$ROOT/scripts/grraw.sh" \
+    "$ROOT/scripts/build_boot.sh" \
+    "$ROOT/scripts/build_stage2_image.sh" \
+    "$ROOT/scripts/check_boot.sh" \
+    "$ROOT/scripts/check_stage2_image.sh" \
+    "$ROOT/scripts/run_qemu.sh" \
+    "$ROOT/scripts/run_stage2_qemu.sh" \
+    "$ROOT/scripts/smoke_stage2_qemu.sh"
 pass "shell syntax"
 
 expect_prefix "addr16" "be037c00" <<'GR'
@@ -135,5 +143,11 @@ GR
 "$ROOT/scripts/check_boot.sh" "$ROOT/dist/gros-v0.5.gro" > /dev/null
 cmp -s "$ROOT/build/gros-v0.5.gro" "$ROOT/dist/gros-v0.5.gro" || fail "v0.5 build differs from dist artifact"
 pass "v0.5 artifact"
+
+"$ROOT/scripts/build_stage2_image.sh" > /dev/null
+"$ROOT/scripts/check_stage2_image.sh" "$ROOT/build/gros-stage2.gro" > /dev/null
+"$ROOT/scripts/check_stage2_image.sh" "$ROOT/dist/gros-stage2.gro" > /dev/null
+cmp -s "$ROOT/build/gros-stage2.gro" "$ROOT/dist/gros-stage2.gro" || fail "stage-2 build differs from dist artifact"
+pass "stage-2 artifact"
 
 echo "passed: $pass_count"

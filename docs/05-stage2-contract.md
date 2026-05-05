@@ -39,6 +39,15 @@ Stage-1 remains exactly 512 bytes and ends with the boot signature:
 
 The initial stage-2 reservation is 4 sectors, or 2048 bytes. The full image size must be a multiple of 512 bytes.
 
+The reference implementation paths are:
+
+```txt
+boot/stage1_loader.gr
+boot/stage2_min.gr
+build/gros-stage2.gro
+dist/gros-stage2.gro
+```
+
 ## Load Contract
 
 Stage-1 loads stage-2 with BIOS `int 13h` disk read:
