@@ -29,6 +29,7 @@ The prompt supports line editing with Backspace and built-in commands:
 
 - [Raw `.gr` format](docs/04-raw-gr-format.md)
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
+- [GrOS ABI handoff profile](docs/06-abi-handoff.md)
 
 ## Stage-2 Loader Target
 
