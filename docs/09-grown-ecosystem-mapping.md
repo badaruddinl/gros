@@ -4,7 +4,7 @@ This document defines how `.gn`, `.gr`, and `.gro` map inside the GrOS ecosystem
 
 ## Core Model
 
-Grown `.gn` is the unified native low-level systems language for the GrOS ecosystem.
+Grown `.gn` is the unified native low-level systems language for the GrOS ecosystem. It can target GrOS-native profiles first and future hosted-native compatibility profiles later.
 
 `.gr` is the ground layer. It is the low-level source/backend boundary that lets Grown reach the machine, kernel ABI, syscall surface, executable format, firmware entry, or GrOS profile directly.
 
@@ -13,7 +13,7 @@ Grown `.gn` is the unified native low-level systems language for the GrOS ecosys
 ## File Roles
 
 ```txt
-.gn   unified Grown source, the native low-level systems language for GrOS
+.gn   unified Grown source, native to the GrOS ecosystem and usable by hosted-native profiles
 .gr   ground/root/raw low-level source and backend layer
 .gro  grown output artifact for the GrOS ecosystem
 ```
@@ -108,7 +108,7 @@ This spec does not add:
 - a `.gn` interpreter
 - a `.gn` parser
 - generated `.gro` output from `.gn`
-- hosted executable output
+- hosted-native executable output
 - a standard library
 - a language version bump
 - a GrOS boot banner change

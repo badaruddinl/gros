@@ -24,11 +24,11 @@ The boot banner is not bumped by documentation, validation, or spec-only changes
 
 ```txt
 .gr   ground/root/raw source and low-level backend layer
-.gn   unified Grown source, the native low-level systems language for GrOS
+.gn   unified Grown source, native to the GrOS ecosystem and usable by hosted-native profiles
 .gro  grown output artifact for the GrOS ecosystem
 ```
 
-Current boot and stage code is still written as raw `.gr` source and built with Bash tooling. Grown `.gn` is the unified native low-level language surface for GrOS; compiler, interpreter, parser, runtime, and build integration are not implemented yet.
+Current boot and stage code is still written as raw `.gr` source and built with Bash tooling. Grown `.gn` is the unified native low-level language surface for the GrOS ecosystem; compiler, interpreter, parser, and build integration are not implemented yet.
 
 ## Main Directories
 
@@ -167,13 +167,13 @@ The graph database and generated wiki are local development aids. They are not s
 
 ## Next Solid Development Step
 
-The next strong technical step is to implement a minimal runtime service in stage-2 after the calling convention and syscall seed contract are reviewed.
+Stage-2 now owns the first runtime service gate shape through `int 30h` and the minimal `runtime/control.probe` selector. The next strong technical step is to define and implement the first useful runtime service after that probe, likely a very small console/text service.
 
-That should cover:
+That next step should still stay narrow:
 
-- function call register use
-- register preservation
-- stack frame shape
-- syscall or kernel service entry
-- failure and halt behavior
-- `.gro` executable payload layout
+- one service group
+- one or two service IDs
+- explicit register inputs and return values
+- clear register preservation behavior
+- static validation through the existing `.gro` image checks
+- no `.gn` compiler or hosted-native executable implementation yet

@@ -12,8 +12,18 @@ raw x86.bios.stage2 {
     bytes 8E C0
     bytes 8E D0
     bytes BC 00 7C
+
+    ; install runtime service gate int 30h at IVT[30h]
+    bytes C7 06 C0 00
+    addr16 runtime_int30_handler
+    bytes C7 06 C2 00 00 00
+
     bytes FB
     bytes FC
+
+    ; probe runtime/control service 00h:00h
+    bytes 31 C0
+    bytes CD 30
 
     ; print banner
     bytes BE
@@ -158,6 +168,28 @@ raw x86.bios.stage2 {
     bytes CD 19
     bytes E9
     rel16 prompt
+
+    ; runtime service gate int 30h
+    ; AH=00h AL=00h probes runtime/control support.
+    label runtime_int30_handler
+    bytes 55
+    bytes 89 E5
+    bytes 09 C0
+    bytes 74
+    rel8 runtime_probe_ok
+
+    ; unsupported service selector: CF=1, AX=0001
+    bytes B8 01 00
+    bytes 83 4E 06 01
+    bytes 5D
+    bytes CF
+
+    ; runtime/control probe: CF=0, AX=0000
+    label runtime_probe_ok
+    bytes 31 C0
+    bytes 83 66 06 FE
+    bytes 5D
+    bytes CF
 
     ; print_string subroutine
     label print_string
