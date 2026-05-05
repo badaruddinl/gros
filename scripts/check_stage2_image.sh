@@ -99,10 +99,14 @@ require_stage2_runtime_gate() {
     [ "$handler_value" -ge $((0x8000)) ] || fail "int 30h handler must be inside stage-2 payload"
     [ "$handler_value" -le $((0x87ff)) ] || fail "int 30h handler must be inside stage-2 payload"
 
-    require_instruction_count "$disasm" '[[:space:]]int[[:space:]]+0x30' 2 'runtime service probe and console write calls'
+    require_instruction_count "$disasm" '[[:space:]]int[[:space:]]+0x30' 3 'runtime service probe and console write calls'
     require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x100' 'console/text write selector call'
+    require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x101' 'console/text write-char selector call'
     require_instruction "$disasm" '[[:space:]]or[[:space:]]+ax,ax' 'runtime/control probe selector check'
     require_instruction "$disasm" '[[:space:]]cmp[[:space:]]+ax,0x100' 'console/text write selector dispatch'
+    require_instruction "$disasm" '[[:space:]]cmp[[:space:]]+ax,0x101' 'console/text write-char selector dispatch'
+    require_instruction "$disasm" '[[:space:]]mov[[:space:]]+bl,al' 'console/text write-char echo argument'
+    require_instruction "$disasm" '[[:space:]]mov[[:space:]]+al,bl' 'console/text write-char service body'
     require_instruction "$disasm" '[[:space:]]push[[:space:]]+si' 'console/text SI preservation entry'
     require_instruction "$disasm" '[[:space:]]pop[[:space:]]+si' 'console/text SI preservation exit'
     require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x1' 'unsupported runtime service error code'

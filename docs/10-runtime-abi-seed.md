@@ -170,6 +170,34 @@ The current implementation writes through BIOS teletype output. It does not defi
 
 The service preserves `SI` so callers can reuse the original string pointer after the call.
 
+### Console/text Write Character
+
+```txt
+AH = 01h
+AL = 01h
+```
+
+Inputs:
+
+```txt
+BL  byte to write
+```
+
+Success return:
+
+```txt
+CF = 0
+AX = 0000h
+```
+
+Meaning:
+
+```txt
+Write the byte in `BL`.
+```
+
+The current implementation writes through BIOS teletype output. It does not define colors, page selection, encoding beyond bytes, or control-character policy beyond BIOS behavior.
+
 ## Static ABI Fixture
 
 The implemented return contracts are checked by:
@@ -182,10 +210,11 @@ The fixture reads the built stage-2 `.gro` bytes and verifies:
 
 - the `runtime/control.probe` call shape
 - the `console/text.write_cstr` selector call shape
+- the `console/text.write_char` selector call shape
 - the interrupt handler stack frame
 - the unsupported selector error path
 - the success return path
-- `SI` preservation for console/text writes
+- `SI` preservation for C string writes
 
 This fixture is static validation only. It does not emulate or execute a `.gn` payload.
 
@@ -195,7 +224,7 @@ These groups are reserved for future specification, except where an implemented 
 
 ```txt
 00h  runtime/control, AL=00h probe implemented
-01h  console/text, AL=00h write C string implemented
+01h  console/text, AL=00h write C string and AL=01h write character implemented
 02h  storage/block
 03h  process/task
 04h  memory
@@ -238,7 +267,7 @@ Future `.gro` executable subformats are reserved. They must define:
 
 This seed does not add:
 
-- additional `int 30h` services beyond runtime/control probe and console/text write C string
+- additional `int 30h` services beyond runtime/control probe, console/text write C string, and console/text write character
 - a syscall table
 - a standard library
 - `.gn` code generation

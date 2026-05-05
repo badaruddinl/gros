@@ -65,10 +65,11 @@ raw x86.bios.stage2 {
     rel8 read_key
 
     ; store and echo key
+    bytes 88 C3
     bytes AA
     bytes 41
-    bytes B4 0E
-    bytes CD 10
+    bytes B8 01 01
+    bytes CD 30
     bytes EB
     rel8 read_key
 
@@ -178,6 +179,7 @@ raw x86.bios.stage2 {
     ; runtime service gate int 30h
     ; AH=00h AL=00h probes runtime/control support.
     ; AH=01h AL=00h writes a NUL-terminated string from DS:SI.
+    ; AH=01h AL=01h writes one byte from BL.
     label runtime_int30_handler
     bytes 55
     bytes 89 E5
@@ -187,12 +189,23 @@ raw x86.bios.stage2 {
     bytes 3D 00 01
     bytes 74
     rel8 runtime_write_cstr
+    bytes 3D 01 01
+    bytes 74
+    rel8 runtime_write_char
 
     ; unsupported service selector: CF=1, AX=0001
     bytes B8 01 00
     bytes 83 4E 06 01
     bytes 5D
     bytes CF
+
+    ; console/text.write_char: BL contains the byte to write.
+    label runtime_write_char
+    bytes 88 D8
+    bytes B4 0E
+    bytes CD 10
+    bytes EB
+    rel8 runtime_probe_ok
 
     ; console/text.write_cstr: DS:SI points to a NUL-terminated string.
     label runtime_write_cstr
