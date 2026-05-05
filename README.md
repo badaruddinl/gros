@@ -108,7 +108,7 @@ make validate
 
 This runs the raw builder tests, checks the generated boot images, checks the committed `dist/` artifacts, and verifies that build outputs match committed artifacts. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for the current boot artifacts, the build source of truth remains `.gr` raw source and Bash tooling.
 
-The runtime ABI and real16 memory model fixtures are Bash-only and validate the implemented `int 30h` return contracts plus seeded memory boundaries directly from the stage-2 `.gro` bytes.
+The runtime ABI, real16 memory model, and near-pointer fixtures are Bash-only and validate the implemented `int 30h` return contracts, seeded memory boundaries, and stage-2 pointer immediates directly from the stage-2 `.gro` bytes.
 
 Run in QEMU:
 
