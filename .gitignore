@@ -1,4 +1,5 @@
 build/
+docs/00-repo-plan.md
 docs/01-roadmap.md
 *.log
 .DS_Store
