@@ -38,6 +38,8 @@ Build:
 ./scripts/build_boot.sh
 ```
 
+The boot image is built from the raw-byte `.gr` source in `boot/` through `scripts/grraw.sh`.
+
 Check size and boot signature:
 
 ```bash

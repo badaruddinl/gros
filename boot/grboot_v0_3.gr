@@ -1,7 +1,6 @@
 ; GrBoot v0.3
 ; .gr is low-level source.
-; This file is the initial conceptual form: raw machine bytes.
-; The Gr parser does not exist yet, so scripts/build_boot.sh still writes bytes directly.
+; This raw-byte source is consumed by scripts/grraw.sh.
 
 raw x86.bios.bootsector {
     ; setup segments and stack
