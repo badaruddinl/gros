@@ -10,6 +10,12 @@ Its source extension is:
 
 This document is a seed specification only. It does not implement a compiler, interpreter, parser, runtime, standard library, or build step.
 
+The source front-end seed is defined separately in:
+
+```txt
+docs/12-gn-front-end-seed.md
+```
+
 ## Naming
 
 ```txt
