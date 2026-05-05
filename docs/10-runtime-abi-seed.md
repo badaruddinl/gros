@@ -170,6 +170,25 @@ The current implementation writes through BIOS teletype output. It does not defi
 
 The service preserves `SI` so callers can reuse the original string pointer after the call.
 
+## Static ABI Fixture
+
+The implemented return contracts are checked by:
+
+```txt
+scripts/check_runtime_abi.sh
+```
+
+The fixture reads the built stage-2 `.gro` bytes and verifies:
+
+- the `runtime/control.probe` call shape
+- the `console/text.write_cstr` selector call shape
+- the interrupt handler stack frame
+- the unsupported selector error path
+- the success return path
+- `SI` preservation for console/text writes
+
+This fixture is static validation only. It does not emulate or execute a `.gn` payload.
+
 ## Initial Service Groups
 
 These groups are reserved for future specification, except where an implemented service is explicitly listed:

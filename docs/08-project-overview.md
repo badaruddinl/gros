@@ -114,6 +114,7 @@ It checks:
 - committed `dist/` artifact parity
 - validation-only `ndisasm` checks
 - stage-2 loader handoff requirements
+- runtime ABI byte fixtures for implemented `int 30h` services
 
 The stage-2 smoke command is:
 
@@ -144,6 +145,14 @@ Their current responsibilities:
 - `07-grown-language.md` defines Grown as the unified native low-level GrOS systems language and reserves `.gn`.
 - `09-grown-ecosystem-mapping.md` defines how `.gn`, `.gr`, `.gro`, and hosted-native profiles map together.
 - `10-runtime-abi-seed.md` defines the first calling convention and runtime service seed for the current GrOS profile.
+
+Runtime ABI validation is implemented in:
+
+```txt
+scripts/check_runtime_abi.sh
+```
+
+It is a Bash-only static fixture over the built stage-2 `.gro` image.
 
 ## Code-Review Graph Snapshot
 
