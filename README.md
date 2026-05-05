@@ -25,6 +25,11 @@ The prompt supports line editing with Backspace and built-in commands:
 - Product output: `build/gros-v0.5.gro`
 - Product form: raw 512-byte boot sector
 
+## Technical Specs
+
+- [Raw `.gr` format](docs/04-raw-gr-format.md)
+- [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
+
 ## Run
 
 Ubuntu / WSL:
