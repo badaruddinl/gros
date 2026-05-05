@@ -1,0 +1,4 @@
+build/
+docs/01-roadmap.md
+*.log
+.DS_Store
