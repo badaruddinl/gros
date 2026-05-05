@@ -37,6 +37,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [GrOS runtime ABI seed](docs/10-runtime-abi-seed.md)
 - [`.gro` payload header seed](docs/11-gro-payload-header.md)
 - [Grown `.gn` front-end seed](docs/12-gn-front-end-seed.md)
+- [ABI stability gate](docs/13-abi-stability-gate.md)
 
 ## Stage-2 Loader Target
 

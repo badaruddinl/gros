@@ -137,6 +137,7 @@ docs/09-grown-ecosystem-mapping.md
 docs/10-runtime-abi-seed.md
 docs/11-gro-payload-header.md
 docs/12-gn-front-end-seed.md
+docs/13-abi-stability-gate.md
 ```
 
 Their current responsibilities:
@@ -149,6 +150,7 @@ Their current responsibilities:
 - `10-runtime-abi-seed.md` defines the first calling convention and runtime service seed for the current GrOS profile.
 - `11-gro-payload-header.md` reserves the future header shape for executable `.gro` payloads.
 - `12-gn-front-end-seed.md` reserves the first source front-end shape for `.gn`.
+- `13-abi-stability-gate.md` defines the stability gate before `.gn` compiler work can start.
 
 Runtime ABI validation is implemented in:
 
