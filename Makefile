@@ -1,3 +1,5 @@
+.PHONY: build check run clean
+
 build:
 	./scripts/build_boot.sh
 
