@@ -47,6 +47,12 @@ Check size and boot signature:
 ./scripts/check_boot.sh
 ```
 
+Run builder tests:
+
+```bash
+make test
+```
+
 Run in QEMU:
 
 ```bash
