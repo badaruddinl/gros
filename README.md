@@ -32,6 +32,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
 - [GrOS ABI handoff profile](docs/06-abi-handoff.md)
 - [Grown language seed spec](docs/07-grown-language.md)
+- [Project overview](docs/08-project-overview.md)
 
 ## Stage-2 Loader Target
 
