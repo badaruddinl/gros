@@ -114,6 +114,7 @@ It checks:
 - committed `dist/` artifact parity
 - validation-only `ndisasm` checks
 - stage-2 loader handoff requirements
+- real16 memory model boundaries
 - runtime ABI byte fixtures for implemented `int 30h` services
 
 The stage-2 smoke command is:
@@ -161,6 +162,14 @@ scripts/check_runtime_abi.sh
 ```
 
 It is a Bash-only static fixture over the built stage-2 `.gro` image.
+
+Real16 memory model validation is implemented in:
+
+```txt
+scripts/check_memory_model.sh
+```
+
+It is a Bash-only static fixture over the built stage-2 `.gro` image and the memory model seed.
 
 ## Code-Review Graph Snapshot
 

@@ -146,7 +146,7 @@ docs/14-real16-memory-model.md
 Status:
 
 ```txt
-seeded, not proven by memory fixtures or generated code
+seeded with a static fixture, not proven by generated code
 ```
 
 This blocks pointer types, arrays, strings, global data, and most useful generated `.gn` code.
