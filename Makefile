@@ -14,11 +14,13 @@ check: build
 test:
 	./scripts/test_grraw.sh
 
-validate: test check check-stage2
+validate: test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
-	./scripts/validate_boot_image.sh $(BUILD_IMAGE)
+	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
+	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
 	cmp -s $(BUILD_IMAGE) $(DIST_IMAGE)
-	./scripts/check_stage2_image.sh $(STAGE2_DIST_IMAGE)
+	./scripts/check_stage2_image.sh --require-ndisasm $(STAGE2_BUILD_IMAGE)
+	./scripts/check_stage2_image.sh --require-ndisasm $(STAGE2_DIST_IMAGE)
 	cmp -s $(STAGE2_BUILD_IMAGE) $(STAGE2_DIST_IMAGE)
 	@echo "ok: build matches dist artifacts"
 
@@ -26,10 +28,10 @@ stage2:
 	./scripts/build_stage2_image.sh
 
 check-stage2: stage2
-	./scripts/check_stage2_image.sh
+	./scripts/check_stage2_image.sh --require-ndisasm
 
 smoke-stage2: stage2
-	./scripts/smoke_stage2_qemu.sh
+	./scripts/smoke_stage2_qemu.sh --require-qemu
 
 run: build
 	./scripts/run_qemu.sh

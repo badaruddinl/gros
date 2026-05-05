@@ -52,6 +52,8 @@ raw x86.bios.stage1 {
     bytes BC 00 7C
     bytes FB
     bytes FC
+    bytes 8A 16
+    addr16 boot_drive
 
     ; jump to stage-2 entry at 0000:8000
     bytes EA 00 80 00 00
