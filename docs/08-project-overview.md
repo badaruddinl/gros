@@ -116,6 +116,7 @@ It checks:
 - stage-2 loader handoff requirements
 - real16 memory model boundaries
 - stage-2 near-pointer immediates
+- stage-2 static text/data bytes
 - runtime ABI byte fixtures for implemented `int 30h` services
 
 The stage-2 smoke command is:
@@ -169,6 +170,7 @@ Real16 memory model validation is implemented in:
 ```txt
 scripts/check_memory_model.sh
 scripts/check_near_pointers.sh
+scripts/check_stage2_data.sh
 ```
 
 These are Bash-only static fixtures over the built stage-2 `.gro` image and the memory model seed.
