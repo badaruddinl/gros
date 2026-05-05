@@ -1,4 +1,4 @@
-; GrBoot v0.4
+; GrBoot v0.5
 ; .gr is low-level source.
 ; This raw-byte source is consumed by scripts/grraw.sh.
 
@@ -113,11 +113,19 @@ raw x86.bios.bootsector {
     bytes 72
     rel8 run_cls
     bytes BE
+    addr16 input_buffer
+    bytes BF
+    addr16 cmd_reboot
+    bytes E8
+    rel16 string_equal
+    bytes 72
+    rel8 run_reboot
+    bytes BE
     addr16 unknown_text
     bytes E8
     rel16 print_string
-    bytes EB
-    rel8 prompt
+    bytes E9
+    rel16 prompt
 
     ; help command
     label run_help
@@ -125,8 +133,8 @@ raw x86.bios.bootsector {
     addr16 help_text
     bytes E8
     rel16 print_string
-    bytes EB
-    rel8 prompt
+    bytes E9
+    rel16 prompt
 
     ; ver command
     label run_ver
@@ -134,13 +142,19 @@ raw x86.bios.bootsector {
     addr16 version_text
     bytes E8
     rel16 print_string
-    bytes EB
-    rel8 prompt
+    bytes E9
+    rel16 prompt
 
     ; cls command
     label run_cls
     bytes B8 03 00
     bytes CD 10
+    bytes E9
+    rel16 prompt
+
+    ; reboot command
+    label run_reboot
+    bytes CD 19
     bytes E9
     rel16 prompt
 
@@ -175,7 +189,7 @@ raw x86.bios.bootsector {
     bytes C3
 
     label banner
-    ascii "GrOS v0.4\r\n"
+    ascii "GrOS v0.5\r\n"
     byte 00
     label prompt_text
     ascii "gr> "
@@ -195,11 +209,14 @@ raw x86.bios.bootsector {
     label cmd_cls
     ascii "cls"
     byte 00
+    label cmd_reboot
+    ascii "reboot"
+    byte 00
     label help_text
-    ascii "help ver cls\r\n"
+    ascii "help ver cls reboot\r\n"
     byte 00
     label version_text
-    ascii "GrOS v0.4\r\n"
+    ascii "GrOS v0.5\r\n"
     byte 00
     label unknown_text
     ascii "?\r\n"

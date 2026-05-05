@@ -2,7 +2,7 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-FILE=${1:-"$ROOT/build/gros-v0.4.gro"}
+FILE=${1:-"$ROOT/build/gros-v0.5.gro"}
 
 if [ ! -f "$FILE" ]; then
     echo "error: file not found: $FILE"

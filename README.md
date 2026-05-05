@@ -5,23 +5,24 @@ Gr is an ecosystem that starts from the most basic machine bytes.
 - `.gr` = low-level source / root / grain
 - `.gro` = build output / grown form
 
-This repository is the development workspace for GrOS v0.4: a 512-byte x86 BIOS boot sector with a small interactive prompt.
+This repository is the development workspace for GrOS v0.5: a 512-byte x86 BIOS boot sector with a small interactive prompt.
 
 ```txt
-GrOS v0.4
+GrOS v0.5
 gr>
 ```
 
-The prompt supports line editing with Backspace and two built-in commands:
+The prompt supports line editing with Backspace and built-in commands:
 
 - `help` prints the available commands.
 - `ver` prints the current GrOS version.
 - `cls` clears the screen.
+- `reboot` restarts through BIOS bootstrap.
 
 ## Current Target
 
 - CPU/firmware: x86 BIOS real mode
-- Product output: `build/gros-v0.4.gro`
+- Product output: `build/gros-v0.5.gro`
 - Product form: raw 512-byte boot sector
 
 ## Run
