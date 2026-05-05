@@ -137,10 +137,16 @@ Required:
 - stack collision rules
 - heap or no-heap rule
 
-Current status:
+Current seed:
 
 ```txt
-not specified
+docs/14-real16-memory-model.md
+```
+
+Status:
+
+```txt
+seeded, not proven by memory fixtures or generated code
 ```
 
 This blocks pointer types, arrays, strings, global data, and most useful generated `.gn` code.
