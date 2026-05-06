@@ -57,9 +57,10 @@ require_no_tracked_matches "local checkpoint files" ".local/*"
 require_no_tracked_matches "generated code-review graph files" ".code-review-graph/*"
 require_no_tracked_matches "generated build files" "build/*"
 require_no_tracked_matches "Python tooling" "*.py"
+require_no_tracked_regex "legacy extension files" '[.](gn|gr|gro)$'
 require_no_tracked_regex "roadmap/checkpoint documents" '(^|/)(roadmap|road-map|checkpoints).*\.md$'
 
-FORBIDDEN_TEXT='G''an|v0[.]6|codex/grboot'
+FORBIDDEN_TEXT='G''an|v0[.]6|codex/grboot|(^|[^[:alnum:]_])[.](gn|gr|gro)([^[:alnum:]_]|$)'
 require_no_text_matches "$FORBIDDEN_TEXT"
 
 echo "project policy: ok"

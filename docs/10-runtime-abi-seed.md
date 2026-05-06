@@ -1,6 +1,6 @@
 # GrOS Runtime ABI Seed
 
-This document defines the first runtime ABI seed for Grown and GrOS stage-2 payloads. It is a profile contract with minimal runtime/control and console/text services. It does not add a syscall table, compiler, interpreter, parser, `.gn` toolchain, hosted-native output, or boot banner change.
+This document defines the first runtime ABI seed for Grown and GrOS stage-2 payloads. It is a profile contract with minimal runtime/control and console/text services. It does not add a syscall table, compiler, interpreter, parser, `.grw` toolchain, hosted-native output, or boot banner change.
 
 ## Profile
 
@@ -18,7 +18,7 @@ This is not an `x86_64` profile.
 
 ## Function Call Seed
 
-The seed calling convention is for future `.gn` lowering and `.gr` ground layer code that runs inside the GrOS stage-2 profile.
+The seed calling convention is for future `.grw` lowering and `.gwn` ground layer code that runs inside the GrOS stage-2 profile.
 
 Argument registers:
 
@@ -206,7 +206,7 @@ The implemented return contracts are checked by:
 scripts/check_runtime_abi.sh
 ```
 
-The fixture reads the built stage-2 `.gro` bytes and verifies:
+The fixture reads the built stage-2 `.gwo` bytes and verifies:
 
 - the `runtime/control.probe` call shape
 - the `console/text.write_cstr` selector call shape
@@ -216,7 +216,7 @@ The fixture reads the built stage-2 `.gro` bytes and verifies:
 - the success return path
 - `SI` preservation for C string writes
 
-This fixture is static validation only. It does not emulate or execute a `.gn` payload.
+This fixture is static validation only. It does not emulate or execute a `.grw` payload.
 
 ## Initial Service Groups
 
@@ -240,7 +240,7 @@ The current memory model seed for this runtime profile is defined in:
 docs/14-real16-memory-model.md
 ```
 
-The seed keeps near pointers as 16-bit offsets in segment `0000`, reserves far pointers, and does not define a heap. Pointer-sized `.gn` types remain reserved until memory fixtures and generated-code validation exist.
+The seed keeps near pointers as 16-bit offsets in segment `0000`, reserves far pointers, and does not define a heap. Pointer-sized `.grw` types remain reserved until memory fixtures and generated-code validation exist.
 
 ## Failure And Halt Behavior
 
@@ -261,10 +261,10 @@ Until then, payloads must choose their own halt or loop behavior.
 For the current GrOS stage-2 profile, executable payload layout remains the stage-2 raw payload inside:
 
 ```txt
-dist/gros-stage2.gro
+dist/gros-stage2.gwo
 ```
 
-Future `.gro` executable subformats are reserved. They must define:
+Future `.gwo` executable subformats are reserved. They must define:
 
 - header shape
 - entrypoint representation
@@ -280,7 +280,7 @@ This seed does not add:
 - additional `int 30h` services beyond runtime/control probe, console/text write C string, and console/text write character
 - a syscall table
 - a standard library
-- `.gn` code generation
-- `.gro` executable headers
+- `.grw` code generation
+- `.gwo` executable headers
 - protected mode or long mode
 - `x86_64` execution

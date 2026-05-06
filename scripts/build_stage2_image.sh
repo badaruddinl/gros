@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-STAGE1_SRC="$ROOT/boot/stage1_loader.gr"
-STAGE2_SRC="$ROOT/boot/stage2_min.gr"
+STAGE1_SRC="$ROOT/boot/stage1_loader.gwn"
+STAGE2_SRC="$ROOT/boot/stage2_min.gwn"
 BUILD_DIR="$ROOT/build"
-OUT=${1:-"$BUILD_DIR/gros-stage2.gro"}
+OUT=${1:-"$BUILD_DIR/gros-stage2.gwo"}
 
 fail() {
     echo "error: $1" >&2
@@ -33,12 +33,12 @@ mkdir -p "$BUILD_DIR" "$(dirname -- "$OUT")"
 TMP_DIR=$(mktemp -d "$BUILD_DIR/stage2-build.XXXXXX")
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-STAGE1="$TMP_DIR/stage1-loader.gro"
-STAGE2="$TMP_DIR/stage2-min.gro"
-FULL="$TMP_DIR/gros-stage2.gro"
+STAGE1="$TMP_DIR/stage1-loader.gwo"
+STAGE2="$TMP_DIR/stage2-min.gwo"
+FULL="$TMP_DIR/gros-stage2.gwo"
 
-"$ROOT/scripts/grraw.sh" "$STAGE1_SRC" "$STAGE1"
-"$ROOT/scripts/grraw.sh" "$STAGE2_SRC" "$STAGE2"
+"$ROOT/scripts/gwnraw.sh" "$STAGE1_SRC" "$STAGE1"
+"$ROOT/scripts/gwnraw.sh" "$STAGE2_SRC" "$STAGE2"
 
 check_size "$STAGE1" 512 "stage-1"
 check_size "$STAGE2" 2048 "stage-2"

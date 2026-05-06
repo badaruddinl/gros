@@ -112,7 +112,7 @@ ASCII:
 
 ```txt
 GrOS v0.5\r\n\0
-gr> \0
+ground> \0
 \r\n\0
 \b \b\0
 help\0

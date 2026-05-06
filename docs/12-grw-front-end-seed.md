@@ -1,10 +1,10 @@
-# Grown `.gn` Front-End Seed
+# Grown `.grw` Front-End Seed
 
-This document defines the first source front-end seed for Grown `.gn`. It is specification only. It does not add a parser, compiler, interpreter, type checker, code generator, standard library, hosted-native executable output, or boot banner change.
+This document defines the first source front-end seed for Grown `.grw`. It is specification only. It does not add a parser, compiler, interpreter, type checker, code generator, standard library, hosted-native executable output, or boot banner change.
 
 ## Scope
 
-The front-end seed describes the source forms that future tooling must recognize before lowering Grown into a `.gr` ground layer or another profile-specific backend.
+The front-end seed describes the source forms that future tooling must recognize before lowering Grown into a `.gwn` ground layer or another profile-specific backend.
 
 The seed covers:
 
@@ -15,13 +15,13 @@ The seed covers:
 - target declaration
 - function declaration
 - return statement
-- raw `.gr` boundary
+- raw `.gwn` boundary
 
 Everything else remains reserved.
 
 ## Source Bytes
 
-`.gn` source is text. The seed requires ASCII-compatible source bytes.
+`.grw` source is text. The seed requires ASCII-compatible source bytes.
 
 Allowed line endings:
 
@@ -38,13 +38,13 @@ Tabs and spaces are both whitespace. Formatting is not semantic in this seed.
 
 Line comments:
 
-```gn
+```grw
 // comment
 ```
 
 Block comments are reserved and not part of the seed:
 
-```gn
+```grw
 /* reserved */
 ```
 
@@ -80,7 +80,7 @@ i32
 
 String literal seed:
 
-```gn
+```grw
 "text"
 ```
 
@@ -88,7 +88,7 @@ String literals are currently used for profile names only. Escape rules are rese
 
 Integer literal seed:
 
-```gn
+```grw
 0
 123
 0x7c00
@@ -100,9 +100,9 @@ Boolean literals are reserved.
 
 ## Target Declaration
 
-A `.gn` source file must begin with one target declaration:
+A `.grw` source file must begin with one target declaration:
 
-```gn
+```grw
 target "gros.x86.bios.real16.stage2.v0"
 ```
 
@@ -112,7 +112,7 @@ The target string selects a profile. The seed does not allow multiple target dec
 
 Function declaration seed:
 
-```gn
+```grw
 fn main() -> void {
     return;
 }
@@ -128,7 +128,7 @@ Rules:
 
 The first logical entrypoint remains:
 
-```gn
+```grw
 fn main() -> void
 ```
 
@@ -138,40 +138,40 @@ Profile-specific tooling may map `main` to a different physical entrypoint.
 
 Void return:
 
-```gn
+```grw
 return;
 ```
 
 Value return:
 
-```gn
+```grw
 return 0;
 ```
 
 The seed does not define expression precedence. A return value may only be a literal until expressions are specified.
 
-## Raw `.gr` Boundary
+## Raw `.gwn` Boundary
 
 Raw ground boundary seed:
 
-```gn
-raw gr("gros.x86.bios.real16.stage2.v0") {
+```grw
+raw gwn("gros.x86.bios.real16.stage2.v0") {
     // profile-specific low-level body
 }
 ```
 
 Rules:
 
-- `raw gr(...)` is profile-specific.
+- `raw gwn(...)` is profile-specific.
 - Code inside the block is not portable by default.
-- The block body is reserved for future `.gr` embedding rules.
+- The block body is reserved for future `.gwn` embedding rules.
 - Tooling must reject a raw block whose profile string is incompatible with the file target unless a future spec explicitly permits cross-profile raw blocks.
 
 ## Minimal Source Examples
 
 Native GrOS stage-2 profile:
 
-```gn
+```grw
 target "gros.x86.bios.real16.stage2.v0"
 
 fn main() -> void {
@@ -181,7 +181,7 @@ fn main() -> void {
 
 Hosted-native compatibility profile:
 
-```gn
+```grw
 target "host.linux.x86_64.v0"
 
 fn main() -> i32 {
@@ -216,10 +216,10 @@ The following are reserved:
 
 This seed does not add:
 
-- executable `.gn` tooling
+- executable `.grw` tooling
 - parsing in the current Bash build flow
-- `.gn` to `.gr` lowering
-- `.gn` to `.gro` output
+- `.grw` to `.gwn` lowering
+- `.grw` to `.gwo` output
 - hosted-native executable output
 - a standard library
 - a language version bump

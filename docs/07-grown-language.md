@@ -5,7 +5,7 @@ Grown is the planned native low-level systems language for GrOS. It belongs to t
 Its source extension is:
 
 ```txt
-.gn
+.grw
 ```
 
 This document is a seed specification only. It does not implement a compiler, interpreter, parser, runtime, standard library, or build step.
@@ -13,37 +13,37 @@ This document is a seed specification only. It does not implement a compiler, in
 The source front-end seed is defined separately in:
 
 ```txt
-docs/12-gn-front-end-seed.md
+docs/12-grw-front-end-seed.md
 ```
 
 ## Naming
 
 ```txt
 Grown  native low-level GrOS systems language
-.gn    unified Grown source
-.gr    ground/root/raw source and low-level backend layer
-.gro   grown output artifact
+.grw    Ground Readable Weave source
+.gwo    Grown Object artifact
+.gwn    Ground/Woven Native backend layer
 ```
 
 The name is **Grown**.
 
 ## File Roles
 
-`.gr` remains the source of truth for the current boot and stage code:
+`.gwn` remains the source of truth for the current boot and stage code:
 
 - raw boot bytes
 - low-level loader source
 - early kernel/runtime source
 - validation-friendly machine-level source
 
-`.gn` is unified Grown source:
+`.grw` is Ground Readable Weave source:
 
 - structured systems code above raw boot source
 - GrOS kernel, driver, runtime, and ABI/profile-aware source
 - hosted-native compatibility source for future host profiles
-- code that can be lowered through `.gr` into a `.gro` artifact or a hosted-native executable
+- code that can be lowered through `.gwn` into a `.gwo` artifact or a hosted-native executable
 
-`.gro` remains the canonical GrOS ecosystem artifact:
+`.gwo` remains the canonical Grown Object artifact:
 
 - boot image
 - stage payload
@@ -55,7 +55,7 @@ The name is **Grown**.
 
 The first logical Grown entrypoint form is:
 
-```gn
+```grw
 fn main() -> void
 ```
 
@@ -84,7 +84,7 @@ i32
 
 Pointer types are reserved until memory and ABI rules are stable:
 
-```gn
+```grw
 ptr<T>
 ```
 
@@ -99,7 +99,7 @@ isize
 
 The seed syntax shape is C-like but intentionally incomplete:
 
-```gn
+```grw
 target "gros.x86.bios.real16.stage2.v0"
 
 fn main() -> void {
@@ -109,7 +109,7 @@ fn main() -> void {
 
 Hosted-native compatibility profiles use the same source language shape:
 
-```gn
+```grw
 target "host.linux.x86_64.v0"
 
 fn main() -> i32 {
@@ -119,8 +119,8 @@ fn main() -> i32 {
 
 Raw ground boundaries are profile-specific:
 
-```gn
-raw gr("host.linux.x86_64.v0") {
+```grw
+raw gwn("host.linux.x86_64.v0") {
     // profile-specific low-level body
 }
 ```
@@ -145,10 +145,10 @@ In this spec, target means a GrOS execution profile, device/profile contract, or
 
 Future Grown output profiles may include:
 
-- raw GrOS stage payload `.gro`
-- GrOS kernel `.gro`
-- GrOS executable `.gro`
-- GrOS library/package `.gro`
+- raw GrOS stage payload `.gwo`
+- GrOS kernel `.gwo`
+- GrOS executable `.gwo`
+- GrOS library/package `.gwo`
 - hosted-native Linux executable
 - hosted-native Windows executable
 - hosted-native Darwin executable
@@ -156,14 +156,14 @@ Future Grown output profiles may include:
 The current concrete build path remains:
 
 ```txt
-.gr source -> Bash raw builder -> .gro artifact
+.gwn source -> Bash raw builder -> .gwo artifact
 ```
 
-No `.gn` source is part of the active build yet.
+No `.grw` source is part of the active build yet.
 
 ## ABI Dependency
 
-Complete native `.gn` code generation and runtime mapping await enough GrOS ABI surface for generated code.
+Complete native `.grw` code generation and runtime mapping await enough GrOS ABI surface for generated code.
 
 The minimum required contracts are:
 
@@ -172,7 +172,7 @@ The minimum required contracts are:
 - stack frame rules
 - memory model
 - syscall or kernel service interface
-- object/executable `.gro` layout
+- object/executable `.gwo` layout
 - panic or halt behavior
 
 The existing `x86.bios.real16.stage2.v0` handoff profile is a machine-level payload entry contract. It is necessary, but not sufficient, for a full Grown language runtime mapping.
@@ -181,10 +181,10 @@ The existing `x86.bios.real16.stage2.v0` handoff profile is a machine-level payl
 
 This seed spec does not add:
 
-- a `.gn` compiler
-- a `.gn` interpreter
-- a `.gn` parser
-- generated `.gro` output from `.gn`
+- a `.grw` compiler
+- a `.grw` interpreter
+- a `.grw` parser
+- generated `.gwo` output from `.grw`
 - hosted-native executable output
 - a standard library
 - a language version bump

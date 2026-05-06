@@ -2,11 +2,11 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-DEFAULT_FILE="$ROOT/build/gros-stage2.gro"
+DEFAULT_FILE="$ROOT/build/gros-stage2.gwo"
 FILE="$DEFAULT_FILE"
 
 usage() {
-    echo "usage: check_runtime_abi.sh [image.gro]" >&2
+    echo "usage: check_runtime_abi.sh [image.gwo]" >&2
 }
 
 while [ "$#" -gt 0 ]; do

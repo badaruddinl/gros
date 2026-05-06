@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-DEFAULT_FILE="$ROOT/build/gros-stage2.gro"
+DEFAULT_FILE="$ROOT/build/gros-stage2.gwo"
 FILE="$DEFAULT_FILE"
 
 STAGE1_SIZE=512
@@ -10,7 +10,7 @@ STAGE2_SIZE=2048
 IMAGE_SIZE=2560
 
 usage() {
-    echo "usage: check_stage2_data.sh [image.gro]" >&2
+    echo "usage: check_stage2_data.sh [image.gwo]" >&2
 }
 
 fail() {
@@ -91,7 +91,7 @@ TRAILING_ZERO_HEX=$(hex_of_region "$FILE" "$((STAGE1_SIZE + STAGE2_SIZE - 16))" 
 [ -n "$STAGE2_HEX" ] || fail "stage-2 payload must not be empty"
 
 require_hex_count "47724f532076302e350d0a00" 2 "banner and version text"
-require_hex_count "67723e2000" 1 "prompt text"
+require_hex_count "67726f756e643e2000" 1 "prompt text"
 require_hex_count "0d0a00" 2 "newline text"
 require_hex_count "08200800" 1 "backspace text"
 require_hex_count "68656c7000" 1 "help command"

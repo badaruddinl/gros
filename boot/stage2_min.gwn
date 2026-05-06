@@ -1,6 +1,6 @@
 ; GrOS minimal stage-2 target
-; .gr is low-level source.
-; This raw-byte source is consumed by scripts/grraw.sh.
+; .gwn is low-level source.
+; This raw-byte source is consumed by scripts/gwnraw.sh.
 
 raw x86.bios.stage2 {
     origin 8000
@@ -256,7 +256,7 @@ raw x86.bios.stage2 {
     ascii "GrOS v0.5\r\n"
     byte 00
     label prompt_text
-    ascii "gr> "
+    ascii "ground> "
     byte 00
     label newline
     ascii "\r\n"

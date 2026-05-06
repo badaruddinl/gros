@@ -1,6 +1,6 @@
 ; GrOS stage-1 loader
-; .gr is low-level source.
-; This raw-byte source is consumed by scripts/grraw.sh.
+; .gwn is low-level source.
+; This raw-byte source is consumed by scripts/gwnraw.sh.
 
 raw x86.bios.stage1 {
     origin 7C00

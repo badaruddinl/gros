@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-DEFAULT_FILE="$ROOT/build/gros-stage2.gro"
+DEFAULT_FILE="$ROOT/build/gros-stage2.gwo"
 SPEC_FILE="$ROOT/docs/14-real16-memory-model.md"
 FILE="$DEFAULT_FILE"
 
@@ -12,7 +12,7 @@ STAGE2_START=$((0x8000))
 STAGE2_END=$((0x87ff))
 
 usage() {
-    echo "usage: check_near_pointers.sh [image.gro]" >&2
+    echo "usage: check_near_pointers.sh [image.gwo]" >&2
 }
 
 fail() {
@@ -160,7 +160,7 @@ require_hex "$STAGE2_HEX" "b80001cd30c3" "write_string forwards DS:SI to console
 require_hex "$STAGE2_HEX" "56fce8" "console/text.write_cstr preserves SI before local string walk"
 require_doc_text "u16 offset within segment 0000" "near pointer representation"
 require_doc_text "DS:offset" "default data pointer rule"
-require_doc_text 'Pointer-sized `.gn` types remain reserved' 'reserved `.gn` pointer rule'
+require_doc_text 'Pointer-sized `.grw` types remain reserved' 'reserved `.grw` pointer rule'
 
 echo "file       : $FILE"
 echo "stage-2    : $(hex4 "$STAGE2_START")..$(hex4 "$STAGE2_END")"

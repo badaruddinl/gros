@@ -2,12 +2,12 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-DEFAULT_FILE="$ROOT/build/gros-stage2.gro"
+DEFAULT_FILE="$ROOT/build/gros-stage2.gwo"
 FILE="$DEFAULT_FILE"
 REQUIRE_NDISASM=0
 
 usage() {
-    echo "usage: check_stage2_image.sh [--require-ndisasm] [image.gro]" >&2
+    echo "usage: check_stage2_image.sh [--require-ndisasm] [image.gwo]" >&2
 }
 
 while [ "$#" -gt 0 ]; do
@@ -137,8 +137,8 @@ echo "signature: $SIG"
 if command -v ndisasm > /dev/null 2>&1; then
     TMP_DIR=$(mktemp -d)
     trap 'rm -rf "$TMP_DIR"' EXIT
-    STAGE1="$TMP_DIR/stage1.gro"
-    STAGE2="$TMP_DIR/stage2.gro"
+    STAGE1="$TMP_DIR/stage1.gwo"
+    STAGE2="$TMP_DIR/stage2.gwo"
     STAGE1_DISASM="$TMP_DIR/stage1.ndisasm"
     STAGE2_DISASM="$TMP_DIR/stage2.ndisasm"
 
@@ -155,7 +155,7 @@ if command -v ndisasm > /dev/null 2>&1; then
     require_near_boot_drive_reload "$STAGE1_DISASM"
 
     require_text "$STAGE2" 'GrOS v0.5' 'stage-2 banner'
-    require_text "$STAGE2" 'gr> ' 'stage-2 prompt'
+    require_text "$STAGE2" 'ground> ' 'stage-2 prompt'
     require_instruction "$STAGE2_DISASM" '[[:space:]]int[[:space:]]+0x16' 'keyboard read interrupt'
     require_instruction "$STAGE2_DISASM" '[[:space:]]int[[:space:]]+0x10' 'video interrupt'
     require_instruction "$STAGE2_DISASM" '[[:space:]]int[[:space:]]+0x19' 'BIOS reboot interrupt'

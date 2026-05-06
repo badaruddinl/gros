@@ -1,6 +1,6 @@
 # GrOS ABI Handoff Profile
 
-This document defines the first machine-level handoff profile for GrOS payloads. It is a low-level runtime contract for the loaded `.gro` image. It is not a Grown `.gn` language ABI, compiler spec, filesystem format, or roadmap.
+This document defines the first machine-level handoff profile for GrOS payloads. It is a low-level runtime contract for the loaded `.gwo` image. It is not a Grown `.grw` language ABI, compiler spec, filesystem format, or roadmap.
 
 ## Profile
 
@@ -14,7 +14,7 @@ Here, target means the GrOS machine/profile environment named by the profile. It
 
 - x86 BIOS firmware.
 - 16-bit real mode.
-- A raw sector-backed `.gro` image.
+- A raw sector-backed `.gwo` image.
 - A stage-2 payload loaded by the GrOS stage-1 boot sector.
 
 ## Image Layout
@@ -36,7 +36,7 @@ Required sizes:
 The current reference artifact is:
 
 ```txt
-dist/gros-stage2.gro
+dist/gros-stage2.gwo
 ```
 
 ## Load And Entry
@@ -119,10 +119,10 @@ The following are intentionally not defined by this profile:
 - Kernel syscall table.
 - Heap or allocator contract.
 - Object layout.
-- Executable `.gro` subformat.
-- Grown `.gn` runtime mapping.
+- Executable `.gwo` subformat.
+- Grown `.grw` runtime mapping.
 
-These must be defined before a complete native `.gn` implementation and runtime mapping can produce more than raw GrOS payload output.
+These must be defined before a complete native `.grw` implementation and runtime mapping can produce more than raw GrOS payload output.
 
 ## Validation
 
