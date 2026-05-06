@@ -57,6 +57,7 @@ AX = 0001h
 | Group | Service | Name | Status |
 | --- | --- | --- | --- |
 | `00h` | `00h` | `runtime/control.probe` | implemented |
+| `00h` | `02h` | `runtime/control.profile_id` | implemented |
 | `01h` | `00h` | `console/text.write_cstr` | implemented |
 | `01h` | `01h` | `console/text.write_char` | implemented |
 | `01h` | `02h` | `console/text.write_crlf` | implemented |
@@ -77,6 +78,37 @@ Expected success:
 CF = 0
 AX = 0000h
 ```
+
+### `00h:02h runtime/control.profile_id`
+
+Purpose:
+
+```txt
+Return the current runtime profile identity.
+```
+
+Inputs:
+
+```txt
+none beyond the selector in AX
+```
+
+Expected success:
+
+```txt
+CF = 0
+AX = 0000h
+DS:SI = zero-terminated profile identity string
+```
+
+Current profile identity:
+
+```txt
+gros.x86.bios.real16.stage2.v0
+```
+
+The returned string pointer is profile-local static runtime data. Callers must
+treat the pointed-to string as read-only.
 
 ### `01h:00h console/text.write_cstr`
 
@@ -170,7 +202,6 @@ These are candidates only. They are not implemented by this document:
 | Group | Service | Name |
 | --- | --- | --- |
 | `00h` | `01h` | `runtime/control.version` |
-| `00h` | `02h` | `runtime/control.profile_id` |
 | `01h` | `03h` | `console/text.clear` |
 | `02h` | `00h` | `memory/seed.probe_map` |
 | `03h` | `00h` | `boot/info.drive` |

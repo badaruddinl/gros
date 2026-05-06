@@ -67,6 +67,10 @@ expect_validator_failure() {
             sed -i 's/| `01h` | `01h` | `console\/text[.]write_char` | implemented |/| `01h` | `02h` | `console\/text.write_char` | implemented |/' \
                 "$CASE_REGISTRY"
             ;;
+        wrong-profile-id-selector)
+            sed -i 's/| `00h` | `02h` | `runtime\/control[.]profile_id` | implemented |/| `00h` | `03h` | `runtime\/control.profile_id` | implemented |/' \
+                "$CASE_REGISTRY"
+            ;;
         wrong-write-crlf-selector)
             sed -i 's/| `01h` | `02h` | `console\/text[.]write_crlf` | implemented |/| `01h` | `03h` | `console\/text.write_crlf` | implemented |/' \
                 "$CASE_REGISTRY"
@@ -77,6 +81,10 @@ expect_validator_failure() {
             ;;
         stale-write-crlf-candidate)
             sed -i '/console\/text[.]clear/i | `01h` | `02h` | `console/text.write_crlf` |' \
+                "$CASE_REGISTRY"
+            ;;
+        stale-profile-id-candidate)
+            sed -i '/runtime\/control[.]version/a | `00h` | `02h` | `runtime/control.profile_id` |' \
                 "$CASE_REGISTRY"
             ;;
         stale-storage-group-mapping)
@@ -97,6 +105,10 @@ expect_validator_failure() {
             ;;
         missing-runtime-fixture)
             sed -i 's/console\/text write-char service body/console\/text write-char body missing/' \
+                "$CASE_RUNTIME_ABI"
+            ;;
+        missing-profile-id-fixture)
+            sed -i 's/runtime\/control profile_id selector branch/runtime\/control profile_id branch missing/' \
                 "$CASE_RUNTIME_ABI"
             ;;
         missing-crlf-selector-call-fixture)
@@ -134,6 +146,10 @@ expect_validator_failure() {
             ;;
         missing-runtime-abi-write-crlf-service)
             sed -i 's/console\/text[.]write_crlf/console\/text.write_lf/g' \
+                "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        missing-runtime-abi-profile-id-service)
+            sed -i 's/runtime\/control[.]profile_id/runtime\/control.profile_name/g' \
                 "$CASE_RUNTIME_ABI_DOC"
             ;;
         runtime-abi-stale-no-extra-service-claim)
@@ -207,17 +223,20 @@ grep -F "GrSCall registry overrides are only allowed with GRSCALL_REGISTRY_SELF_
     "$TMP_DIR/env-guard.err" > /dev/null || fail "env-guard: wrong failure"
 pass "env guard"
 
-expect_validator_failure "missing-implemented-row" "GrSCall registry must list exactly 4 implemented services, got 3"
-expect_validator_failure "extra-implemented-service" "GrSCall registry must list exactly 4 implemented services, got 5"
+expect_validator_failure "missing-implemented-row" "GrSCall registry must list exactly 5 implemented services, got 4"
+expect_validator_failure "extra-implemented-service" "GrSCall registry must list exactly 5 implemented services, got 6"
 expect_validator_failure "wrong-implemented-selector" "missing console/text.write_char implemented row: | \`01h\` | \`01h\` | \`console/text.write_char\` | implemented |"
+expect_validator_failure "wrong-profile-id-selector" "missing runtime/control.profile_id implemented row: | \`00h\` | \`02h\` | \`runtime/control.profile_id\` | implemented |"
 expect_validator_failure "wrong-write-crlf-selector" "missing console/text.write_crlf implemented row: | \`01h\` | \`02h\` | \`console/text.write_crlf\` | implemented |"
 expect_validator_failure "forbidden-candidate-implemented" "unexpected unimplemented runtime/control.version implemented row: | \`00h\` | \`01h\` | \`runtime/control.version\` | implemented |"
+expect_validator_failure "stale-profile-id-candidate" "unexpected implemented runtime/control.profile_id candidate row: | \`00h\` | \`02h\` | \`runtime/control.profile_id\` |"
 expect_validator_failure "stale-write-crlf-candidate" "unexpected implemented console/text.write_crlf candidate row: | \`01h\` | \`02h\` | \`console/text.write_crlf\` |"
 expect_validator_failure "stale-storage-group-mapping" "unexpected registry stale storage/block group assignment: | \`02h\` | \`storage/block\` | reserved/future |"
 expect_validator_failure "stale-process-group-mapping" "unexpected registry stale process/task group assignment: | \`03h\` | \`process/task\` | reserved/future |"
 expect_validator_failure "missing-memory-seed-candidate" "missing memory/seed.probe_map candidate row: | \`02h\` | \`00h\` | \`memory/seed.probe_map\` |"
 expect_validator_failure "wrong-boot-info-candidate" "missing boot/info.drive candidate row: | \`03h\` | \`00h\` | \`boot/info.drive\` |"
 expect_validator_failure "missing-runtime-fixture" "missing console/text.write_char runtime ABI fixture: console/text write-char service body"
+expect_validator_failure "missing-profile-id-fixture" "missing runtime/control.profile_id runtime ABI fixture: runtime/control profile_id selector branch"
 expect_validator_failure "missing-crlf-selector-call-fixture" "missing console/text.write_crlf runtime ABI fixture: console/text write-crlf selector call"
 expect_validator_failure "missing-crlf-selector-fixture" "missing console/text.write_crlf runtime ABI fixture: console/text write-crlf selector branch"
 expect_validator_failure "missing-crlf-preserve-fixture" "missing console/text.write_crlf runtime ABI fixture: console/text write-crlf preserves SI and jumps to success"
@@ -227,6 +246,7 @@ expect_validator_failure "missing-validation-reference" "missing runtime ABI val
 expect_validator_failure "missing-runtime-abi-doc" "missing runtime ABI seed doc:"
 expect_validator_failure "missing-runtime-abi-namespace-heading" "missing runtime ABI GrSCall namespace heading: ## GrSCall Service Namespace"
 expect_validator_failure "missing-runtime-abi-registry-reference" "missing runtime ABI canonical GrSCall registry reference: docs/17-grscall-service-registry.md"
+expect_validator_failure "missing-runtime-abi-profile-id-service" "missing runtime ABI profile_id service: runtime/control.profile_id"
 expect_validator_failure "missing-runtime-abi-write-crlf-service" "missing runtime ABI write_crlf service: console/text.write_crlf"
 expect_validator_failure "runtime-abi-stale-no-extra-service-claim" "unexpected runtime ABI stale no-extra-service claim: No other service IDs are implemented yet."
 expect_validator_failure "runtime-abi-local-group-table" "unexpected runtime ABI local GrSCall group table: ## Initial Service Groups"
