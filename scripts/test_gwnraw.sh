@@ -61,6 +61,7 @@ bash -n \
     "$ROOT/scripts/build_stage2_image.sh" \
     "$ROOT/scripts/check_boot.sh" \
     "$ROOT/scripts/check_stage2_image.sh" \
+    "$ROOT/scripts/check_grscall_registry.sh" \
     "$ROOT/scripts/check_gwo_header_fixtures.sh" \
     "$ROOT/scripts/test_gwo_header_fixture_failures.sh" \
     "$ROOT/scripts/check_gwo_artifact_inventory.sh" \
