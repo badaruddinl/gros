@@ -1,4 +1,4 @@
-.PHONY: build check test policy generated-fixtures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory validate stage2 check-stage2 runtime-abi memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy generated-fixtures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 runtime-abi memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gwo
 DIST_IMAGE := dist/gros-v0.5.gwo
@@ -29,7 +29,10 @@ gwo-header-fixture-failures:
 gwo-artifact-inventory:
 	./scripts/check_gwo_artifact_inventory.sh
 
-validate: policy generated-fixtures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory test check stage2
+gwo-artifact-inventory-failures:
+	./scripts/test_gwo_artifact_inventory_failures.sh
+
+validate: policy generated-fixtures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
