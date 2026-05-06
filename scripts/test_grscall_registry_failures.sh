@@ -5,12 +5,14 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 VALIDATOR="$ROOT/scripts/check_grscall_registry.sh"
 SOURCE_REGISTRY="$ROOT/docs/17-grscall-service-registry.md"
 SOURCE_RUNTIME_ABI="$ROOT/scripts/check_runtime_abi.sh"
+SOURCE_RUNTIME_ABI_DOC="$ROOT/docs/10-runtime-abi-seed.md"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 pass_count=0
 CASE_REGISTRY=""
 CASE_RUNTIME_ABI=""
+CASE_RUNTIME_ABI_DOC=""
 
 pass() {
     pass_count=$((pass_count + 1))
@@ -29,15 +31,18 @@ copy_registry_case() {
     mkdir -p "$case_root/docs" "$case_root/scripts"
     CASE_REGISTRY="$case_root/docs/17-grscall-service-registry.md"
     CASE_RUNTIME_ABI="$case_root/scripts/check_runtime_abi.sh"
+    CASE_RUNTIME_ABI_DOC="$case_root/docs/10-runtime-abi-seed.md"
 
     cp "$SOURCE_REGISTRY" "$CASE_REGISTRY"
     cp "$SOURCE_RUNTIME_ABI" "$CASE_RUNTIME_ABI"
+    cp "$SOURCE_RUNTIME_ABI_DOC" "$CASE_RUNTIME_ABI_DOC"
 }
 
 run_self_test_validator() {
     GRSCALL_REGISTRY_SELF_TEST=1 \
         GRSCALL_REGISTRY_DOC="$CASE_REGISTRY" \
         GRSCALL_RUNTIME_ABI_CHECK="$CASE_RUNTIME_ABI" \
+        GRSCALL_RUNTIME_ABI_DOC="$CASE_RUNTIME_ABI_DOC" \
         "$VALIDATOR"
 }
 
@@ -80,6 +85,51 @@ expect_validator_failure() {
             sed -i 's/scripts\/check_runtime_abi[.]sh/scripts\/check_runtime_contract.sh/g' \
                 "$CASE_REGISTRY"
             ;;
+        missing-runtime-abi-registry-reference)
+            sed -i 's/docs\/17-grscall-service-registry[.]md/docs\/17-local-service-groups.md/g' \
+                "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        missing-runtime-abi-doc)
+            rm -f "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        missing-runtime-abi-namespace-heading)
+            sed -i 's/## GrSCall Service Namespace/## Runtime Service Namespace/' \
+                "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        missing-runtime-abi-no-extra-service-claim)
+            sed -i 's/No other service IDs are implemented yet[.]/Future service IDs are described locally./' \
+                "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-local-group-table)
+            printf '\n%s\n' '## Initial Service Groups' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-local-reserved-group-section)
+            printf '\n%s\n' '## Reserved Groups' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-local-namespace-table)
+            {
+                printf '\n%s\n' '| Group | Namespace |'
+                printf '%s\n' '| --- | --- |'
+            } >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-stale-storage-group)
+            printf '\n%s\n' '02h  storage/block' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-stale-process-group)
+            printf '\n%s\n' '03h  process/task' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-stale-memory-group)
+            printf '\n%s\n' '04h  memory' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-stale-storage-table)
+            printf '\n%s\n' '| `02h` | `storage/block` |' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-stale-process-table)
+            printf '\n%s\n' '| `03h` | `process/task` |' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        runtime-abi-stale-memory-table)
+            printf '\n%s\n' '| `04h` | `memory` |' >> "$CASE_RUNTIME_ABI_DOC"
+            ;;
         *)
             fail "unknown GrSCall registry negative test: $name"
             ;;
@@ -110,6 +160,7 @@ pass "baseline registry root"
 copy_registry_case "env-guard"
 if GRSCALL_REGISTRY_DOC="$CASE_REGISTRY" \
     GRSCALL_RUNTIME_ABI_CHECK="$CASE_RUNTIME_ABI" \
+    GRSCALL_RUNTIME_ABI_DOC="$CASE_RUNTIME_ABI_DOC" \
     "$VALIDATOR" > "$TMP_DIR/env-guard.out" 2> "$TMP_DIR/env-guard.err"; then
     fail "env-guard: expected validator failure"
 fi
@@ -125,5 +176,18 @@ expect_validator_failure "missing-runtime-fixture" "missing console/text.write_c
 expect_validator_failure "missing-entry-mechanism" "missing GrSCall real16 entry mechanism: int 30h"
 expect_validator_failure "missing-unsupported-carry" "missing unsupported selector carry flag: CF = 1"
 expect_validator_failure "missing-validation-reference" "missing runtime ABI validation reference: scripts/check_runtime_abi.sh"
+expect_validator_failure "missing-runtime-abi-doc" "missing runtime ABI seed doc:"
+expect_validator_failure "missing-runtime-abi-namespace-heading" "missing runtime ABI GrSCall namespace heading: ## GrSCall Service Namespace"
+expect_validator_failure "missing-runtime-abi-registry-reference" "missing runtime ABI canonical GrSCall registry reference: docs/17-grscall-service-registry.md"
+expect_validator_failure "missing-runtime-abi-no-extra-service-claim" "missing runtime ABI no extra service claim: No other service IDs are implemented yet."
+expect_validator_failure "runtime-abi-local-group-table" "unexpected runtime ABI local GrSCall group table: ## Initial Service Groups"
+expect_validator_failure "runtime-abi-local-reserved-group-section" "unexpected runtime ABI local reserved group section: ## Reserved Groups"
+expect_validator_failure "runtime-abi-local-namespace-table" "unexpected runtime ABI local GrSCall namespace table: | Group | Namespace |"
+expect_validator_failure "runtime-abi-stale-storage-group" "unexpected runtime ABI stale storage/block group assignment: 02h  storage/block"
+expect_validator_failure "runtime-abi-stale-process-group" "unexpected runtime ABI stale process/task group assignment: 03h  process/task"
+expect_validator_failure "runtime-abi-stale-memory-group" "unexpected runtime ABI stale memory group assignment: 04h  memory"
+expect_validator_failure "runtime-abi-stale-storage-table" "unexpected runtime ABI stale storage/block table assignment: | \`02h\` | \`storage/block\` |"
+expect_validator_failure "runtime-abi-stale-process-table" "unexpected runtime ABI stale process/task table assignment: | \`03h\` | \`process/task\` |"
+expect_validator_failure "runtime-abi-stale-memory-table" "unexpected runtime ABI stale memory table assignment: | \`04h\` | \`memory\` |"
 
 echo "passed: $pass_count"
