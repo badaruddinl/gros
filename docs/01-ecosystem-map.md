@@ -64,6 +64,12 @@ The current GrBoot boot chain status is:
 docs/21-grboot-boot-chain-status.md
 ```
 
+The current GrABI contract status is:
+
+```txt
+docs/22-grabi-contract-status.md
+```
+
 The current GrRT16 runtime status is:
 
 ```txt

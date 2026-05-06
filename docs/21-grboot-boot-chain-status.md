@@ -277,6 +277,7 @@ docs/11-gwo-payload-header.md
 docs/18-profile-registry.md
 docs/19-grogan-kernel-seed.md
 docs/20-grrt16-runtime-status.md
+docs/22-grabi-contract-status.md
 ```
 
 This document summarizes current GrBoot status. It does not override those

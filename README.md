@@ -50,6 +50,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Grogan kernel seed](docs/19-grogan-kernel-seed.md)
 - [GrRT16 runtime status](docs/20-grrt16-runtime-status.md)
 - [GrBoot boot chain status](docs/21-grboot-boot-chain-status.md)
+- [GrABI contract status](docs/22-grabi-contract-status.md)
 
 ## Stage-2 Loader Target
 

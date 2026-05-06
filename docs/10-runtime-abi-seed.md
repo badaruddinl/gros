@@ -22,6 +22,12 @@ The current runtime status for this profile is defined in:
 docs/20-grrt16-runtime-status.md
 ```
 
+The broader GrABI contract status is defined in:
+
+```txt
+docs/22-grabi-contract-status.md
+```
+
 ## Function Call Seed
 
 The seed calling convention is for future `.grw` lowering and `.gwn` ground layer code that runs inside the GrOS stage-2 profile.

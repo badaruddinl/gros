@@ -104,6 +104,12 @@ not Grogan proper.
 
 GrABI owns the machine and runtime contracts that future Grogan code must obey.
 
+The current GrABI contract status is defined by:
+
+```txt
+docs/22-grabi-contract-status.md
+```
+
 Current responsibilities:
 
 - stage-1 to stage-2 handoff state,
@@ -274,6 +280,7 @@ docs/13-abi-stability-gate.md
 docs/18-profile-registry.md
 docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
+docs/22-grabi-contract-status.md
 ```
 
 This document narrows the Grogan boundary. It does not override those documents.

@@ -153,6 +153,7 @@ docs/18-profile-registry.md
 docs/19-grogan-kernel-seed.md
 docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
+docs/22-grabi-contract-status.md
 ```
 
 Their current responsibilities:
@@ -176,6 +177,7 @@ Their current responsibilities:
 - `19-grogan-kernel-seed.md` defines the boundary before any future implementation can be called a Grogan kernel seed.
 - `20-grrt16-runtime-status.md` records what the current real16 stage-2 runtime owns and how it is validated.
 - `21-grboot-boot-chain-status.md` records what the current boot sector and stage-1 loader own and how they are validated.
+- `22-grabi-contract-status.md` records the current handoff, runtime ABI, memory, profile, and validation contract status.
 
 Runtime ABI validation is implemented in:
 

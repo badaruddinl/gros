@@ -139,6 +139,12 @@ The current GrBoot status for this handoff path is summarized in:
 docs/21-grboot-boot-chain-status.md
 ```
 
+The current GrABI contract status is summarized in:
+
+```txt
+docs/22-grabi-contract-status.md
+```
+
 Validation must prove:
 
 - Stage-1 size is 512 bytes.
