@@ -96,6 +96,8 @@ profile=gros.x86.bios.real16.stage2.v0
 source=source.gn
 expected_gr=expected.gr
 expected_gro=expected.gro
+expected_size=2048
+entry_address=0000:8000
 status=expected-only
 ```
 
@@ -116,6 +118,8 @@ scripts/check_generated_fixtures.sh
 It validates existing fixtures by:
 
 - checking the manifest keys
+- checking the expected byte size
+- checking the expected entry address against the low-level `.gr` origin
 - rejecting unknown fixture status values
 - building `expected.gr` through `scripts/grraw.sh`
 - comparing the built bytes with `expected.gro`

@@ -3,4 +3,6 @@ profile=gros.x86.bios.real16.stage2.v0
 source=source.gn
 expected_gr=expected.gr
 expected_gro=expected.gro
+expected_size=2048
+entry_address=0000:8000
 status=expected-only
