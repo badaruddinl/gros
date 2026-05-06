@@ -156,7 +156,7 @@ The corresponding `expected.gwn` remains handwritten until the ABI stability gat
 
 For the first current-profile fixture, the raw boundary uses this family:
 
-```gr
+```gwn
 raw x86.bios.real16.generated.minimal_main_void {
     origin 8000
 }
@@ -179,6 +179,12 @@ Its minimal `fn main()` runtime contract is defined in:
 
 ```txt
 docs/16-grown-main-runtime-contract.md
+```
+
+The current implementation readiness gate is summarized in:
+
+```txt
+docs/24-implementation-readiness-status.md
 ```
 
 The ABI gate still stays closed until at least one fixture exists and passes local validation without adding a high-level build dependency.

@@ -70,6 +70,18 @@ The current GrABI contract status is:
 docs/22-grabi-contract-status.md
 ```
 
+The current GWO artifact status is:
+
+```txt
+docs/23-gwo-artifact-status.md
+```
+
+The current implementation readiness gate is:
+
+```txt
+docs/24-implementation-readiness-status.md
+```
+
 The current GrRT16 runtime status is:
 
 ```txt

@@ -1,6 +1,6 @@
 # GrOS ABI Handoff Profile
 
-This document defines the first machine-level handoff profile for GrOS payloads. It is a low-level runtime contract for the loaded `.gwo` image. It is not a Grown `.grw` language ABI, compiler spec, filesystem format, or roadmap.
+This document defines the first machine-level handoff profile for GrOS payloads. It is a low-level runtime contract for the loaded `.gwo` image. It is not a Grown `.grw` language ABI, compiler spec, filesystem format, or planning document.
 
 ## Profile
 

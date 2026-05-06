@@ -278,6 +278,8 @@ docs/17-grcall-service-registry.md
 docs/18-profile-registry.md
 docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
+docs/23-gwo-artifact-status.md
+docs/24-implementation-readiness-status.md
 ```
 
 This document summarizes current GrABI status. It does not override those

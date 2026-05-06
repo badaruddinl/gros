@@ -77,6 +77,12 @@ The current GrBoot raw-profile loader status is summarized in:
 docs/21-grboot-boot-chain-status.md
 ```
 
+The current `.gwo` artifact status is summarized in:
+
+```txt
+docs/23-gwo-artifact-status.md
+```
+
 ## Loader Decision Seed
 
 A future header-aware loader must classify a candidate payload before control

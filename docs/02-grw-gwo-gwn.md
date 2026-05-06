@@ -32,6 +32,12 @@ Example roles:
 
 Hosted-native profiles may also produce native executable formats for their host OS. Those files are compatibility outputs, not replacements for `.gwo` as the GrOS ecosystem artifact.
 
+The current `.gwo` artifact status is defined in:
+
+```txt
+docs/23-gwo-artifact-status.md
+```
+
 ## .gwn
 
 `.gwn` is Ground/Woven Native. It is the low-level native/backend layer that

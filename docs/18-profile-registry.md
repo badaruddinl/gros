@@ -164,6 +164,8 @@ docs/19-grogan-kernel-seed.md
 docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
 docs/22-grabi-contract-status.md
+docs/23-gwo-artifact-status.md
+docs/24-implementation-readiness-status.md
 ```
 
 ## Non-Goals

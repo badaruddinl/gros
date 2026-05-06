@@ -32,6 +32,8 @@ The prompt supports line editing with Backspace and built-in commands:
 
 - [Naming](docs/00-naming.md)
 - [Ecosystem map](docs/01-ecosystem-map.md)
+- [File role model](docs/02-grw-gwo-gwn.md)
+- [First bytes](docs/03-first-bytes.md)
 - [Raw `.gwn` format](docs/04-raw-gwn-format.md)
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
 - [GrOS ABI handoff profile](docs/06-abi-handoff.md)
@@ -51,6 +53,8 @@ The prompt supports line editing with Backspace and built-in commands:
 - [GrRT16 runtime status](docs/20-grrt16-runtime-status.md)
 - [GrBoot boot chain status](docs/21-grboot-boot-chain-status.md)
 - [GrABI contract status](docs/22-grabi-contract-status.md)
+- [GWO artifact status](docs/23-gwo-artifact-status.md)
+- [Implementation readiness status](docs/24-implementation-readiness-status.md)
 
 ## Stage-2 Loader Target
 
