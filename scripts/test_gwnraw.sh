@@ -86,7 +86,8 @@ bash -n \
     "$ROOT/scripts/test_near_pointers_failures.sh" \
     "$ROOT/scripts/run_qemu.sh" \
     "$ROOT/scripts/run_stage2_qemu.sh" \
-    "$ROOT/scripts/smoke_stage2_qemu.sh"
+    "$ROOT/scripts/smoke_stage2_qemu.sh" \
+    "$ROOT/scripts/test_smoke_stage2_qemu_failures.sh"
 pass "shell syntax"
 
 expect_prefix "addr16" "be037c00" <<'GR'
