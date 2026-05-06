@@ -1,4 +1,4 @@
-.PHONY: build check test policy generated-fixtures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 runtime-abi memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy generated-fixtures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 runtime-abi runtime-abi-failures memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gwo
 DIST_IMAGE := dist/gros-v0.5.gwo
@@ -38,7 +38,7 @@ gwo-artifact-inventory:
 gwo-artifact-inventory-failures:
 	./scripts/test_gwo_artifact_inventory_failures.sh
 
-validate: policy generated-fixtures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures test check stage2
+validate: policy generated-fixtures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
@@ -64,6 +64,9 @@ check-stage2: stage2
 
 runtime-abi: stage2
 	./scripts/check_runtime_abi.sh $(STAGE2_BUILD_IMAGE)
+
+runtime-abi-failures:
+	./scripts/test_runtime_abi_failures.sh
 
 memory-model: stage2
 	./scripts/check_memory_model.sh $(STAGE2_BUILD_IMAGE)
