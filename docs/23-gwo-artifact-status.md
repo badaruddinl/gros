@@ -151,8 +151,7 @@ header-aware `.gwo` executable loader.
 
 ## Header Validation Readiness
 
-Validation-only tooling may be added before a loader exists if it follows these
-rules:
+Validation-only tooling exists before a loader exists and follows these rules:
 
 - it must inspect bytes without transferring control,
 - it must reject malformed header candidates,
@@ -162,7 +161,7 @@ rules:
 - it must remain Bash-only unless a future repository contract changes the build
   dependency rule.
 
-The first validation-only header checks may cover:
+The first validation-only header checks cover:
 
 - magic bytes,
 - header size,
@@ -189,13 +188,18 @@ Current raw-profile validation:
 | `scripts/check_near_pointers.sh` | raw stage-2 near-pointer bytes |
 | `scripts/check_stage2_data.sh` | raw stage-2 static data bytes |
 | `scripts/check_generated_fixtures.sh` | expected-only generated-code fixture artifacts |
+| `scripts/check_gwo_header_fixtures.sh` | headered `.gwo` candidate fixture bytes |
 
 The full current validation path remains:
 
 ```bash
 make validate
+make gwo-header-fixtures
 make smoke-stage2
 ```
+
+The header fixture validator is validation-only. It does not make GrBoot,
+GrRT16, or any future loader accept a headered payload.
 
 ## Relationship To Grown
 

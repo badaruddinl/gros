@@ -1,6 +1,6 @@
 # ABI Stability Gate
 
-This document defines the minimum stability gate before implementing `.grw` lowering, a Grown compiler, or executable `.gwo` payload loading. It is a technical checkpoint, not a planning document. It does not add a compiler, parser, linker, loader, executable format implementation, hosted-native output, or boot banner change.
+This document defines the minimum stability gate before implementing `.grw` lowering, a Grown compiler, or executable `.gwo` payload loading. It is a technical gate, not a planning document. It does not add a compiler, parser, linker, loader, executable format implementation, hosted-native output, or boot banner change.
 
 ## Purpose
 

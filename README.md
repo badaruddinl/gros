@@ -123,9 +123,18 @@ Run the full validation path:
 make validate
 ```
 
-This runs the project policy guard, generated-code fixture validator, raw builder tests, generated boot image checks, committed `dist` artifact checks, and build output parity checks. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for the current boot artifacts, the build source of truth remains `.gwn` raw source and Bash tooling.
+This runs the project policy guard, generated-code fixture validator, headered `.gwo` candidate fixture validator, raw builder tests, generated boot image checks, committed `dist` artifact checks, and build output parity checks. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for the current boot artifacts, the build source of truth remains `.gwn` raw source and Bash tooling.
 
 The runtime ABI, real16 memory model, near-pointer, and stage-2 data fixtures are Bash-only and validate the implemented `int 30h` return contracts, seeded memory boundaries, pointer immediates, and static text/data bytes directly from the stage-2 `.gwo` image.
+
+Run only the headered `.gwo` candidate fixture validator:
+
+```bash
+make gwo-header-fixtures
+```
+
+This validates fixture bytes only. It does not load or execute a headered
+`.gwo` payload.
 
 Run in QEMU:
 

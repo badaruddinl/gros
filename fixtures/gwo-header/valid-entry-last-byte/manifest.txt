@@ -1,0 +1,5 @@
+name=valid-entry-last-byte
+status=header-candidate
+candidate_hex=candidate.gwo.hex
+expected_result=accept
+expected_error=none

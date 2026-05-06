@@ -185,7 +185,7 @@ Their current responsibilities:
 - `21-grboot-boot-chain-status.md` records what the current boot sector and stage-1 loader own and how they are validated.
 - `22-grabi-contract-status.md` records the current handoff, runtime ABI, memory, profile, and validation contract status.
 - `23-gwo-artifact-status.md` records current raw-profile `.gwo` artifacts and future headered executable `.gwo` readiness rules.
-- `24-implementation-readiness-status.md` records which non-documentation implementation gate is open and which gates remain closed.
+- `24-implementation-readiness-status.md` records the first validation-only implementation gate and which gates remain closed.
 
 Runtime ABI validation is implemented in:
 
@@ -205,6 +205,16 @@ scripts/check_stage2_data.sh
 ```
 
 These are Bash-only static fixtures over the built stage-2 `.gwo` image and the memory model seed.
+
+Headered `.gwo` candidate validation is implemented in:
+
+```txt
+scripts/check_gwo_header_fixtures.sh
+```
+
+This is a Bash-only validator over reviewable fixture hex. It rejects malformed
+header candidates and does not load, execute, or classify current boot
+artifacts as headered executables.
 
 ## Code-Review Graph Snapshot
 
@@ -234,11 +244,12 @@ The current non-documentation implementation gate is defined in:
 docs/24-implementation-readiness-status.md
 ```
 
-The open implementation class is validation-only Bash tooling for headered
-`.gwo` candidate fixtures. It must not execute payloads, make GrBoot
+The first non-documentation implementation class is validation-only Bash
+tooling for headered `.gwo` candidate fixtures. It must not execute payloads,
+make GrBoot
 header-aware, claim `.grw` compiler output, implement Grogan, add hosted-native
 output, or change the `GrOS v0.5` boot banner.
 
 The current stage-1 loader remains raw-profile only. Headered execution requires
-a future explicit loader contract, acceptance path, rejection path, profile
+a separate explicit loader contract, acceptance path, rejection path, profile
 compatibility rule, and validation before any execution claim can be made.

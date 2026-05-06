@@ -102,7 +102,7 @@ Seeded contracts:
 
 These are contracts, not complete toolchain or kernel implementation.
 
-## Reserved For Future Work
+## Reserved Layers
 
 Reserved/future layers:
 

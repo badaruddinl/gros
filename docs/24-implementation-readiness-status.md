@@ -46,13 +46,13 @@ The current status coverage is:
 | GrABI contract status | `docs/22-grabi-contract-status.md` |
 | GWO artifact status | `docs/23-gwo-artifact-status.md` |
 
-This coverage is sufficient to begin validation-only implementation work around
+This coverage is sufficient for validation-only implementation work around
 artifact classification. It is not sufficient to begin compiler, loader, kernel,
 or hosted-native executable implementation.
 
-## Open Gate
+## Implemented Gate
 
-The following implementation class is open:
+The following implementation class is now present:
 
 ```txt
 validation-only Bash tooling for headered .gwo candidate fixtures
@@ -69,14 +69,14 @@ Allowed properties:
 - no version bump,
 - direct byte validation over fixture files.
 
-The first implementation may add:
+The first implementation class uses:
 
-- a headered `.gwo` candidate fixture,
-- a manifest describing expected header fields,
-- a Bash validator for that fixture,
+- headered `.gwo` candidate fixtures,
+- manifests describing expected header checks,
+- a Bash validator for those fixtures,
 - a Makefile validation target that runs locally,
-- policy coverage that keeps the fixture from being mistaken for a bootable
-  artifact.
+- policy coverage that keeps the fixtures from being mistaken for bootable
+  artifacts.
 
 ## Closed Gates
 
@@ -99,12 +99,13 @@ The following gates remain closed:
 | UEFI profile | closed |
 | hosted-native executable output | closed |
 
-## Validation Requirements For Open Work
+## Validation Requirements
 
-The open implementation class must preserve the current validation baseline:
+The implemented validation-only class must preserve the current validation baseline:
 
 ```bash
 make validate
+make gwo-header-fixtures
 make smoke-stage2
 ```
 
@@ -134,7 +135,7 @@ Validation-only implementation must not claim:
 
 ## Transition Rule
 
-After the first validation-only implementation lands, future work may proceed
+After the first validation-only implementation lands, later changes may proceed
 only by opening the next gate with the same order:
 
 ```txt
