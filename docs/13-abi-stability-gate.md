@@ -27,7 +27,7 @@ Reason:
 - runtime services are minimal
 - payload loading is not implemented
 - headered `.gro` execution is not implemented
-- no generated-code fixture exists
+- generated-code fixture coverage is expected-only and not produced by `.gn` tooling
 
 ## Required Stable Contracts
 
@@ -186,7 +186,7 @@ Required before `.gn` lowering starts:
 Current status:
 
 ```txt
-manual `.gr` runtime fixtures only; generated-code fixture contract seeded
+manual `.gr` runtime fixtures plus expected-only generated-code fixture coverage
 ```
 
 The fixture representation contract is defined in:

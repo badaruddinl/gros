@@ -1,0 +1,16 @@
+; Expected-only fixture for a future minimal `.gn` main returning void.
+; This is handwritten .gr, not compiler output.
+
+raw x86.bios.real16.generated.minimal_main_void {
+    origin 8000
+
+    ; A returned stage-2 entrypoint is undefined in the current profile.
+    ; The expected low-level representation halts in place.
+    label halt
+    bytes FA
+    bytes F4
+    bytes EB
+    rel8 halt
+
+    pad_to 2048 with 00
+}

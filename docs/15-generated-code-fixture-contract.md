@@ -149,7 +149,13 @@ The corresponding `expected.gr` remains handwritten until the ABI stability gate
 
 ## Relationship To The ABI Gate
 
-This contract does not satisfy the generated-code fixture requirement by itself. It only defines how the requirement must be represented when the first fixture is added.
+The first expected-only fixture lives at:
+
+```txt
+fixtures/generated-code/minimal-main-void/
+```
+
+It proves the fixture representation and `.gr` to `.gro` parity path. It is still not compiler output.
 
 The ABI gate still stays closed until at least one fixture exists and passes local validation without adding a high-level build dependency.
 
