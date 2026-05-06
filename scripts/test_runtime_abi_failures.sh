@@ -102,6 +102,9 @@ expect_validator_failure() {
         missing-probe-selector-branch)
             mutate_stage2_pattern "09c074"
             ;;
+        missing-version-selector-branch)
+            mutate_stage2_pattern "3d010074"
+            ;;
         missing-profile-id-selector-branch)
             mutate_stage2_pattern "3d020074"
             ;;
@@ -117,6 +120,9 @@ expect_validator_failure() {
         missing-write-char-service-body)
             mutate_stage2_pattern "88d8b40ecd10"
             ;;
+        missing-version-service-body)
+            mutate_stage2_regex "b80100eb[0-9a-f]{2}"
+            ;;
         missing-profile-id-service-body)
             mutate_stage2_regex "be[0-9a-f]{4}eb[0-9a-f]{2}"
             ;;
@@ -128,6 +134,9 @@ expect_validator_failure() {
             ;;
         missing-success-return)
             mutate_stage2_pattern "31c0836606fe5dcf"
+            ;;
+        missing-success-preserve-ax-return)
+            mutate_stage2_pattern "836606fe5dcf"
             ;;
         missing-si-preservation)
             mutate_stage2_pattern "56fc"
@@ -169,15 +178,18 @@ expect_validator_failure "missing-write-char-echo-call" "missing runtime ABI byt
 expect_validator_failure "missing-write-crlf-call" "missing runtime ABI byte fixture: console/text write-crlf selector call"
 expect_validator_failure "missing-handler-frame" "missing runtime ABI byte fixture: runtime interrupt handler stack frame"
 expect_validator_failure "missing-probe-selector-branch" "missing runtime ABI byte fixture: runtime/control probe selector branch"
+expect_validator_failure "missing-version-selector-branch" "missing runtime ABI byte fixture: runtime/control version selector branch"
 expect_validator_failure "missing-profile-id-selector-branch" "missing runtime ABI byte fixture: runtime/control profile_id selector branch"
 expect_validator_failure "missing-write-cstr-selector-branch" "missing runtime ABI byte fixture: console/text write selector branch"
 expect_validator_failure "missing-write-char-selector-branch" "missing runtime ABI byte fixture: console/text write-char selector branch"
 expect_validator_failure "missing-write-crlf-selector-branch" "missing runtime ABI byte fixture: console/text write-crlf selector branch"
 expect_validator_failure "missing-write-char-service-body" "missing runtime ABI byte fixture: console/text write-char service body"
+expect_validator_failure "missing-version-service-body" "missing runtime ABI byte fixture: runtime/control version returns AX=0001h and jumps to success"
 expect_validator_failure "missing-profile-id-service-body" "missing runtime ABI byte fixture: runtime/control profile_id returns DS:SI and jumps to success"
 expect_validator_failure "missing-write-crlf-service-body" "missing runtime ABI byte fixture: console/text write-crlf preserves SI and jumps to success"
 expect_validator_failure "missing-unsupported-return" "missing runtime ABI byte fixture: unsupported selector returns CF=1 AX=0001h"
 expect_validator_failure "missing-success-return" "missing runtime ABI byte fixture: successful selector returns CF=0 AX=0000h"
+expect_validator_failure "missing-success-preserve-ax-return" "missing runtime ABI byte fixture: successful selector clears CF and preserves AX result"
 expect_validator_failure "missing-si-preservation" "missing runtime ABI byte fixture: console/text preserves SI and falls through to success"
 
 echo "passed: $pass_count"

@@ -176,6 +176,7 @@ raw x86.bios.stage2 {
 
     ; runtime service gate int 30h
     ; AH=00h AL=00h probes runtime/control support.
+    ; AH=00h AL=01h returns runtime ABI revision in AX.
     ; AH=00h AL=02h returns DS:SI -> current profile identity.
     ; AH=01h AL=00h writes a NUL-terminated string from DS:SI.
     ; AH=01h AL=01h writes one byte from BL.
@@ -186,6 +187,9 @@ raw x86.bios.stage2 {
     bytes 09 C0
     bytes 74
     rel8 runtime_probe_ok
+    bytes 3D 01 00
+    bytes 74
+    rel8 runtime_version
     bytes 3D 02 00
     bytes 74
     rel8 runtime_profile_id
@@ -204,6 +208,12 @@ raw x86.bios.stage2 {
     bytes 83 4E 06 01
     bytes 5D
     bytes CF
+
+    ; runtime/control.version: returns ABI revision AX=0001h with CF=0.
+    label runtime_version
+    bytes B8 01 00
+    bytes EB
+    rel8 runtime_success
 
     ; runtime/control.profile_id: returns DS:SI -> zero-terminated profile id.
     label runtime_profile_id
@@ -243,6 +253,9 @@ raw x86.bios.stage2 {
     ; runtime/control probe: CF=0, AX=0000
     label runtime_probe_ok
     bytes 31 C0
+
+    ; successful runtime return, preserving AX as the service result.
+    label runtime_success
     bytes 83 66 06 FE
     bytes 5D
     bytes CF
