@@ -175,6 +175,12 @@ fixtures/generated-code/minimal-main-void/
 
 It proves the fixture representation and `.gr` to `.gro` parity path. It is still not compiler output.
 
+Its minimal `fn main()` runtime contract is defined in:
+
+```txt
+docs/16-grown-main-runtime-contract.md
+```
+
 The ABI gate still stays closed until at least one fixture exists and passes local validation without adding a high-level build dependency.
 
 ## Non-Goals
