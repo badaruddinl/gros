@@ -3,3 +3,7 @@ status=header-candidate
 candidate_hex=candidate.gwo.hex
 expected_result=reject
 expected_error=truncated_header
+total_size=8
+magic=47524f00
+header_size=32
+header_version=0
