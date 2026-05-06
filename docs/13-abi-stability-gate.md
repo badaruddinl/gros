@@ -213,6 +213,7 @@ Allowed:
 - improve `.gwn` stage-2 runtime services
 - improve Bash validation
 - add technical specs
+- add Grogan boundary and kernel seed specifications
 - add static fixtures over `.gwo` bytes
 - add QEMU smoke coverage
 

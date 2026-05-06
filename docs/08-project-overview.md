@@ -150,6 +150,7 @@ docs/15-generated-code-fixture-contract.md
 docs/16-grown-main-runtime-contract.md
 docs/17-grcall-service-registry.md
 docs/18-profile-registry.md
+docs/19-grogan-kernel-seed.md
 ```
 
 Their current responsibilities:
@@ -170,6 +171,7 @@ Their current responsibilities:
 - `16-grown-main-runtime-contract.md` defines the minimal `fn main()` runtime contract seed.
 - `17-grcall-service-registry.md` defines implemented and reserved GrCall selectors.
 - `18-profile-registry.md` defines canonical profile names, current implementation status, and reserved future profile namespaces.
+- `19-grogan-kernel-seed.md` defines the boundary before any future implementation can be called a Grogan kernel seed.
 
 Runtime ABI validation is implemented in:
 

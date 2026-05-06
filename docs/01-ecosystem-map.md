@@ -118,6 +118,12 @@ host.darwin.aarch64.v0
 Hosted profiles are compatibility/adoption surfaces. They are not replacements
 for native GrOS.
 
+The Grogan kernel seed boundary is defined in:
+
+```txt
+docs/19-grogan-kernel-seed.md
+```
+
 The canonical profile status registry is:
 
 ```txt

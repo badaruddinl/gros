@@ -121,6 +121,12 @@ reserved/future
 
 The current stage-2 runtime is GrRT16. It is not Grogan proper.
 
+The seed boundary for this reserved name is defined in:
+
+```txt
+docs/19-grogan-kernel-seed.md
+```
+
 ## File Extensions
 
 `.grw`:
