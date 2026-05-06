@@ -23,6 +23,8 @@ The prompt supports line editing with Backspace and built-in commands:
 ## Current GrOS Profile
 
 - CPU/firmware: x86 BIOS real mode
+- Runtime profile: `gros.x86.bios.real16.stage2.v0`
+- Profile registry: [docs/18-profile-registry.md](docs/18-profile-registry.md)
 - Product output: `build/gros-v0.5.gwo`
 - Product form: raw 512-byte boot sector
 
@@ -44,6 +46,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Generated-code fixture contract seed](docs/15-generated-code-fixture-contract.md)
 - [Grown main runtime contract seed](docs/16-grown-main-runtime-contract.md)
 - [GrCall service registry](docs/17-grcall-service-registry.md)
+- [Profile registry](docs/18-profile-registry.md)
 
 ## Stage-2 Loader Target
 
