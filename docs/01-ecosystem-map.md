@@ -118,6 +118,12 @@ host.darwin.aarch64.v0
 Hosted profiles are compatibility/adoption surfaces. They are not replacements
 for native GrOS.
 
+The canonical profile status registry is:
+
+```txt
+docs/18-profile-registry.md
+```
+
 ## Development Rule
 
 New layers should follow this order:

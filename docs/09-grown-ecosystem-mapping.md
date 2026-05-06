@@ -68,6 +68,12 @@ host.darwin.aarch64.v0
 
 Hosted-native profiles are adoption and compatibility profiles. They are not the final destination of the ecosystem.
 
+The canonical profile status registry is:
+
+```txt
+docs/18-profile-registry.md
+```
+
 ## Public Source Shape
 
 Native GrOS profile:

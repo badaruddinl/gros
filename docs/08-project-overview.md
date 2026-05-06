@@ -10,7 +10,7 @@ The generated graph wiki is available locally at:
 
 ## Current Purpose
 
-GrOS is a low-level operating system development repository for the Gr ecosystem. The current runtime profile is x86 BIOS real mode.
+GrOS is a low-level operating system development repository for the Gr ecosystem. The current runtime profile is `gros.x86.bios.real16.stage2.v0`, an x86 BIOS real-mode profile listed in `docs/18-profile-registry.md`.
 
 The active baseline remains:
 
@@ -149,6 +149,7 @@ docs/14-real16-memory-model.md
 docs/15-generated-code-fixture-contract.md
 docs/16-grown-main-runtime-contract.md
 docs/17-grcall-service-registry.md
+docs/18-profile-registry.md
 ```
 
 Their current responsibilities:
@@ -168,6 +169,7 @@ Their current responsibilities:
 - `15-generated-code-fixture-contract.md` defines how expected generated-code fixtures must be represented before compiler work starts.
 - `16-grown-main-runtime-contract.md` defines the minimal `fn main()` runtime contract seed.
 - `17-grcall-service-registry.md` defines implemented and reserved GrCall selectors.
+- `18-profile-registry.md` defines canonical profile names, current implementation status, and reserved future profile namespaces.
 
 Runtime ABI validation is implemented in:
 

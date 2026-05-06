@@ -167,11 +167,19 @@ GRO\0
 
 Reserved profile compatibility marker. The exact numeric mapping is not assigned yet.
 
-Initial reserved profile names:
+Profile names and statuses are registered in:
+
+```txt
+docs/18-profile-registry.md
+```
+
+Seed profile names include:
 
 ```txt
 gros.x86.bios.real16.stage2.v0
 gros.x86_64.uefi.v0
+gros.aarch64.uefi.v0
+gros.riscv64.machine.v0
 host.linux.x86_64.v0
 host.windows.x86_64.v0
 host.darwin.aarch64.v0
