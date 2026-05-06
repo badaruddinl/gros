@@ -6,6 +6,7 @@ FIXTURE_ROOT="$ROOT/fixtures/generated-code"
 PROFILE="gros.x86.bios.real16.stage2.v0"
 EXPECTED_SIZE="2048"
 ENTRY_ADDRESS="0000:8000"
+GROUND_PROFILE_PREFIX="x86.bios.real16.generated"
 
 fail() {
     echo "error: $1" >&2
@@ -68,6 +69,12 @@ require_file_size() {
     [ "$actual" = "$expected" ] || fail "$file must be $expected bytes, got $actual"
 }
 
+fixture_ground_suffix() {
+    local name=$1
+
+    printf '%s' "$name" | tr '-' '_'
+}
+
 require_entry_origin() {
     local gr_file=$1
     local address=$2
@@ -86,10 +93,29 @@ require_entry_origin() {
         fail "$gr_file origin must match entry_address $address"
 }
 
+require_source_target() {
+    local source=$1
+    local profile=$2
+
+    grep -F "target \"$profile\"" "$source" > /dev/null ||
+        fail "$source must declare target $profile"
+}
+
+require_ground_boundary() {
+    local gr_file=$1
+    local fixture_name=$2
+    local suffix
+
+    suffix=$(fixture_ground_suffix "$fixture_name")
+    grep -Eq "^[[:space:]]*raw[[:space:]]+x86\\.bios\\.real16\\.generated\\.$suffix[[:space:]]*\\{" "$gr_file" ||
+        fail "$gr_file must declare raw $GROUND_PROFILE_PREFIX.$suffix"
+}
+
 check_fixture() {
     local dir=$1
     local name
     local manifest
+    local manifest_profile
     local tmp_dir
     local built
 
@@ -99,6 +125,7 @@ check_fixture() {
 
     require_manifest_value "$manifest" "name" "$name"
     require_manifest_value "$manifest" "profile" "$PROFILE"
+    manifest_profile=$(manifest_value "$manifest" "profile") || fail "$manifest missing key: profile"
     require_manifest_value "$manifest" "status" "expected-only"
     require_manifest_file "$dir" "$manifest" "source" "source.gn"
     require_manifest_file "$dir" "$manifest" "expected_gr" "expected.gr"
@@ -106,9 +133,10 @@ check_fixture() {
     require_manifest_decimal "$manifest" "expected_size" "$EXPECTED_SIZE"
     require_manifest_value "$manifest" "entry_address" "$ENTRY_ADDRESS"
 
-    grep -F "target \"$PROFILE\"" "$dir/source.gn" > /dev/null || fail "$dir/source.gn must declare target $PROFILE"
+    require_source_target "$dir/source.gn" "$manifest_profile"
     grep -F "raw " "$dir/source.gn" > /dev/null && fail "$dir/source.gn must stay informational and must not embed raw ground code"
     grep -F "raw " "$dir/expected.gr" > /dev/null || fail "$dir/expected.gr must be raw .gr source"
+    require_ground_boundary "$dir/expected.gr" "$name"
     require_entry_origin "$dir/expected.gr" "$ENTRY_ADDRESS"
     require_file_size "$dir/expected.gro" "$EXPECTED_SIZE"
 

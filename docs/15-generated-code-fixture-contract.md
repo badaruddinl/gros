@@ -71,6 +71,7 @@ Not compiled by the current build.
 ```txt
 Handwritten low-level expected representation.
 The current Bash build may assemble this with scripts/grraw.sh.
+The raw boundary name must stay profile-specific for the fixture family.
 ```
 
 `expected.gro`:
@@ -120,6 +121,8 @@ It validates existing fixtures by:
 - checking the manifest keys
 - checking the expected byte size
 - checking the expected entry address against the low-level `.gr` origin
+- checking that the manifest profile and `.gn` target declaration match
+- checking that the `.gr` raw boundary stays in the current real16 generated fixture family
 - rejecting unknown fixture status values
 - building `expected.gr` through `scripts/grraw.sh`
 - comparing the built bytes with `expected.gro`
@@ -150,6 +153,17 @@ fn main() -> void {
 ```
 
 The corresponding `expected.gr` remains handwritten until the ABI stability gate opens.
+
+For the first current-profile fixture, the raw boundary uses this family:
+
+```gr
+raw x86.bios.real16.generated.minimal_main_void {
+    origin 8000
+}
+```
+
+The `generated` segment marks this as an expected generated-code fixture family,
+not as current compiler output.
 
 ## Relationship To The ABI Gate
 
