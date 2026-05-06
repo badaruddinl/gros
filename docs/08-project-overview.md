@@ -136,6 +136,8 @@ The core technical documents are:
 ```txt
 docs/00-naming.md
 docs/01-ecosystem-map.md
+docs/02-grw-gwo-gwn.md
+docs/03-first-bytes.md
 docs/04-raw-gwn-format.md
 docs/05-stage2-contract.md
 docs/06-abi-handoff.md
@@ -154,12 +156,16 @@ docs/19-grogan-kernel-seed.md
 docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
 docs/22-grabi-contract-status.md
+docs/23-gwo-artifact-status.md
+docs/24-implementation-readiness-status.md
 ```
 
 Their current responsibilities:
 
 - `00-naming.md` defines official ecosystem terms and status wording.
 - `01-ecosystem-map.md` maps implemented, seeded, and reserved layers.
+- `02-grw-gwo-gwn.md` defines the source, artifact, and native/backend file roles.
+- `03-first-bytes.md` documents the first boot-sector bytes and text layout.
 - `04-raw-gwn-format.md` defines the raw `.gwn` source format.
 - `05-stage2-contract.md` defines the stage-1 to stage-2 boot contract.
 - `06-abi-handoff.md` defines the first machine-level handoff profile.
@@ -178,6 +184,8 @@ Their current responsibilities:
 - `20-grrt16-runtime-status.md` records what the current real16 stage-2 runtime owns and how it is validated.
 - `21-grboot-boot-chain-status.md` records what the current boot sector and stage-1 loader own and how they are validated.
 - `22-grabi-contract-status.md` records the current handoff, runtime ABI, memory, profile, and validation contract status.
+- `23-gwo-artifact-status.md` records current raw-profile `.gwo` artifacts and future headered executable `.gwo` readiness rules.
+- `24-implementation-readiness-status.md` records which non-documentation implementation gate is open and which gates remain closed.
 
 Runtime ABI validation is implemented in:
 
@@ -218,19 +226,19 @@ The generated graph wiki groups the Bash code mainly around:
 
 The graph database and generated wiki are local development aids. They are not source artifacts and should remain outside commits.
 
-## Next Solid Development Step
+## Current Implementation Gate
 
-Stage-2 now owns the first runtime service gate shape through `int 30h`. It implements `runtime/control.probe`, `console/text.write_cstr`, and `console/text.write_char`. The stage-2 prompt uses that runtime gate for fixed string output and typed key echo while the low-level service body still writes through BIOS teletype output.
+The current non-documentation implementation gate is defined in:
 
-The next strong technical step should still stay narrow:
+```txt
+docs/24-implementation-readiness-status.md
+```
 
-- add a tiny runtime self-check or fixture for service return values
-- keep explicit register inputs and return values
-- keep static validation through the existing `.gwo` image checks
-- decide the next runtime service only after the console ABI stays stable
-- no `.grw` compiler or hosted-native executable implementation yet
+The open implementation class is validation-only Bash tooling for headered
+`.gwo` candidate fixtures. It must not execute payloads, make GrBoot
+header-aware, claim `.grw` compiler output, implement Grogan, add hosted-native
+output, or change the `GrOS v0.5` boot banner.
 
-The `.gwo` header seed now keeps the current boot artifacts and future
-headered executable payloads as separate loader classes. The current stage-1
-loader remains raw-profile only; headered execution requires a future explicit
-loader decision and rejection path.
+The current stage-1 loader remains raw-profile only. Headered execution requires
+a future explicit loader contract, acceptance path, rejection path, profile
+compatibility rule, and validation before any execution claim can be made.

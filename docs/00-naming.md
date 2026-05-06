@@ -184,6 +184,12 @@ implemented as raw boot and stage artifacts
 headered executable form reserved/future
 ```
 
+The current `.gwo` artifact status is defined in:
+
+```txt
+docs/23-gwo-artifact-status.md
+```
+
 `.gwn`:
 
 ```txt
@@ -222,6 +228,12 @@ Grogan is implemented today.
 Grown currently compiles .grw to .gwo.
 Current .gwo artifacts are already full executable objects.
 GrCall is already a complete syscall ABI.
+```
+
+The current implementation readiness gate is defined in:
+
+```txt
+docs/24-implementation-readiness-status.md
 ```
 
 ## Versioning

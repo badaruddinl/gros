@@ -289,6 +289,8 @@ docs/18-profile-registry.md
 docs/19-grogan-kernel-seed.md
 docs/21-grboot-boot-chain-status.md
 docs/22-grabi-contract-status.md
+docs/23-gwo-artifact-status.md
+docs/24-implementation-readiness-status.md
 ```
 
 This document summarizes current GrRT16 status. It does not override those
