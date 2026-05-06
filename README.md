@@ -48,6 +48,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [GrCall service registry](docs/17-grcall-service-registry.md)
 - [Profile registry](docs/18-profile-registry.md)
 - [Grogan kernel seed](docs/19-grogan-kernel-seed.md)
+- [GrRT16 runtime status](docs/20-grrt16-runtime-status.md)
 
 ## Stage-2 Loader Target
 

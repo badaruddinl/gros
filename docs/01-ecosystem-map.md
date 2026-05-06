@@ -58,6 +58,12 @@ Implemented and validated in the repository:
 - Static validation for boot, stage-2, runtime ABI, real16 memory, near pointers,
   stage-2 data, generated-code fixtures, and policy rules.
 
+The current GrRT16 runtime status is:
+
+```txt
+docs/20-grrt16-runtime-status.md
+```
+
 ## Seeded But Not Complete
 
 Seeded contracts:

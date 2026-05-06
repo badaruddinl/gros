@@ -77,6 +77,12 @@ but loading the image is not the same as being Grogan.
 
 GrRT16 owns the current real-mode stage-2 runtime seed.
 
+The current GrRT16 runtime status is defined by:
+
+```txt
+docs/20-grrt16-runtime-status.md
+```
+
 Current responsibilities:
 
 - prompt loop,
@@ -260,6 +266,7 @@ docs/00-naming.md
 docs/01-ecosystem-map.md
 docs/13-abi-stability-gate.md
 docs/18-profile-registry.md
+docs/20-grrt16-runtime-status.md
 ```
 
 This document narrows the Grogan boundary. It does not override those documents.

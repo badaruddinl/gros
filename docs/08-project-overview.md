@@ -151,6 +151,7 @@ docs/16-grown-main-runtime-contract.md
 docs/17-grcall-service-registry.md
 docs/18-profile-registry.md
 docs/19-grogan-kernel-seed.md
+docs/20-grrt16-runtime-status.md
 ```
 
 Their current responsibilities:
@@ -172,6 +173,7 @@ Their current responsibilities:
 - `17-grcall-service-registry.md` defines implemented and reserved GrCall selectors.
 - `18-profile-registry.md` defines canonical profile names, current implementation status, and reserved future profile namespaces.
 - `19-grogan-kernel-seed.md` defines the boundary before any future implementation can be called a Grogan kernel seed.
+- `20-grrt16-runtime-status.md` records what the current real16 stage-2 runtime owns and how it is validated.
 
 Runtime ABI validation is implemented in:
 
