@@ -64,7 +64,7 @@ require_near_boot_drive_reload() {
     local disasm=$1
     local jump_line reload_line
 
-    jump_line=$(grep -nE '[[:space:]]jmp[[:space:]]+0x0:0x8000' "$disasm" | head -n 1 | cut -d: -f1)
+    jump_line=$(grep -nE '[[:space:]]jmp[[:space:]]+0x0:0x8000' "$disasm" | head -n 1 | cut -d: -f1 || true)
     [ -n "$jump_line" ] || fail "missing expected instruction: stage-2 far jump"
 
     reload_line=$(awk -v jump="$jump_line" '
@@ -80,9 +80,9 @@ require_stage2_runtime_gate() {
     local disasm=$1
     local vector_line segment_line first_int30_line handler_offset handler_value
 
-    vector_line=$(grep -nE '[[:space:]]mov[[:space:]]+word[[:space:]]+\[0xc0\],0x8[0-7][0-9a-fA-F]{2}' "$disasm" | head -n 1 | cut -d: -f1)
-    segment_line=$(grep -nE '[[:space:]]mov[[:space:]]+word[[:space:]]+\[0xc2\],0x0' "$disasm" | head -n 1 | cut -d: -f1)
-    first_int30_line=$(grep -nE '[[:space:]]int[[:space:]]+0x30' "$disasm" | head -n 1 | cut -d: -f1)
+    vector_line=$(grep -nE '[[:space:]]mov[[:space:]]+word[[:space:]]+\[0xc0\],0x[0-9a-fA-F]+' "$disasm" | head -n 1 | cut -d: -f1 || true)
+    segment_line=$(grep -nE '[[:space:]]mov[[:space:]]+word[[:space:]]+\[0xc2\],0x0' "$disasm" | head -n 1 | cut -d: -f1 || true)
+    first_int30_line=$(grep -nE '[[:space:]]int[[:space:]]+0x30' "$disasm" | head -n 1 | cut -d: -f1 || true)
 
     [ -n "$vector_line" ] || fail "missing expected instruction: int 30h IVT offset install"
     [ -n "$segment_line" ] || fail "missing expected instruction: int 30h IVT segment install"
@@ -123,7 +123,7 @@ fi
 
 SIZE=$(wc -c < "$FILE" | tr -d ' ')
 SIG=$(dd if="$FILE" bs=1 skip=510 count=2 2> /dev/null | od -An -tx1 | tr -d ' \n')
-STAGE2_NONZERO=$(dd if="$FILE" bs=1 skip=512 count=2048 2> /dev/null | od -An -tx1 | tr -d ' 0\n')
+STAGE2_NONZERO=$(dd if="$FILE" bs=1 skip=512 count=2048 2> /dev/null | od -An -tx1 -v | tr -d ' 0\n')
 
 echo "file     : $FILE"
 echo "size     : $SIZE bytes"

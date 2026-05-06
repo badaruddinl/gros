@@ -61,6 +61,7 @@ bash -n \
     "$ROOT/scripts/build_stage2_image.sh" \
     "$ROOT/scripts/check_boot.sh" \
     "$ROOT/scripts/check_stage2_image.sh" \
+    "$ROOT/scripts/test_stage2_image_failures.sh" \
     "$ROOT/scripts/check_grscall_registry.sh" \
     "$ROOT/scripts/test_grscall_registry_failures.sh" \
     "$ROOT/scripts/test_runtime_abi_failures.sh" \
