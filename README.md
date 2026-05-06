@@ -43,6 +43,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Real16 memory model seed](docs/14-real16-memory-model.md)
 - [Generated-code fixture contract seed](docs/15-generated-code-fixture-contract.md)
 - [Grown main runtime contract seed](docs/16-grown-main-runtime-contract.md)
+- [GrCall service registry](docs/17-grcall-service-registry.md)
 
 ## Stage-2 Loader Target
 

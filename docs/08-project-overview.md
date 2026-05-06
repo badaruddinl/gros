@@ -147,6 +147,8 @@ docs/12-grw-front-end-seed.md
 docs/13-abi-stability-gate.md
 docs/14-real16-memory-model.md
 docs/15-generated-code-fixture-contract.md
+docs/16-grown-main-runtime-contract.md
+docs/17-grcall-service-registry.md
 ```
 
 Their current responsibilities:
@@ -164,6 +166,8 @@ Their current responsibilities:
 - `13-abi-stability-gate.md` defines the stability gate before `.grw` compiler work can start.
 - `14-real16-memory-model.md` defines the first memory model seed for the current real16 stage-2 profile.
 - `15-generated-code-fixture-contract.md` defines how expected generated-code fixtures must be represented before compiler work starts.
+- `16-grown-main-runtime-contract.md` defines the minimal `fn main()` runtime contract seed.
+- `17-grcall-service-registry.md` defines implemented and reserved GrCall selectors.
 
 Runtime ABI validation is implemented in:
 
