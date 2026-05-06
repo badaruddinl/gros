@@ -63,6 +63,12 @@ Grogan proper.
 
 GrBoot owns bootstrapping and transfer of control into the loaded payload.
 
+The current GrBoot boot chain status is defined by:
+
+```txt
+docs/21-grboot-boot-chain-status.md
+```
+
 Current responsibilities:
 
 - 512-byte BIOS boot sector.
@@ -267,6 +273,7 @@ docs/01-ecosystem-map.md
 docs/13-abi-stability-gate.md
 docs/18-profile-registry.md
 docs/20-grrt16-runtime-status.md
+docs/21-grboot-boot-chain-status.md
 ```
 
 This document narrows the Grogan boundary. It does not override those documents.

@@ -133,6 +133,12 @@ make validate
 make smoke-stage2
 ```
 
+The current GrBoot status for this handoff path is summarized in:
+
+```txt
+docs/21-grboot-boot-chain-status.md
+```
+
 Validation must prove:
 
 - Stage-1 size is 512 bytes.

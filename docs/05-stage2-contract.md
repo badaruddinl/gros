@@ -48,6 +48,12 @@ build/gros-stage2.gwo
 dist/gros-stage2.gwo
 ```
 
+The current GrBoot status is summarized in:
+
+```txt
+docs/21-grboot-boot-chain-status.md
+```
+
 ## Load Contract
 
 Stage-1 loads stage-2 with BIOS `int 13h` disk read:

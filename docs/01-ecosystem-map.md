@@ -58,6 +58,12 @@ Implemented and validated in the repository:
 - Static validation for boot, stage-2, runtime ABI, real16 memory, near pointers,
   stage-2 data, generated-code fixtures, and policy rules.
 
+The current GrBoot boot chain status is:
+
+```txt
+docs/21-grboot-boot-chain-status.md
+```
+
 The current GrRT16 runtime status is:
 
 ```txt

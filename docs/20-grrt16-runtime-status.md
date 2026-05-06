@@ -84,6 +84,7 @@ The handoff contracts are defined by:
 ```txt
 docs/05-stage2-contract.md
 docs/06-abi-handoff.md
+docs/21-grboot-boot-chain-status.md
 ```
 
 GrRT16 must not depend on stage-1 labels, buffers, strings, padding bytes, or
@@ -286,6 +287,7 @@ docs/14-real16-memory-model.md
 docs/17-grcall-service-registry.md
 docs/18-profile-registry.md
 docs/19-grogan-kernel-seed.md
+docs/21-grboot-boot-chain-status.md
 ```
 
 This document summarizes current GrRT16 status. It does not override those

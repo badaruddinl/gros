@@ -49,6 +49,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Profile registry](docs/18-profile-registry.md)
 - [Grogan kernel seed](docs/19-grogan-kernel-seed.md)
 - [GrRT16 runtime status](docs/20-grrt16-runtime-status.md)
+- [GrBoot boot chain status](docs/21-grboot-boot-chain-status.md)
 
 ## Stage-2 Loader Target
 
@@ -56,6 +57,7 @@ The experimental stage-2 image keeps the `GrOS v0.5` banner and moves the prompt
 
 - Stage-1 source: `boot/stage1_loader.gwn`
 - Stage-2 source: `boot/stage2_min.gwn`
+- Boot-chain status: [docs/21-grboot-boot-chain-status.md](docs/21-grboot-boot-chain-status.md)
 - Product output: `build/gros-stage2.gwo`
 - Product form: 512-byte stage-1 plus a 2048-byte stage-2 payload
 - Runtime gate: `int 30h`
