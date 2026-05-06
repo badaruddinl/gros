@@ -71,6 +71,12 @@ runtime service gate seed
 real16 ABI and memory validation target
 ```
 
+The current GrRT16 runtime status is defined in:
+
+```txt
+docs/20-grrt16-runtime-status.md
+```
+
 `GrABI`:
 
 ```txt

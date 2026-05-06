@@ -16,6 +16,12 @@ x86 BIOS real mode, 16-bit
 
 This is not an `x86_64` profile.
 
+The current runtime status for this profile is defined in:
+
+```txt
+docs/20-grrt16-runtime-status.md
+```
+
 ## Function Call Seed
 
 The seed calling convention is for future `.grw` lowering and `.gwn` ground layer code that runs inside the GrOS stage-2 profile.
