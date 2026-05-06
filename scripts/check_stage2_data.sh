@@ -86,13 +86,15 @@ SIZE=$(size_of "$FILE")
 [ "$SIZE" = "$IMAGE_SIZE" ] || fail "stage-2 image must be $IMAGE_SIZE bytes"
 
 STAGE2_HEX=$(hex_of_region "$FILE" "$STAGE1_SIZE" "$STAGE2_SIZE")
+STAGE2_NONZERO=$(dd if="$FILE" bs=1 skip="$STAGE1_SIZE" count="$STAGE2_SIZE" 2> /dev/null | od -An -tx1 -v | tr -d ' 0\n')
 TRAILING_ZERO_HEX=$(hex_of_region "$FILE" "$((STAGE1_SIZE + STAGE2_SIZE - 16))" 16)
 
 [ -n "$STAGE2_HEX" ] || fail "stage-2 payload must not be empty"
+[ -n "$STAGE2_NONZERO" ] || fail "stage-2 payload must not be empty"
 
+require_hex_count "0d0a00" 2 "newline text"
 require_hex_count "47724f532076302e350d0a00" 2 "banner and version text"
 require_hex_count "67726f756e643e2000" 1 "prompt text"
-require_hex_count "0d0a00" 2 "newline text"
 require_hex_count "08200800" 1 "backspace text"
 require_hex_count "68656c7000" 1 "help command"
 require_hex_count "76657200" 1 "ver command"
