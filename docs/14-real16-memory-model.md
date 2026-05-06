@@ -24,6 +24,12 @@ The seed profile uses real-mode segmented addressing:
 physical = segment * 16 + offset
 ```
 
+The broader GrABI contract status is summarized in:
+
+```txt
+docs/22-grabi-contract-status.md
+```
+
 The initial stage-2 runtime keeps the simple flat seed established by the stage-1 handoff:
 
 ```txt

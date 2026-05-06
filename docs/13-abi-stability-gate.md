@@ -22,6 +22,12 @@ Current status:
 not stable for `.grw` compiler implementation
 ```
 
+The current GrABI contract status is summarized in:
+
+```txt
+docs/22-grabi-contract-status.md
+```
+
 Reason:
 
 - runtime services are minimal

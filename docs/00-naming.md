@@ -95,6 +95,12 @@ Current status:
 seed/spec with static validation fixtures
 ```
 
+The current GrABI contract status is defined in:
+
+```txt
+docs/22-grabi-contract-status.md
+```
+
 `GrCall`:
 
 ```txt
