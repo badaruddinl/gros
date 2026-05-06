@@ -54,6 +54,12 @@ SS:SP = 0000:7C00
 DF clear
 ```
 
+The minimal Grown `fn main()` runtime contract seed is defined in:
+
+```txt
+docs/16-grown-main-runtime-contract.md
+```
+
 Status:
 
 ```txt
