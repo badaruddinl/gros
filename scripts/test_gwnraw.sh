@@ -78,6 +78,8 @@ bash -n \
     "$ROOT/scripts/test_memory_model_failures.sh" \
     "$ROOT/scripts/check_stage2_data.sh" \
     "$ROOT/scripts/test_stage2_data_failures.sh" \
+    "$ROOT/scripts/check_stage2_commands.sh" \
+    "$ROOT/scripts/test_stage2_commands_failures.sh" \
     "$ROOT/scripts/check_near_pointers.sh" \
     "$ROOT/scripts/test_near_pointers_failures.sh" \
     "$ROOT/scripts/run_qemu.sh" \

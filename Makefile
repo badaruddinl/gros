@@ -1,4 +1,4 @@
-.PHONY: build check test policy project-policy-failures generated-fixtures generated-fixtures-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy project-policy-failures generated-fixtures generated-fixtures-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gwo
 DIST_IMAGE := dist/gros-v0.5.gwo
@@ -47,7 +47,7 @@ gwo-artifact-inventory:
 gwo-artifact-inventory-failures:
 	./scripts/test_gwo_artifact_inventory_failures.sh
 
-validate: policy project-policy-failures generated-fixtures generated-fixtures-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures memory-model-failures stage2-data-failures near-pointers-failures test check stage2
+validate: policy project-policy-failures generated-fixtures generated-fixtures-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
@@ -60,6 +60,8 @@ validate: policy project-policy-failures generated-fixtures generated-fixtures-f
 	./scripts/check_near_pointers.sh $(STAGE2_DIST_IMAGE)
 	./scripts/check_stage2_data.sh $(STAGE2_BUILD_IMAGE)
 	./scripts/check_stage2_data.sh $(STAGE2_DIST_IMAGE)
+	./scripts/check_stage2_commands.sh $(STAGE2_BUILD_IMAGE)
+	./scripts/check_stage2_commands.sh $(STAGE2_DIST_IMAGE)
 	./scripts/check_runtime_abi.sh $(STAGE2_BUILD_IMAGE)
 	./scripts/check_runtime_abi.sh $(STAGE2_DIST_IMAGE)
 	cmp -s $(STAGE2_BUILD_IMAGE) $(STAGE2_DIST_IMAGE)
@@ -97,6 +99,12 @@ stage2-data: stage2
 
 stage2-data-failures:
 	./scripts/test_stage2_data_failures.sh
+
+stage2-commands: stage2
+	./scripts/check_stage2_commands.sh $(STAGE2_BUILD_IMAGE)
+
+stage2-command-failures:
+	./scripts/test_stage2_commands_failures.sh
 
 smoke-stage2: stage2
 	./scripts/smoke_stage2_qemu.sh --require-qemu
