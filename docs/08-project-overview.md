@@ -211,3 +211,8 @@ The next strong technical step should still stay narrow:
 - keep static validation through the existing `.gwo` image checks
 - decide the next runtime service only after the console ABI stays stable
 - no `.grw` compiler or hosted-native executable implementation yet
+
+The `.gwo` header seed now keeps the current boot artifacts and future
+headered executable payloads as separate loader classes. The current stage-1
+loader remains raw-profile only; headered execution requires a future explicit
+loader decision and rejection path.
