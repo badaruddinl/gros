@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 FIXTURE_ROOT="$ROOT/fixtures/generated-code"
 PROFILE="gros.x86.bios.real16.stage2.v0"
+EXPECTED_SIZE="2048"
+ENTRY_ADDRESS="0000:8000"
 
 fail() {
     echo "error: $1" >&2
@@ -34,6 +36,17 @@ require_manifest_value() {
     [ "$actual" = "$expected" ] || fail "$manifest key $key must be $expected, got $actual"
 }
 
+require_manifest_decimal() {
+    local manifest=$1
+    local key=$2
+    local expected=$3
+    local actual
+
+    actual=$(manifest_value "$manifest" "$key") || fail "$manifest missing key: $key"
+    [[ $actual =~ ^[0-9]+$ ]] || fail "$manifest key $key must be decimal bytes, got $actual"
+    [ "$actual" = "$expected" ] || fail "$manifest key $key must be $expected, got $actual"
+}
+
 require_manifest_file() {
     local dir=$1
     local manifest=$2
@@ -44,6 +57,33 @@ require_manifest_file() {
     actual=$(manifest_value "$manifest" "$key") || fail "$manifest missing key: $key"
     [ "$actual" = "$expected_name" ] || fail "$manifest key $key must be $expected_name, got $actual"
     [ -f "$dir/$actual" ] || fail "fixture missing file declared by $key: $dir/$actual"
+}
+
+require_file_size() {
+    local file=$1
+    local expected=$2
+    local actual
+
+    actual=$(wc -c < "$file" | tr -d '[:space:]')
+    [ "$actual" = "$expected" ] || fail "$file must be $expected bytes, got $actual"
+}
+
+require_entry_origin() {
+    local gr_file=$1
+    local address=$2
+    local origin
+
+    case "$address" in
+        0000:8000)
+            origin="8000"
+            ;;
+        *)
+            fail "$gr_file uses unsupported generated fixture entry address: $address"
+            ;;
+    esac
+
+    grep -Eq "^[[:space:]]*origin[[:space:]]+$origin([[:space:]]*(;.*)?)?$" "$gr_file" ||
+        fail "$gr_file origin must match entry_address $address"
 }
 
 check_fixture() {
@@ -63,16 +103,21 @@ check_fixture() {
     require_manifest_file "$dir" "$manifest" "source" "source.gn"
     require_manifest_file "$dir" "$manifest" "expected_gr" "expected.gr"
     require_manifest_file "$dir" "$manifest" "expected_gro" "expected.gro"
+    require_manifest_decimal "$manifest" "expected_size" "$EXPECTED_SIZE"
+    require_manifest_value "$manifest" "entry_address" "$ENTRY_ADDRESS"
 
     grep -F "target \"$PROFILE\"" "$dir/source.gn" > /dev/null || fail "$dir/source.gn must declare target $PROFILE"
     grep -F "raw " "$dir/source.gn" > /dev/null && fail "$dir/source.gn must stay informational and must not embed raw ground code"
     grep -F "raw " "$dir/expected.gr" > /dev/null || fail "$dir/expected.gr must be raw .gr source"
+    require_entry_origin "$dir/expected.gr" "$ENTRY_ADDRESS"
+    require_file_size "$dir/expected.gro" "$EXPECTED_SIZE"
 
     tmp_dir=$(mktemp -d "$ROOT/build/generated-fixture.XXXXXX")
     built="$tmp_dir/expected.gro"
     trap 'rm -rf "$tmp_dir"' RETURN
 
     "$ROOT/scripts/grraw.sh" "$dir/expected.gr" "$built" > /dev/null
+    require_file_size "$built" "$EXPECTED_SIZE"
     cmp -s "$built" "$dir/expected.gro" || fail "$name expected.gro must match expected.gr build output"
 
     rm -rf "$tmp_dir"
