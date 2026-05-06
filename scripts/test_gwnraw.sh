@@ -71,6 +71,8 @@ bash -n \
     "$ROOT/scripts/test_gwo_artifact_inventory_failures.sh" \
     "$ROOT/scripts/check_memory_model.sh" \
     "$ROOT/scripts/test_memory_model_failures.sh" \
+    "$ROOT/scripts/check_stage2_data.sh" \
+    "$ROOT/scripts/test_stage2_data_failures.sh" \
     "$ROOT/scripts/run_qemu.sh" \
     "$ROOT/scripts/run_stage2_qemu.sh" \
     "$ROOT/scripts/smoke_stage2_qemu.sh"
