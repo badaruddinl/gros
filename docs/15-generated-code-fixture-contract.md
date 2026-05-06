@@ -107,7 +107,13 @@ expected-only
 
 ## Validation Contract
 
-A future Bash-only validation script may validate a fixture by:
+The Bash-only validation script is:
+
+```txt
+scripts/check_generated_fixtures.sh
+```
+
+It validates existing fixtures by:
 
 - checking the manifest keys
 - rejecting unknown fixture status values
@@ -115,6 +121,8 @@ A future Bash-only validation script may validate a fixture by:
 - comparing the built bytes with `expected.gro`
 - checking profile-specific ABI fixtures over `expected.gro`
 - confirming that `source.gn` is informational only
+
+The validation script passes when no generated-code fixtures exist yet. That keeps the contract active before the first fixture is added.
 
 The validation script must not:
 
