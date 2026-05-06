@@ -71,6 +71,12 @@ LBA 1..4 -> 0000:8000
 
 It must not be described as a header-aware `.gwo` executable loader.
 
+The current GrBoot raw-profile loader status is summarized in:
+
+```txt
+docs/21-grboot-boot-chain-status.md
+```
+
 ## Loader Decision Seed
 
 A future header-aware loader must classify a candidate payload before control

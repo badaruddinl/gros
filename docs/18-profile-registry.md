@@ -162,6 +162,7 @@ docs/14-real16-memory-model.md
 docs/17-grcall-service-registry.md
 docs/19-grogan-kernel-seed.md
 docs/20-grrt16-runtime-status.md
+docs/21-grboot-boot-chain-status.md
 ```
 
 ## Non-Goals

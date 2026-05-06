@@ -57,6 +57,12 @@ Current implemented parts:
 stage-1 BIOS loader for the stage-2 image
 ```
 
+The current GrBoot boot chain status is defined in:
+
+```txt
+docs/21-grboot-boot-chain-status.md
+```
+
 `GrRT16`:
 
 ```txt
