@@ -59,6 +59,8 @@ bash -n \
     "$ROOT/scripts/gwnraw.sh" \
     "$ROOT/scripts/build_boot.sh" \
     "$ROOT/scripts/build_stage2_image.sh" \
+    "$ROOT/scripts/check_project_policy.sh" \
+    "$ROOT/scripts/test_project_policy_failures.sh" \
     "$ROOT/scripts/check_generated_fixtures.sh" \
     "$ROOT/scripts/test_generated_fixtures_failures.sh" \
     "$ROOT/scripts/check_boot.sh" \
