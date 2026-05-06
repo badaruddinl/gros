@@ -62,6 +62,7 @@ bash -n \
     "$ROOT/scripts/check_generated_fixtures.sh" \
     "$ROOT/scripts/test_generated_fixtures_failures.sh" \
     "$ROOT/scripts/check_boot.sh" \
+    "$ROOT/scripts/test_boot_image_failures.sh" \
     "$ROOT/scripts/check_stage2_image.sh" \
     "$ROOT/scripts/test_stage2_image_failures.sh" \
     "$ROOT/scripts/check_grscall_registry.sh" \
