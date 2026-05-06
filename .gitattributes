@@ -1,11 +1,11 @@
 * text=auto
 
 .gitattributes text eol=lf
-*.gr text eol=lf
-*.gn text eol=lf
+*.grw text eol=lf
+*.gwn text eol=lf
 *.md text eol=lf
 *.sh text eol=lf
 Makefile text eol=lf
 manifest.txt text eol=lf
 
-*.gro binary
+*.gwo binary

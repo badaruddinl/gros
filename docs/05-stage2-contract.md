@@ -16,12 +16,12 @@ This contract does not define:
 
 - A final kernel ABI.
 - A filesystem format.
-- A Grown `.gn` compiler or interpreter.
+- A Grown `.grw` compiler or interpreter.
 - A version bump from the current GrOS v0.5 boot banner.
 
 ## Image Layout
 
-The bootable `.gro` image is laid out in 512-byte sectors:
+The bootable `.gwo` image is laid out in 512-byte sectors:
 
 ```txt
 LBA 0  / CHS 0:0:1  stage-1 boot sector
@@ -42,10 +42,10 @@ The initial stage-2 reservation is 4 sectors, or 2048 bytes. The full image size
 The reference implementation paths are:
 
 ```txt
-boot/stage1_loader.gr
-boot/stage2_min.gr
-build/gros-stage2.gro
-dist/gros-stage2.gro
+boot/stage1_loader.gwn
+boot/stage2_min.gwn
+build/gros-stage2.gwo
+dist/gros-stage2.gwo
 ```
 
 ## Load Contract
@@ -99,9 +99,9 @@ Stage-2 may assume that every reserved stage-2 sector was read successfully befo
 
 ## Build Rules
 
-- Stage-1 source remains raw `.gr`.
-- Stage-2 source remains raw `.gr` for this contract.
-- `.gro` remains a build artifact.
+- Stage-1 source remains raw `.gwn`.
+- Stage-2 source remains raw `.gwn` for this contract.
+- `.gwo` remains a build artifact.
 - Bash tooling remains the build path.
 - NASM or `ndisasm` may be used for validation only, not as the source of truth for building.
 

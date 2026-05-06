@@ -1,6 +1,6 @@
-# Raw .gr Format
+# Raw .gwn Format
 
-`scripts/grraw.sh` builds the early raw-byte `.gr` format into a `.gro` image.
+`scripts/gwnraw.sh` builds the early raw-byte `.gwn` format into a `.gwo` image.
 
 Supported directives:
 

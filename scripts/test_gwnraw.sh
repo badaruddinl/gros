@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-GRRAW="$ROOT/scripts/grraw.sh"
+GWNRAW="$ROOT/scripts/gwnraw.sh"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -27,11 +27,11 @@ hex_prefix() {
 expect_prefix() {
     local name=$1
     local expected=$2
-    local src="$TMP_DIR/$name.gr"
-    local out="$TMP_DIR/$name.gro"
+    local src="$TMP_DIR/$name.gwn"
+    local out="$TMP_DIR/$name.gwo"
     cat > "$src"
 
-    "$GRRAW" "$src" "$out"
+    "$GWNRAW" "$src" "$out"
 
     local byte_count=$(( ${#expected} / 2 ))
     local actual
@@ -43,12 +43,12 @@ expect_prefix() {
 expect_fails() {
     local name=$1
     local message=$2
-    local src="$TMP_DIR/$name.gr"
-    local out="$TMP_DIR/$name.gro"
+    local src="$TMP_DIR/$name.gwn"
+    local out="$TMP_DIR/$name.gwo"
     local err="$TMP_DIR/$name.err"
     cat > "$src"
 
-    if "$GRRAW" "$src" "$out" > /dev/null 2> "$err"; then
+    if "$GWNRAW" "$src" "$out" > /dev/null 2> "$err"; then
         fail "$name: expected failure"
     fi
     grep -F "$message" "$err" > /dev/null || fail "$name: expected error containing '$message'"
@@ -56,7 +56,7 @@ expect_fails() {
 }
 
 bash -n \
-    "$ROOT/scripts/grraw.sh" \
+    "$ROOT/scripts/gwnraw.sh" \
     "$ROOT/scripts/build_boot.sh" \
     "$ROOT/scripts/build_stage2_image.sh" \
     "$ROOT/scripts/check_boot.sh" \
@@ -105,8 +105,8 @@ ascii "A;B"
 byte 00
 GR
 
-process_out="$TMP_DIR/process-substitution.gro"
-"$GRRAW" <(printf '%s\n' 'origin 7C00' 'ascii "PS"' 'byte 00') "$process_out"
+process_out="$TMP_DIR/process-substitution.gwo"
+"$GWNRAW" <(printf '%s\n' 'origin 7C00' 'ascii "PS"' 'byte 00') "$process_out"
 [ "$(hex_prefix "$process_out" 3)" = "505300" ] || fail "process-substitution: wrong output"
 pass "process substitution source"
 
@@ -140,14 +140,14 @@ GR
 
 "$ROOT/scripts/build_boot.sh" > /dev/null
 "$ROOT/scripts/check_boot.sh" > /dev/null
-"$ROOT/scripts/check_boot.sh" "$ROOT/dist/gros-v0.5.gro" > /dev/null
-cmp -s "$ROOT/build/gros-v0.5.gro" "$ROOT/dist/gros-v0.5.gro" || fail "v0.5 build differs from dist artifact"
+"$ROOT/scripts/check_boot.sh" "$ROOT/dist/gros-v0.5.gwo" > /dev/null
+cmp -s "$ROOT/build/gros-v0.5.gwo" "$ROOT/dist/gros-v0.5.gwo" || fail "v0.5 build differs from dist artifact"
 pass "v0.5 artifact"
 
 "$ROOT/scripts/build_stage2_image.sh" > /dev/null
-"$ROOT/scripts/check_stage2_image.sh" "$ROOT/build/gros-stage2.gro" > /dev/null
-"$ROOT/scripts/check_stage2_image.sh" "$ROOT/dist/gros-stage2.gro" > /dev/null
-cmp -s "$ROOT/build/gros-stage2.gro" "$ROOT/dist/gros-stage2.gro" || fail "stage-2 build differs from dist artifact"
+"$ROOT/scripts/check_stage2_image.sh" "$ROOT/build/gros-stage2.gwo" > /dev/null
+"$ROOT/scripts/check_stage2_image.sh" "$ROOT/dist/gros-stage2.gwo" > /dev/null
+cmp -s "$ROOT/build/gros-stage2.gwo" "$ROOT/dist/gros-stage2.gwo" || fail "stage-2 build differs from dist artifact"
 pass "stage-2 artifact"
 
 echo "passed: $pass_count"

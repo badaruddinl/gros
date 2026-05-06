@@ -1,14 +1,14 @@
-# `.gro` Payload Header Seed
+# `.gwo` Payload Header Seed
 
-This document defines the first reserved header shape for future executable `.gro` payloads. It is a seed specification only. It does not change the current boot images, add a loader implementation, add a `.gn` compiler, add a linker, add relocations, or change the GrOS boot banner.
+This document defines the first reserved header shape for future executable `.gwo` payloads. It is a seed specification only. It does not change the current boot images, add a loader implementation, add a `.grw` compiler, add a linker, add relocations, or change the GrOS boot banner.
 
 ## Current State
 
-Current committed `.gro` artifacts remain raw boot images:
+Current committed `.gwo` artifacts remain raw boot images:
 
 ```txt
-dist/gros-v0.5.gro
-dist/gros-stage2.gro
+dist/gros-v0.5.gwo
+dist/gros-stage2.gwo
 ```
 
 They are headerless by design.
@@ -28,7 +28,7 @@ Stage-1 still loads stage-2 to:
 
 ## Header Goal
 
-The future `.gro` header exists to let GrOS identify executable payloads before running them. It should describe enough metadata for a loader or runtime to reject incompatible payloads before control transfer.
+The future `.gwo` header exists to let GrOS identify executable payloads before running them. It should describe enough metadata for a loader or runtime to reject incompatible payloads before control transfer.
 
 The header is not required for boot sectors or the current stage-2 raw payload.
 
@@ -117,8 +117,8 @@ Must be zero in the seed layout.
 
 ## Compatibility Rules
 
-- Current raw `.gro` boot images do not carry this header.
-- A loader must not assume all `.gro` files are headered.
+- Current raw `.gwo` boot images do not carry this header.
+- A loader must not assume all `.gwo` files are headered.
 - A header-aware loader must first check `magic`.
 - If `magic` is absent, handling is profile-specific and may fall back to raw boot image behavior.
 - If `magic` is present but `header_size`, `header_version`, profile, flags, size, or checksum are unsupported, the loader must reject the payload.
@@ -126,10 +126,10 @@ Must be zero in the seed layout.
 
 ## Relationship To Grown
 
-Future Grown `.gn` compilation may target:
+Future Grown `.grw` compilation may target:
 
 ```txt
-.gn source -> .gr ground layer -> headered .gro payload
+.grw source -> .gwn ground layer -> headered .gwo payload
 ```
 
 That path is not implemented. This seed only reserves the artifact metadata shape needed by a future loader and toolchain.
@@ -138,8 +138,8 @@ That path is not implemented. This seed only reserves the artifact metadata shap
 
 This seed does not add:
 
-- a header to existing `.gro` artifacts
-- a `.gn` compiler
+- a header to existing `.gwo` artifacts
+- a `.grw` compiler
 - a linker
 - relocation records
 - symbol tables

@@ -3,7 +3,7 @@
 This document defines the first runtime contract seed for a minimal Grown
 `fn main()` under the current GrOS stage-2 profile. It is specification only. It
 does not add a parser, compiler, interpreter, linker, code generator, allocator,
-hosted-native executable output, executable `.gro` loader, or boot banner change.
+hosted-native executable output, executable `.gwo` loader, or boot banner change.
 
 ## Scope
 
@@ -23,7 +23,7 @@ stage-2 payload loaded at 0000:8000
 
 This contract covers only the smallest future Grown source shape:
 
-```gn
+```grw
 target "gros.x86.bios.real16.stage2.v0"
 
 fn main() -> void {
@@ -71,7 +71,7 @@ no caller above the stage-2 payload.
 
 For the expected-only minimal fixture, this source behavior:
 
-```gn
+```grw
 fn main() -> void {
     return;
 }
@@ -138,20 +138,20 @@ entry_address=0000:8000
 status=expected-only
 ```
 
-Its handwritten `.gr` source remains the expected low-level representation for a
+Its handwritten `.gwn` source remains the expected low-level representation for a
 future compiler target. The repository must not claim that current tooling
-compiled `source.gn` into `expected.gr` or `expected.gro`.
+compiled `source.grw` into `expected.gwn` or `expected.gwo`.
 
 ## Gate Status
 
 This contract helps narrow the ABI stability gate, but it does not open it.
 
-Still missing before `.gn` lowering can start:
+Still missing before `.grw` lowering can start:
 
 - parser rules implemented in tooling
 - type checking rules implemented in tooling
-- generated `.gr` emission
-- generated `.gro` parity against fixtures
+- generated `.gwn` emission
+- generated `.gwo` parity against fixtures
 - payload format decision for executable generated artifacts
 
 Until those exist, Grown work remains specification and expected-fixture work.
@@ -171,5 +171,5 @@ This seed does not define:
 - static initialization
 - allocator behavior
 - system calls
-- executable `.gro` loading
+- executable `.gwo` loading
 - a version bump

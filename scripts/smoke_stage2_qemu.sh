@@ -2,13 +2,13 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-DEFAULT_FILE="$ROOT/build/gros-stage2.gro"
+DEFAULT_FILE="$ROOT/build/gros-stage2.gwo"
 FILE="$DEFAULT_FILE"
 REQUIRE_QEMU=0
 SECONDS_TO_RUN=3
 
 usage() {
-    echo "usage: smoke_stage2_qemu.sh [--require-qemu] [image.gro]" >&2
+    echo "usage: smoke_stage2_qemu.sh [--require-qemu] [image.gwo]" >&2
 }
 
 while [ "$#" -gt 0 ]; do

@@ -1,6 +1,6 @@
 # Real16 Memory Model Seed
 
-This document defines the first memory model seed for the current GrOS stage-2 runtime profile. It is a technical contract for handwritten `.gr` payload code and future `.gn` lowering constraints. It does not add a compiler, parser, interpreter, linker, heap allocator, executable loader, hosted-native target, or boot banner change.
+This document defines the first memory model seed for the current GrOS stage-2 runtime profile. It is a technical contract for handwritten `.gwn` payload code and future `.grw` lowering constraints. It does not add a compiler, parser, interpreter, linker, heap allocator, executable loader, hosted-native target, or boot banner change.
 
 ## Profile
 
@@ -49,7 +49,7 @@ Seed rules:
 - `SS:SP` is the only stack pointer form.
 - `CS:IP` is the code pointer form for the active instruction stream.
 - `ES:DI` may be used as a BIOS or low-level copy boundary when a service explicitly defines it.
-- Pointer-sized `.gn` types remain reserved until the memory model has static fixtures and at least one generated-code validation path.
+- Pointer-sized `.grw` types remain reserved until the memory model has static fixtures and at least one generated-code validation path.
 
 Future profiles may introduce far pointers, normalized physical addresses, page-based virtual addresses, or capability-like handles. None of those are part of this seed.
 
@@ -150,13 +150,13 @@ The following are intentionally undefined:
 - stack-to-heap promotion
 - garbage collection
 
-Future `.gn` programs targeting this profile must not require heap allocation until a later GrOS profile defines and validates an allocator or an equivalent static-memory model.
+Future `.grw` programs targeting this profile must not require heap allocation until a later GrOS profile defines and validates an allocator or an equivalent static-memory model.
 
-## Grown `.gn` Constraints
+## Grown `.grw` Constraints
 
-This memory model is a seed for future `.gn` lowering only. It does not make `.gn` executable in this repository yet.
+This memory model is a seed for future `.grw` lowering only. It does not make `.grw` executable in this repository yet.
 
-Until the ABI stability gate opens, `.gn` profile rules must treat these features as reserved:
+Until the ABI stability gate opens, `.grw` profile rules must treat these features as reserved:
 
 - pointer arithmetic
 - general references
@@ -169,7 +169,7 @@ Until the ABI stability gate opens, `.gn` profile rules must treat these feature
 
 Allowed for specification examples only:
 
-```gn
+```grw
 target "gros.x86.bios.real16.stage2.v0"
 
 fn main() -> void {
@@ -201,7 +201,7 @@ The runtime ABI seed remains the source of truth for register inputs, return val
 Current status:
 
 ```txt
-seeded, not stable for generated `.gn` code
+seeded, not stable for generated `.grw` code
 ```
 
 Existing validation covers:
@@ -218,7 +218,7 @@ Missing validation:
 
 - generated-code fixture
 
-The missing generated-code fixture still blocks `.gn` pointer types and generated `.gro` payloads.
+The missing generated-code fixture still blocks `.grw` pointer types and generated `.gwo` payloads.
 
 ## Non-Goals
 
@@ -233,6 +233,6 @@ This seed does not define:
 - a userspace heap
 - dynamic linking
 - relocations
-- a `.gn` compiler
+- a `.grw` compiler
 - hosted-native executable output
 - a version bump

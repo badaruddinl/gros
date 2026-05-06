@@ -5,7 +5,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 REQUIRE_NDISASM=0
 
 usage() {
-    echo "usage: validate_boot_image.sh [--require-ndisasm] [image.gro]" >&2
+    echo "usage: validate_boot_image.sh [--require-ndisasm] [image.gwo]" >&2
 }
 
 while [ "$#" -gt 0 ]; do
@@ -33,7 +33,7 @@ if [ "$#" -gt 1 ]; then
     exit 2
 fi
 
-FILE=${1:-"$ROOT/build/gros-v0.5.gro"}
+FILE=${1:-"$ROOT/build/gros-v0.5.gwo"}
 
 fail() {
     echo "error: $1" >&2

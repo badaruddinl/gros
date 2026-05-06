@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-DEFAULT_FILE="$ROOT/build/gros-stage2.gro"
+DEFAULT_FILE="$ROOT/build/gros-stage2.gwo"
 SPEC_FILE="$ROOT/docs/14-real16-memory-model.md"
 FILE="$DEFAULT_FILE"
 
@@ -32,7 +32,7 @@ PLATFORM_START=$((0xa000))
 PLATFORM_END=$((0xffff))
 
 usage() {
-    echo "usage: check_memory_model.sh [image.gro]" >&2
+    echo "usage: check_memory_model.sh [image.gwo]" >&2
 }
 
 fail() {

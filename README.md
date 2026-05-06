@@ -2,15 +2,15 @@
 
 Gr is an ecosystem that starts from the most basic machine bytes and grows upward into native GrOS systems code.
 
-- `.gr` = ground/root/raw source and low-level backend layer
-- `.gn` = unified Grown source, native to the GrOS ecosystem and usable by hosted-native profiles
-- `.gro` = grown output artifact for the GrOS ecosystem
+- `.grw` = Ground Readable Weave, the main Grown source form
+- `.gwo` = Grown Object, the compiled/output artifact form
+- `.gwn` = Ground/Woven Native, the low-level native/backend layer
 
 This repository is the development workspace for GrOS v0.5: a 512-byte x86 BIOS boot sector with a small interactive prompt.
 
 ```txt
 GrOS v0.5
-gr>
+ground>
 ```
 
 The prompt supports line editing with Backspace and built-in commands:
@@ -23,20 +23,20 @@ The prompt supports line editing with Backspace and built-in commands:
 ## Current GrOS Profile
 
 - CPU/firmware: x86 BIOS real mode
-- Product output: `build/gros-v0.5.gro`
+- Product output: `build/gros-v0.5.gwo`
 - Product form: raw 512-byte boot sector
 
 ## Technical Specs
 
-- [Raw `.gr` format](docs/04-raw-gr-format.md)
+- [Raw `.gwn` format](docs/04-raw-gwn-format.md)
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
 - [GrOS ABI handoff profile](docs/06-abi-handoff.md)
 - [Grown language spec](docs/07-grown-language.md)
 - [Project overview](docs/08-project-overview.md)
 - [Grown hosted-native ecosystem mapping](docs/09-grown-ecosystem-mapping.md)
 - [GrOS runtime ABI seed](docs/10-runtime-abi-seed.md)
-- [`.gro` payload header seed](docs/11-gro-payload-header.md)
-- [Grown `.gn` front-end seed](docs/12-gn-front-end-seed.md)
+- [`.gwo` payload header seed](docs/11-gwo-payload-header.md)
+- [Grown `.grw` front-end seed](docs/12-grw-front-end-seed.md)
 - [ABI stability gate](docs/13-abi-stability-gate.md)
 - [Real16 memory model seed](docs/14-real16-memory-model.md)
 - [Generated-code fixture contract seed](docs/15-generated-code-fixture-contract.md)
@@ -46,9 +46,9 @@ The prompt supports line editing with Backspace and built-in commands:
 
 The experimental stage-2 image keeps the `GrOS v0.5` banner and moves the prompt runtime behind a 512-byte stage-1 loader.
 
-- Stage-1 source: `boot/stage1_loader.gr`
-- Stage-2 source: `boot/stage2_min.gr`
-- Product output: `build/gros-stage2.gro`
+- Stage-1 source: `boot/stage1_loader.gwn`
+- Stage-2 source: `boot/stage2_min.gwn`
+- Product output: `build/gros-stage2.gwo`
 - Product form: 512-byte stage-1 plus a 2048-byte stage-2 payload
 - Runtime gate: `int 30h`
 - Implemented runtime services: `runtime/control.probe`, `console/text.write_cstr`, and `console/text.write_char`
@@ -88,7 +88,7 @@ Build:
 ./scripts/build_boot.sh
 ```
 
-The boot image is built from the raw-byte `.gr` source in `boot/` through `scripts/grraw.sh`. The source format supports labels plus absolute and relative label references, so boot code can move without manually recalculating offsets.
+The boot image is built from the raw-byte `.gwn` source in `boot/` through `scripts/gwnraw.sh`. The source format supports labels plus absolute and relative label references, so boot code can move without manually recalculating offsets.
 
 Check size and boot signature:
 
@@ -108,9 +108,9 @@ Run the full validation path:
 make validate
 ```
 
-This runs the project policy guard, generated-code fixture validator, raw builder tests, generated boot image checks, committed `dist` artifact checks, and build output parity checks. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for the current boot artifacts, the build source of truth remains `.gr` raw source and Bash tooling.
+This runs the project policy guard, generated-code fixture validator, raw builder tests, generated boot image checks, committed `dist` artifact checks, and build output parity checks. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for the current boot artifacts, the build source of truth remains `.gwn` raw source and Bash tooling.
 
-The runtime ABI, real16 memory model, near-pointer, and stage-2 data fixtures are Bash-only and validate the implemented `int 30h` return contracts, seeded memory boundaries, pointer immediates, and static text/data bytes directly from the stage-2 `.gro` image.
+The runtime ABI, real16 memory model, near-pointer, and stage-2 data fixtures are Bash-only and validate the implemented `int 30h` return contracts, seeded memory boundaries, pointer immediates, and static text/data bytes directly from the stage-2 `.gwo` image.
 
 Run in QEMU:
 
@@ -129,9 +129,9 @@ make run
 Public meaning:
 
 ```txt
-Gr  = root / grain / ground
-Gn  = unified Grown source
-Gro = grown form
+Grw = Ground Readable Weave
+Gwo = Grown Object
+Gwn = Ground/Woven Native
 ```
 
 The original private meaning can remain implicit.

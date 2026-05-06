@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
-    echo "usage: grraw.sh <source.gr> <output.gro>" >&2
+    echo "usage: gwnraw.sh <source.gwn> <output.gwo>" >&2
     exit 2
 fi
 
