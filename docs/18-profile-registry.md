@@ -3,7 +3,7 @@
 This document defines the first GrOS profile registry seed. It is a registry and
 status contract only. It does not add a new profile implementation, parser,
 compiler, interpreter, linker, allocator, executable loader, hosted-native
-output, UEFI target, `x86_64` execution, GrCall profile query service, profile
+output, UEFI target, `x86_64` execution, GrSCall profile query service, profile
 version bump, or boot banner change.
 
 ## Purpose
@@ -116,12 +116,18 @@ A future profile ID assignment must define:
 - entry validation rules,
 - rejection behavior.
 
-## GrCall Profile Rule
+## GrSCall Profile Rule
 
-The current GrCall entry mechanism is:
+The current GrSCall entry mechanism is:
 
 ```txt
 int 30h
+```
+
+Profile name:
+
+```txt
+GrSCall.real16.int30
 ```
 
 This is specific to:
@@ -159,7 +165,7 @@ docs/10-runtime-abi-seed.md
 docs/11-gwo-payload-header.md
 docs/13-abi-stability-gate.md
 docs/14-real16-memory-model.md
-docs/17-grcall-service-registry.md
+docs/17-grscall-service-registry.md
 docs/19-grogan-kernel-seed.md
 docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
@@ -182,7 +188,7 @@ This registry does not add:
 - `.grw` compiler output
 - a headered `.gwo` loader
 - a profile ID numeric mapping
-- a GrCall profile query service
+- a GrSCall profile query service
 - a Grogan kernel implementation
 - a profile version bump
 - a version bump

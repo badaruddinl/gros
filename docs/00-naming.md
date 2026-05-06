@@ -101,16 +101,34 @@ The current GrABI contract status is defined in:
 docs/22-grabi-contract-status.md
 ```
 
-`GrCall`:
+`GrSCall`:
 
 ```txt
-Runtime service-call interface.
+Gr System Call.
 ```
 
 Current implemented seed:
 
 ```txt
 int 30h
+```
+
+Public naming rule:
+
+```txt
+Canonical name: GrSCall
+Namespace/path: grscall
+Deprecated alias: GrCall
+```
+
+Status boundary:
+
+```txt
+Current GrSCall is the runtime service gate seed through int 30h.
+It is not a complete OS syscall ABI yet.
+It becomes the stable Grogan syscall/service ABI only after the kernel boundary,
+dispatcher ownership, object/handle model, permission model, and userspace
+contract exist.
 ```
 
 `Grown`:
@@ -214,7 +232,7 @@ Use:
 
 ```txt
 GrBoot loads GrRT16 today.
-GrRT16 exposes the first GrCall seed through int 30h.
+GrRT16 exposes the first GrSCall seed through int 30h.
 Grogan is reserved as the future GrOS kernel proper.
 Grown .grw is specified but not compiled yet.
 Current .gwo artifacts are raw profile artifacts.
@@ -227,7 +245,7 @@ Do not describe GrOS as having a complete kernel.
 Do not describe Grogan as implemented.
 Do not describe Grown as compiling .grw to .gwo.
 Do not describe current .gwo artifacts as full executable objects.
-Do not describe GrCall as a complete syscall ABI.
+Do not describe GrSCall as a complete syscall ABI.
 ```
 
 The current implementation readiness gate is defined in:

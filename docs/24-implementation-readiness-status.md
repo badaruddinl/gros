@@ -38,7 +38,7 @@ The current status coverage is:
 | Real16 memory model | `docs/14-real16-memory-model.md` |
 | Generated-code fixtures | `docs/15-generated-code-fixture-contract.md` |
 | Minimal Grown `main` contract | `docs/16-grown-main-runtime-contract.md` |
-| GrCall services | `docs/17-grcall-service-registry.md` |
+| GrSCall services | `docs/17-grscall-service-registry.md` |
 | Profiles | `docs/18-profile-registry.md` |
 | Grogan kernel boundary | `docs/19-grogan-kernel-seed.md` |
 | GrRT16 runtime status | `docs/20-grrt16-runtime-status.md` |
@@ -92,7 +92,7 @@ The following gates remain closed:
 | header-aware `.gwo` executable loader | closed |
 | GrBoot header loading | closed |
 | Grogan kernel implementation | closed |
-| new GrCall runtime services | closed until selector contract and validation are updated |
+| new GrSCall runtime services | closed until selector contract and validation are updated |
 | heap allocator | closed |
 | protected mode | closed |
 | long mode | closed |

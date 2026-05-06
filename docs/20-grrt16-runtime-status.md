@@ -101,7 +101,7 @@ The current GrRT16 stage-2 entry initializes:
 - direction flag clear,
 - `int 30h` interrupt vector offset and segment.
 
-After the GrCall gate is installed, GrRT16 probes:
+After the GrSCall gate is installed, GrRT16 probes:
 
 ```txt
 00h:00h runtime/control.probe
@@ -133,9 +133,9 @@ The implemented commands are:
 The prompt is runtime code, not a shell, process model, user environment, or
 filesystem interface.
 
-## GrCall Runtime Services
+## GrSCall Runtime Services
 
-GrRT16 currently installs the GrCall entry gate:
+GrRT16 currently installs the GrSCall entry gate:
 
 ```txt
 int 30h
@@ -177,7 +177,7 @@ The service contracts are defined by:
 
 ```txt
 docs/10-runtime-abi-seed.md
-docs/17-grcall-service-registry.md
+docs/17-grscall-service-registry.md
 ```
 
 ## Memory And Data Status
@@ -213,7 +213,7 @@ GrRT16 status is validated by direct checks over source and `.gwo` artifacts.
 | Check | What It Protects |
 | --- | --- |
 | `scripts/check_stage2_image.sh` | stage-2 image size, boot signature, loader transfer, `int 30h` install, prompt strings |
-| `scripts/check_runtime_abi.sh` | implemented GrCall selectors and return paths |
+| `scripts/check_runtime_abi.sh` | implemented GrSCall selectors and return paths |
 | `scripts/check_memory_model.sh` | real16 memory ranges and stage-2 setup bytes |
 | `scripts/check_near_pointers.sh` | near-pointer immediates used by stage-2 |
 | `scripts/check_stage2_data.sh` | static text/data bytes and zero-filled command buffer tail |
@@ -243,7 +243,7 @@ Changes to GrRT16 must keep the status model precise.
 
 Rules:
 
-- A new GrCall selector must update the runtime ABI seed, the GrCall service
+- A new GrSCall selector must update the runtime ABI seed, the GrSCall service
   registry, and static runtime ABI validation.
 - A prompt or command behavior change must keep stage-2 image validation and
   data fixtures green.
@@ -262,7 +262,7 @@ Current relationship:
 
 ```txt
 GrBoot loads GrRT16 today.
-GrRT16 exposes the first GrCall seed.
+GrRT16 exposes the first GrSCall seed.
 Grogan remains reserved/future.
 ```
 
@@ -284,7 +284,7 @@ docs/06-abi-handoff.md
 docs/10-runtime-abi-seed.md
 docs/13-abi-stability-gate.md
 docs/14-real16-memory-model.md
-docs/17-grcall-service-registry.md
+docs/17-grscall-service-registry.md
 docs/18-profile-registry.md
 docs/19-grogan-kernel-seed.md
 docs/21-grboot-boot-chain-status.md

@@ -47,7 +47,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Real16 memory model seed](docs/14-real16-memory-model.md)
 - [Generated-code fixture contract seed](docs/15-generated-code-fixture-contract.md)
 - [Grown main runtime contract seed](docs/16-grown-main-runtime-contract.md)
-- [GrCall service registry](docs/17-grcall-service-registry.md)
+- [GrSCall service registry](docs/17-grscall-service-registry.md)
 - [Profile registry](docs/18-profile-registry.md)
 - [Grogan kernel seed](docs/19-grogan-kernel-seed.md)
 - [GrRT16 runtime status](docs/20-grrt16-runtime-status.md)

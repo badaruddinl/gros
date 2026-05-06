@@ -1,9 +1,13 @@
-# GrCall Service Registry
+# GrSCall Service Registry
 
-This document defines the first GrCall service registry seed. It is a registry
-and stability contract only. It does not add a new runtime service, syscall
-table implementation, parser, compiler, interpreter, linker, allocator,
-executable loader, hosted output, or boot banner change.
+This document defines the first GrSCall service registry seed. `GrSCall` means
+Gr System Call. It is the canonical public name for the GrOS service-call and
+future syscall interface. `GrCall` is a deprecated alias and should not be used
+for new public documentation.
+
+This is a registry and stability contract only. It does not add a new runtime
+service, syscall table implementation, parser, compiler, interpreter, linker,
+allocator, executable loader, hosted output, or boot banner change.
 
 ## Current Profile
 
@@ -13,14 +17,16 @@ Current concrete runtime profile:
 gros.x86.bios.real16.stage2.v0
 ```
 
-Current GrCall entry mechanism:
+Current GrSCall entry mechanism:
 
 ```txt
 int 30h
 ```
 
-This mechanism is profile-specific. Future profiles may use different machine
-entry mechanisms while preserving equivalent service semantics where possible.
+This mechanism is profile-specific. The current `int 30h` path is a service
+gate seed, not a complete OS syscall ABI. Future profiles may use different
+machine entry mechanisms while preserving equivalent service semantics where
+possible.
 
 ## Selector Encoding
 
@@ -60,7 +66,7 @@ AX = 0001h
 Purpose:
 
 ```txt
-Confirm that the GrCall gate is present.
+Confirm that the GrSCall gate is present.
 ```
 
 Expected success:
@@ -144,7 +150,7 @@ These are candidates only. They are not implemented by this document:
 - Unsupported selectors must keep the stable error convention.
 - Service inputs, outputs, clobbers, and preservation rules must be documented
   before implementation.
-- Cross-profile GrCall semantics should remain stable even when the machine
+- Cross-profile GrSCall semantics should remain stable even when the machine
   entry mechanism changes.
 
 ## Validation Rule

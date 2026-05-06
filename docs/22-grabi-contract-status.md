@@ -58,7 +58,7 @@ This is not an `x86_64` profile, not UEFI, and not Grogan proper.
 | Stage-1 to stage-2 handoff | seed/spec with validation | `docs/05-stage2-contract.md`, `docs/06-abi-handoff.md` |
 | Runtime profile identity | implemented seed | `docs/18-profile-registry.md` |
 | Function calling convention | seed/spec | `docs/10-runtime-abi-seed.md` |
-| GrCall entry and return convention | implemented seed | `docs/10-runtime-abi-seed.md`, `docs/17-grcall-service-registry.md` |
+| GrSCall entry and return convention | implemented seed | `docs/10-runtime-abi-seed.md`, `docs/17-grscall-service-registry.md` |
 | Real16 memory model | seed/spec with validation | `docs/14-real16-memory-model.md` |
 | `.gwo` raw-profile boundary | implemented for current boot artifacts | `docs/11-gwo-payload-header.md`, `docs/21-grboot-boot-chain-status.md` |
 | Headered `.gwo` executable boundary | reserved/future | `docs/11-gwo-payload-header.md` |
@@ -103,7 +103,7 @@ The current runtime ABI seed defines:
 - caller-saved and callee-saved register seed,
 - stack rules,
 - runtime service gate shape,
-- GrCall selector shape,
+- GrSCall selector shape,
 - success and error return convention.
 
 Current calling convention seed:
@@ -118,7 +118,7 @@ SI DI BP SP DS ES SS  callee-saved
 
 Direction flag must be clear on function entry and return.
 
-Current GrCall gate:
+Current GrSCall gate:
 
 ```txt
 int 30h
@@ -148,10 +148,10 @@ AX = 0001h
 Implemented services are tracked by:
 
 ```txt
-docs/17-grcall-service-registry.md
+docs/17-grscall-service-registry.md
 ```
 
-GrABI defines the call and return shape. GrCall owns the service namespace and
+GrABI defines the call and return shape. GrSCall owns the service namespace and
 selector stability rules.
 
 ## Memory Contract
@@ -225,7 +225,7 @@ It does not own:
 
 - GrBoot source implementation,
 - GrRT16 prompt/runtime behavior,
-- GrCall selector namespace ownership,
+- GrSCall selector namespace ownership,
 - Grogan kernel state,
 - `.grw` parsing or code generation,
 - `.gwo` executable loading.
@@ -235,7 +235,7 @@ Current relationship:
 ```txt
 GrBoot implements boot transfer.
 GrRT16 implements the current runtime seed.
-GrCall names service selectors.
+GrSCall names service selectors.
 GrABI defines the contracts those layers must obey.
 Grogan remains reserved/future.
 ```
@@ -274,7 +274,7 @@ docs/11-gwo-payload-header.md
 docs/13-abi-stability-gate.md
 docs/14-real16-memory-model.md
 docs/15-generated-code-fixture-contract.md
-docs/17-grcall-service-registry.md
+docs/17-grscall-service-registry.md
 docs/18-profile-registry.md
 docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
