@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SELF_TEST=${GWO_HEADER_SELF_TEST:-0}
 FIXTURE_ROOT="$ROOT/fixtures/gwo-header"
 SEED_MAGIC="47524f00"
 SEED_HEADER_SIZE="32"
@@ -32,6 +33,19 @@ fail() {
     exit 1
 }
 
+case "$SELF_TEST" in
+    0|1)
+        ;;
+    *)
+        fail "GWO_HEADER_SELF_TEST must be 0 or 1"
+        ;;
+esac
+
+if [ "${GWO_HEADER_FIXTURE_ROOT+x}" ]; then
+    [ "$SELF_TEST" = "1" ] || fail "GWO_HEADER_FIXTURE_ROOT is only allowed with GWO_HEADER_SELF_TEST=1"
+    FIXTURE_ROOT=$GWO_HEADER_FIXTURE_ROOT
+fi
+
 manifest_value() {
     local manifest=$1
     local key=$2
@@ -54,16 +68,6 @@ require_manifest_value() {
 
     actual=$(manifest_value "$manifest" "$key") || fail "$manifest missing key: $key"
     [ "$actual" = "$expected" ] || fail "$manifest key $key must be $expected, got $actual"
-}
-
-require_manifest_file() {
-    local dir=$1
-    local manifest=$2
-    local key=$3
-    local actual
-
-    actual=$(manifest_value "$manifest" "$key") || fail "$manifest missing key: $key"
-    [ -f "$dir/$actual" ] || fail "fixture missing file declared by $key: $dir/$actual"
 }
 
 require_manifest_schema() {
@@ -265,7 +269,7 @@ check_raw_artifact_separation() {
     local artifact=$1
     local magic
 
-    [ -f "$artifact" ] || return
+    [ -f "$artifact" ] || fail "missing raw-profile artifact for header separation check: $artifact"
     magic=$(od -An -tx1 -N4 "$artifact" | tr -d '[:space:]')
     [ "$magic" != "$SEED_MAGIC" ] || fail "$artifact must remain a raw-profile artifact without GWO header magic"
 }
@@ -287,10 +291,10 @@ check_fixture() {
 
     require_manifest_value "$manifest" "name" "$name"
     require_manifest_value "$manifest" "status" "header-candidate"
-    require_manifest_file "$dir" "$manifest" "candidate_hex"
 
     candidate_hex_file=$(manifest_value "$manifest" "candidate_hex") || fail "$manifest missing key: candidate_hex"
     [ "$candidate_hex_file" = "candidate.gwo.hex" ] || fail "$manifest candidate_hex must be candidate.gwo.hex"
+    [ -f "$dir/$candidate_hex_file" ] || fail "fixture missing file declared by candidate_hex: $dir/$candidate_hex_file"
     expected_result=$(manifest_value "$manifest" "expected_result") || fail "$manifest missing key: expected_result"
     expected_error=$(manifest_value "$manifest" "expected_error") || fail "$manifest missing key: expected_error"
 
