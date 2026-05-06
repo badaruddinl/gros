@@ -114,7 +114,6 @@ STAGE2_NONZERO=$(dd if="$FILE" bs=1 skip="$STAGE1_SIZE" count="$STAGE2_SIZE" 2> 
 [ -n "$STAGE2_NONZERO" ] || fail "stage-2 payload must not be empty"
 
 PROMPT_TEXT=$(addr_le_for_pattern "67726f756e643e2000")
-NEWLINE_TEXT=$(addr_le_for_pattern "0d0a00" 2)
 BACKSPACE_TEXT=$(addr_le_for_pattern "08200800")
 UNKNOWN_OFFSET=$(hex_pattern_offset "3f0d0a00")
 INPUT_BUFFER=$(addr_le_for_offset "$((UNKNOWN_OFFSET + 4))")
@@ -127,7 +126,7 @@ require_hex_regex "3c2072[0-9a-f]{2}" "control character reject"
 require_hex_regex "83f90f73[0-9a-f]{2}" "max input length guard"
 require_hex_regex "88c3aa41b80101cd30" "store and runtime echo"
 require_hex_regex "83f90074[0-9a-f]{2}4f49be${BACKSPACE_TEXT}e8[0-9a-f]{4}eb[0-9a-f]{2}" "backspace edit path"
-require_hex_regex "b000aabe${NEWLINE_TEXT}e8[0-9a-f]{4}83f90074[0-9a-f]{2}" "enter terminates line and handles empty input"
+require_hex_regex "b000aab80201cd3083f90074[0-9a-f]{2}" "enter terminates line through AX=0102h CRLF service"
 
 echo "file              : $FILE"
 echo "stage-2           : $STAGE2_SIZE bytes"

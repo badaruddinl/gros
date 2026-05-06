@@ -162,6 +162,7 @@ Implemented selectors:
 | `00h:00h` | `runtime/control.probe` | implemented |
 | `01h:00h` | `console/text.write_cstr` | implemented |
 | `01h:01h` | `console/text.write_char` | implemented |
+| `01h:02h` | `console/text.write_crlf` | implemented |
 
 Unsupported selectors return:
 
@@ -213,7 +214,7 @@ GrRT16 status is validated by direct checks over source and `.gwo` artifacts.
 | Check | What It Protects |
 | --- | --- |
 | `scripts/check_stage2_image.sh` | stage-2 image size, boot signature, loader transfer, `int 30h` install, prompt strings |
-| `scripts/check_runtime_abi.sh` | implemented GrSCall selectors and return paths |
+| `scripts/check_runtime_abi.sh` | implemented GrSCall selectors and return paths, including `console/text.write_crlf` |
 | `scripts/check_memory_model.sh` | real16 memory ranges and stage-2 setup bytes |
 | `scripts/check_near_pointers.sh` | near-pointer immediates used by stage-2 |
 | `scripts/check_stage2_data.sh` | static text/data bytes and zero-filled command buffer tail |

@@ -214,6 +214,37 @@ Write the byte in `BL`.
 
 The current implementation writes through BIOS teletype output. It does not define colors, page selection, encoding beyond bytes, or control-character policy beyond BIOS behavior.
 
+### Console/text Write CRLF
+
+```txt
+AH = 01h
+AL = 02h
+```
+
+Inputs:
+
+```txt
+none beyond the selector in AX
+```
+
+Success return:
+
+```txt
+CF = 0
+AX = 0000h
+```
+
+Meaning:
+
+```txt
+Write CR LF through the current text console.
+```
+
+The current implementation writes through BIOS teletype output. It does not define colors, page selection, encoding beyond bytes, or newline normalization beyond emitting CR LF.
+
+The service preserves `SI` because the current implementation writes the static
+newline string through the same internal print path used by C string writes.
+
 ## Static ABI Fixture
 
 The implemented return contracts are checked by:
@@ -227,10 +258,11 @@ The fixture reads the built stage-2 `.gwo` bytes and verifies:
 - the `runtime/control.probe` call shape
 - the `console/text.write_cstr` selector call shape
 - the `console/text.write_char` selector call shape
+- the `console/text.write_crlf` selector call shape
 - the interrupt handler stack frame
 - the unsupported selector error path
 - the success return path
-- `SI` preservation for C string writes
+- `SI` preservation for C string writes and CRLF writes
 
 This fixture is static validation only. It does not emulate or execute a `.grw` payload.
 
@@ -243,8 +275,9 @@ services are owned by:
 docs/17-grscall-service-registry.md
 ```
 
-This runtime ABI seed documents only the implemented selectors listed above.
-No other service IDs are implemented yet.
+This runtime ABI seed documents the implemented selectors listed above. The
+canonical GrSCall registry remains the source of truth for reserved groups,
+candidate services, and namespace ownership.
 
 ## Memory Model
 
@@ -291,7 +324,7 @@ Future `.gwo` executable subformats are reserved. They must define:
 
 This seed does not add:
 
-- additional `int 30h` services beyond runtime/control probe, console/text write C string, and console/text write character
+- `int 30h` services outside the implemented selectors listed above
 - a syscall table
 - a standard library
 - `.grw` code generation

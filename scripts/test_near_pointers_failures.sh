@@ -85,32 +85,32 @@ expect_validator_failure() {
             dd if=/dev/zero of="$CASE_IMAGE" bs=1 seek=512 count=2048 conv=notrunc status=none
             ;;
         missing-int30-vector)
-            mutate_stage2_pattern_byte "c706c000c680c706c2000000" 0 0
+            mutate_stage2_pattern_byte "c706c000c580c706c2000000" 0 0
             ;;
         int30-handler-before-stage2)
-            mutate_stage2_pattern_byte "c706c000c680c706c2000000" 5 127
+            mutate_stage2_pattern_byte "c706c000c580c706c2000000" 5 127
             ;;
         int30-handler-past-stage2)
-            mutate_stage2_pattern_byte "c706c000c680c706c2000000" 5 136
+            mutate_stage2_pattern_byte "c706c000c580c706c2000000" 5 136
             ;;
         too-few-si-write-loads)
-            mutate_stage2_pattern_byte "be0e81e89c00" 0 0
-            mutate_stage2_pattern_byte "be1a81e89600" 0 0
+            mutate_stage2_pattern_byte "be1d81e89b00" 0 0
+            mutate_stage2_pattern_byte "be2981e89500" 0 0
             ;;
         si-write-past-stage2)
-            mutate_stage2_pattern_byte "be0e81e89c00" 2 136
+            mutate_stage2_pattern_byte "be1d81e89b00" 2 136
             ;;
         too-few-compare-pairs)
-            mutate_stage2_pattern_byte "be6481bf2a81e88d00" 0 0
+            mutate_stage2_pattern_byte "be7381bf3981e89d00" 0 0
             ;;
         di-compare-past-stage2)
-            mutate_stage2_pattern_byte "be6481bf2a81e88d00" 5 136
+            mutate_stage2_pattern_byte "be7381bf3981e89d00" 5 136
             ;;
         missing-input-buffer-pointer)
-            mutate_stage2_pattern_byte "bf648131c9" 0 0
+            mutate_stage2_pattern_byte "bf738131c9" 0 0
             ;;
         input-buffer-past-stage2)
-            mutate_stage2_pattern_byte "bf648131c9" 2 136
+            mutate_stage2_pattern_byte "bf738131c9" 2 136
             ;;
         missing-write-string-forward)
             mutate_stage2_pattern_byte "b80001cd30c3" 0 0

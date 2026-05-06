@@ -5,9 +5,10 @@ Gr System Call. It is the canonical public name for the GrOS service-call and
 future syscall interface. `GrCall` is a deprecated alias and should not be used
 for new public documentation.
 
-This is a registry and stability contract only. It does not add a new runtime
-service, syscall table implementation, parser, compiler, interpreter, linker,
-allocator, executable loader, hosted output, or boot banner change.
+This is a registry and stability contract for implemented and reserved service
+selectors. It does not add a syscall table implementation, parser, compiler,
+interpreter, linker, allocator, executable loader, hosted output, or boot banner
+change.
 
 ## Current Profile
 
@@ -58,6 +59,7 @@ AX = 0001h
 | `00h` | `00h` | `runtime/control.probe` | implemented |
 | `01h` | `00h` | `console/text.write_cstr` | implemented |
 | `01h` | `01h` | `console/text.write_char` | implemented |
+| `01h` | `02h` | `console/text.write_crlf` | implemented |
 
 ## Implemented Service Contracts
 
@@ -110,6 +112,39 @@ Inputs:
 BL = character byte
 ```
 
+### `01h:02h console/text.write_crlf`
+
+Purpose:
+
+```txt
+Write a carriage return byte (`0Dh`) followed by a line feed byte (`0Ah`)
+through the current text console.
+```
+
+Inputs:
+
+```txt
+none beyond the selector in AX
+```
+
+Expected success:
+
+```txt
+CF = 0
+AX = 0000h
+```
+
+Service-specific preservation:
+
+```txt
+SI is preserved by the current service implementation.
+```
+
+The current implementation writes through BIOS teletype output. It does not
+define terminal modes, newline normalization beyond this fixed CR/LF pair,
+cursor policy beyond BIOS behavior, page selection, encoding beyond bytes, or a
+higher-level console driver model.
+
 ## Reserved Groups
 
 The following groups are reserved names only. They are not implemented unless a
@@ -136,7 +171,6 @@ These are candidates only. They are not implemented by this document:
 | --- | --- | --- |
 | `00h` | `01h` | `runtime/control.version` |
 | `00h` | `02h` | `runtime/control.profile_id` |
-| `01h` | `02h` | `console/text.write_crlf` |
 | `01h` | `03h` | `console/text.clear` |
 | `02h` | `00h` | `memory/seed.probe_map` |
 | `03h` | `00h` | `boot/info.drive` |
@@ -167,7 +201,6 @@ Additional services should extend static byte validation before being merged.
 
 This registry does not add:
 
-- a new service implementation
 - a complete syscall ABI
 - a kernel dispatch table
 - user/kernel separation

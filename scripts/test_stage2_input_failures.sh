@@ -82,7 +82,7 @@ expect_validator_failure() {
             dd if=/dev/zero of="$CASE_IMAGE" bs=1 seek=512 count=2048 conv=notrunc status=none
             ;;
         missing-prompt-reset)
-            mutate_image_pattern_byte "be1a81e89600bf648131c9" 0 0
+            mutate_image_pattern_byte "be2981e89500bf738131c9" 0 0
             ;;
         missing-keyboard-read)
             mutate_image_pattern_byte "31c0cd16" 0 0
@@ -103,10 +103,10 @@ expect_validator_failure() {
             mutate_image_pattern_byte "88c3aa41b80101cd30" 0 0
             ;;
         missing-backspace-edit)
-            mutate_image_pattern_byte "83f90074db4f49be2681e86400ebd1" 0 0
+            mutate_image_pattern_byte "83f90074db4f49be3581e86300ebd1" 0 0
             ;;
         missing-enter-termination)
-            mutate_image_pattern_byte "b000aabe2381e8590083f90074b8" 0 0
+            mutate_image_pattern_byte "b000aab80201cd3083f90074" 0 0
             ;;
         missing-backspace-data)
             mutate_image_pattern_byte "08200800" 0 0
@@ -150,7 +150,7 @@ expect_validator_failure "missing-control-reject" "missing stage-2 input loop fi
 expect_validator_failure "missing-length-guard" "missing stage-2 input loop fixture: max input length guard"
 expect_validator_failure "missing-store-echo" "missing stage-2 input loop fixture: store and runtime echo"
 expect_validator_failure "missing-backspace-edit" "missing stage-2 input loop fixture: backspace edit path"
-expect_validator_failure "missing-enter-termination" "missing stage-2 input loop fixture: enter terminates line and handles empty input"
+expect_validator_failure "missing-enter-termination" "missing stage-2 input loop fixture: enter terminates line through AX=0102h CRLF service"
 expect_validator_failure "missing-backspace-data" "missing stage-2 input data fixture:"
 
 echo "passed: $pass_count"

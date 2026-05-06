@@ -60,6 +60,15 @@ mutate_stage2_pattern() {
         dd of="$CASE_IMAGE" bs=1 seek="$absolute_offset" count=1 conv=notrunc status=none
 }
 
+mutate_stage2_regex() {
+    local pattern=$1
+    local match
+
+    match=$(printf '%s\n' "$(stage2_hex "$CASE_IMAGE")" | grep -Eo "$pattern" | head -n 1 || true)
+    [ -n "$match" ] || fail "baseline image does not contain regex: $pattern"
+    mutate_stage2_pattern "$match"
+}
+
 expect_validator_failure() {
     local name=$1
     local expected=$2
@@ -81,6 +90,9 @@ expect_validator_failure() {
         missing-write-char-echo-call)
             mutate_stage2_pattern "88c3aa41b80101cd30"
             ;;
+        missing-write-crlf-call)
+            mutate_stage2_pattern "b80201cd30"
+            ;;
         missing-handler-frame)
             mutate_stage2_pattern "5589e5"
             ;;
@@ -93,8 +105,14 @@ expect_validator_failure() {
         missing-write-char-selector-branch)
             mutate_stage2_pattern "3d010174"
             ;;
+        missing-write-crlf-selector-branch)
+            mutate_stage2_pattern "3d020174"
+            ;;
         missing-write-char-service-body)
             mutate_stage2_pattern "88d8b40ecd10"
+            ;;
+        missing-write-crlf-service-body)
+            mutate_stage2_regex "56be[0-9a-f]{4}fce8[0-9a-f]{4}5eeb[0-9a-f]{2}"
             ;;
         missing-unsupported-return)
             mutate_stage2_pattern "b80100834e06015dcf"
@@ -138,11 +156,14 @@ expect_validator_failure "wrong-size" "stage-2 boot image must be 2560 bytes"
 expect_validator_failure "missing-probe-call" "missing runtime ABI byte fixture: runtime/control probe call"
 expect_validator_failure "missing-write-cstr-helper" "missing runtime ABI byte fixture: console/text write selector call helper"
 expect_validator_failure "missing-write-char-echo-call" "missing runtime ABI byte fixture: console/text write-char echo call"
+expect_validator_failure "missing-write-crlf-call" "missing runtime ABI byte fixture: console/text write-crlf selector call"
 expect_validator_failure "missing-handler-frame" "missing runtime ABI byte fixture: runtime interrupt handler stack frame"
 expect_validator_failure "missing-probe-selector-branch" "missing runtime ABI byte fixture: runtime/control probe selector branch"
 expect_validator_failure "missing-write-cstr-selector-branch" "missing runtime ABI byte fixture: console/text write selector branch"
 expect_validator_failure "missing-write-char-selector-branch" "missing runtime ABI byte fixture: console/text write-char selector branch"
+expect_validator_failure "missing-write-crlf-selector-branch" "missing runtime ABI byte fixture: console/text write-crlf selector branch"
 expect_validator_failure "missing-write-char-service-body" "missing runtime ABI byte fixture: console/text write-char service body"
+expect_validator_failure "missing-write-crlf-service-body" "missing runtime ABI byte fixture: console/text write-crlf preserves SI and jumps to success"
 expect_validator_failure "missing-unsupported-return" "missing runtime ABI byte fixture: unsupported selector returns CF=1 AX=0001h"
 expect_validator_failure "missing-success-return" "missing runtime ABI byte fixture: successful selector returns CF=0 AX=0000h"
 expect_validator_failure "missing-si-preservation" "missing runtime ABI byte fixture: console/text preserves SI and falls through to success"
