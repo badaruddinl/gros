@@ -129,6 +129,7 @@ SIZE=$(size_of "$FILE")
 SIG=$(dd if="$FILE" bs=1 skip=510 count=2 2> /dev/null | od -An -tx1 | tr -d ' \n')
 STAGE1_HEX=$(hex_of_region "$FILE" 0 "$STAGE1_SIZE")
 STAGE2_HEX=$(hex_of_region "$FILE" "$STAGE1_SIZE" "$STAGE2_SIZE")
+STAGE2_NONZERO=$(dd if="$FILE" bs=1 skip="$STAGE1_SIZE" count="$STAGE2_SIZE" 2> /dev/null | od -An -tx1 -v | tr -d ' 0\n')
 
 echo "file       : $FILE"
 echo "profile    : $PROFILE"
@@ -138,6 +139,7 @@ echo "image size : $SIZE bytes"
 [ "$((SIZE % SECTOR_SIZE))" -eq 0 ] || fail "image size must be sector aligned"
 [ "$SIG" = "55aa" ] || fail "stage-1 boot signature must be 55aa"
 [ -n "$STAGE2_HEX" ] || fail "stage-2 payload must not be empty"
+[ -n "$STAGE2_NONZERO" ] || fail "stage-2 payload must not be empty"
 
 require_range "$IVT_START" "$IVT_END" "IVT"
 require_range "$BDA_START" "$BDA_END" "BDA"
