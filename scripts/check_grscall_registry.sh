@@ -2,8 +2,10 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-REGISTRY="$ROOT/docs/17-grscall-service-registry.md"
-RUNTIME_ABI="$ROOT/scripts/check_runtime_abi.sh"
+DEFAULT_REGISTRY="$ROOT/docs/17-grscall-service-registry.md"
+DEFAULT_RUNTIME_ABI="$ROOT/scripts/check_runtime_abi.sh"
+REGISTRY="${GRSCALL_REGISTRY_DOC:-$DEFAULT_REGISTRY}"
+RUNTIME_ABI="${GRSCALL_RUNTIME_ABI_CHECK:-$DEFAULT_RUNTIME_ABI}"
 
 fail() {
     echo "error: $1" >&2
@@ -50,6 +52,11 @@ require_runtime_fixture() {
         require_text "$RUNTIME_ABI" "$fixture" "$service runtime ABI fixture"
     done
 }
+
+if { [ -n "${GRSCALL_REGISTRY_DOC+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_CHECK+x}" ]; } &&
+    [ "${GRSCALL_REGISTRY_SELF_TEST:-0}" != "1" ]; then
+    fail "GrSCall registry overrides are only allowed with GRSCALL_REGISTRY_SELF_TEST=1"
+fi
 
 [ -f "$REGISTRY" ] || fail "missing GrSCall registry: $REGISTRY"
 [ -f "$RUNTIME_ABI" ] || fail "missing runtime ABI validator: $RUNTIME_ABI"
