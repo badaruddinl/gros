@@ -47,6 +47,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Grown main runtime contract seed](docs/16-grown-main-runtime-contract.md)
 - [GrCall service registry](docs/17-grcall-service-registry.md)
 - [Profile registry](docs/18-profile-registry.md)
+- [Grogan kernel seed](docs/19-grogan-kernel-seed.md)
 
 ## Stage-2 Loader Target
 

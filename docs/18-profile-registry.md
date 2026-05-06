@@ -160,6 +160,7 @@ docs/11-gwo-payload-header.md
 docs/13-abi-stability-gate.md
 docs/14-real16-memory-model.md
 docs/17-grcall-service-registry.md
+docs/19-grogan-kernel-seed.md
 ```
 
 ## Non-Goals
