@@ -85,31 +85,31 @@ expect_validator_failure() {
             mutate_image_pattern_byte "68656c7000" 0 0
             ;;
         missing-help-compare)
-            mutate_image_pattern_byte "be6481bf2a81" 0 0
+            mutate_image_pattern_byte "be7381bf3981" 0 0
             ;;
         missing-ver-compare)
-            mutate_image_pattern_byte "be6481bf2f81" 0 0
+            mutate_image_pattern_byte "be7381bf3e81" 0 0
             ;;
         missing-cls-compare)
-            mutate_image_pattern_byte "be6481bf3381" 0 0
+            mutate_image_pattern_byte "be7381bf4281" 0 0
             ;;
         missing-reboot-compare)
-            mutate_image_pattern_byte "be6481bf3781" 0 0
+            mutate_image_pattern_byte "be7381bf4681" 0 0
             ;;
         missing-unknown-fallback)
-            mutate_image_pattern_byte "be6081e82200e983ff" 0 0
+            mutate_image_pattern_byte "be6f81e82200e984ff" 0 0
             ;;
         missing-help-action)
-            mutate_image_pattern_byte "be3e81e81900e97aff" 0 0
+            mutate_image_pattern_byte "be4d81e81900e97bff" 0 0
             ;;
         missing-ver-action)
-            mutate_image_pattern_byte "be5481e81000e971ff" 0 0
+            mutate_image_pattern_byte "be6381e81000e972ff" 0 0
             ;;
         missing-cls-action)
-            mutate_image_pattern_byte "b80300cd10e969ff" 0 0
+            mutate_image_pattern_byte "b80300cd10e96aff" 0 0
             ;;
         missing-reboot-action)
-            mutate_image_pattern_byte "cd19e964ff" 0 0
+            mutate_image_pattern_byte "cd19e965ff" 0 0
             ;;
         missing-string-equal-convention)
             mutate_image_pattern_byte "acae750684c075f8f9c3f8c3" 0 0
