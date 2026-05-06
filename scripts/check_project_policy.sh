@@ -54,6 +54,40 @@ require_no_text_matches() {
     rm -f "$path_list"
 }
 
+require_grscall_naming_policy() {
+    local path_list
+    local matches
+    local unexpected
+    local legacy_pattern='Gr''Call|gr''call'
+    local allowed_naming='^docs/00-naming[.]md:[0-9]+:Deprecated alias: Gr''Call$'
+    local allowed_registry='^docs/17-grscall-service-registry[.]md:[0-9]+:future syscall interface[.] `Gr''Call` is a deprecated alias and should not be used$'
+
+    path_list=$(mktemp)
+
+    git -C "$ROOT" ls-files \
+        README.md \
+        Makefile \
+        boot \
+        docs \
+        fixtures \
+        scripts |
+        grep -v '^scripts/check_project_policy[.]sh$' > "$path_list"
+
+    matches=$(xargs -r grep -nE "$legacy_pattern" < "$path_list" || true)
+    rm -f "$path_list"
+
+    [ -n "$matches" ] || return
+
+    unexpected=$(
+        printf '%s\n' "$matches" |
+            grep -vE "$allowed_naming|$allowed_registry" ||
+            true
+    )
+
+    [ -z "$unexpected" ] || fail "unexpected legacy GrSCall alias public text found:
+$unexpected"
+}
+
 require_gwo_header_fixture_policy() {
     local file
     local rel
@@ -81,6 +115,7 @@ require_no_tracked_regex "roadmap/checkpoint documents" '(^|/)(roadmap|road-map|
 
 FORBIDDEN_TEXT='G''an|v0[.]6|codex/grboot|(^|[^[:alnum:]_])[.](gn|gr|gro)([^[:alnum:]_]|$)'
 require_no_text_matches "$FORBIDDEN_TEXT"
+require_grscall_naming_policy
 require_gwo_header_fixture_policy
 
 echo "project policy: ok"
