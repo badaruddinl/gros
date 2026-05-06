@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+DEFAULT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=${PROJECT_POLICY_ROOT:-$DEFAULT_ROOT}
 
 fail() {
     echo "error: $1" >&2
     exit 1
 }
+
+if [ -n "${PROJECT_POLICY_ROOT:-}" ] && [ "${PROJECT_POLICY_SELF_TEST:-}" != "1" ]; then
+    fail "PROJECT_POLICY_ROOT is only allowed with PROJECT_POLICY_SELF_TEST=1"
+fi
 
 require_no_tracked_matches() {
     local name=$1
@@ -46,7 +51,7 @@ require_no_text_matches() {
         scripts |
         grep -v '^scripts/check_project_policy[.]sh$' > "$path_list"
 
-    if [ -s "$path_list" ] && xargs -r grep -nE "$pattern" < "$path_list"; then
+    if [ -s "$path_list" ] && (cd "$ROOT" && xargs -r grep -nE "$pattern" < "$path_list"); then
         rm -f "$path_list"
         fail "forbidden public text found"
     fi
@@ -73,7 +78,7 @@ require_grscall_naming_policy() {
         scripts |
         grep -v '^scripts/check_project_policy[.]sh$' > "$path_list"
 
-    matches=$(xargs -r grep -nE "$legacy_pattern" < "$path_list" || true)
+    matches=$((cd "$ROOT" && xargs -r grep -nE "$legacy_pattern" < "$path_list") || true)
     rm -f "$path_list"
 
     [ -n "$matches" ] || return
