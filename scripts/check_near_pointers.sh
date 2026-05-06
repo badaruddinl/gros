@@ -144,7 +144,9 @@ SIZE=$(size_of "$FILE")
 [ "$SIZE" = "2560" ] || fail "stage-2 boot image must be 2560 bytes"
 
 STAGE2_HEX=$(hex_of_region "$FILE" "$STAGE1_SIZE" "$STAGE2_SIZE")
+STAGE2_NONZERO=$(dd if="$FILE" bs=1 skip="$STAGE1_SIZE" count="$STAGE2_SIZE" 2> /dev/null | od -An -tx1 -v | tr -d ' 0\n')
 [ -n "$STAGE2_HEX" ] || fail "stage-2 payload must not be empty"
+[ -n "$STAGE2_NONZERO" ] || fail "stage-2 payload must not be empty"
 
 INT30_VECTOR=$(printf '%s\n' "$STAGE2_HEX" | grep -Eo 'c706c000[0-9a-f]{4}c706c2000000' | head -n 1 || true)
 [ -n "$INT30_VECTOR" ] || fail "missing int 30h vector install fixture"
