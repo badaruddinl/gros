@@ -156,6 +156,35 @@ AX = 0001h
 
 `0001h` means unsupported service selector.
 
+### Runtime/control Version
+
+```txt
+AH = 00h
+AL = 01h
+```
+
+Inputs:
+
+```txt
+none beyond the selector in AX
+```
+
+Success return:
+
+```txt
+CF = 0
+AX = 0001h
+```
+
+Meaning:
+
+```txt
+Return the current runtime ABI revision seed.
+```
+
+This is a machine-facing ABI revision value. It is not the visible `GrOS v0.5`
+boot banner and does not change project versioning.
+
 ### Runtime/control Profile ID
 
 ```txt
@@ -292,6 +321,7 @@ scripts/check_runtime_abi.sh
 The fixture reads the built stage-2 `.gwo` bytes and verifies:
 
 - the `runtime/control.probe` call shape
+- the `runtime/control.version` selector and nonzero AX success shape
 - the `runtime/control.profile_id` selector and profile string shape
 - the `console/text.write_cstr` selector call shape
 - the `console/text.write_char` selector call shape

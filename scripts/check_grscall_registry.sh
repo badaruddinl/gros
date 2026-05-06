@@ -106,9 +106,10 @@ require_text "$REGISTRY" 'scripts/check_runtime_abi.sh' "runtime ABI validation 
 
 IMPLEMENTED_ROWS=$(implemented_rows)
 IMPLEMENTED_COUNT=$(printf '%s\n' "$IMPLEMENTED_ROWS" | sed '/^$/d' | wc -l | tr -d ' ')
-[ "$IMPLEMENTED_COUNT" = "5" ] || fail "GrSCall registry must list exactly 5 implemented services, got $IMPLEMENTED_COUNT"
+[ "$IMPLEMENTED_COUNT" = "6" ] || fail "GrSCall registry must list exactly 6 implemented services, got $IMPLEMENTED_COUNT"
 
 require_text "$REGISTRY" '| `00h` | `00h` | `runtime/control.probe` | implemented |' "runtime/control.probe implemented row"
+require_text "$REGISTRY" '| `00h` | `01h` | `runtime/control.version` | implemented |' "runtime/control.version implemented row"
 require_text "$REGISTRY" '| `00h` | `02h` | `runtime/control.profile_id` | implemented |' "runtime/control.profile_id implemented row"
 require_text "$REGISTRY" '| `01h` | `00h` | `console/text.write_cstr` | implemented |' "console/text.write_cstr implemented row"
 require_text "$REGISTRY" '| `01h` | `01h` | `console/text.write_char` | implemented |' "console/text.write_char implemented row"
@@ -134,6 +135,12 @@ require_runtime_fixture \
     "runtime/control profile_id returns DS:SI and jumps to success"
 
 require_runtime_fixture \
+    "runtime/control.version" \
+    "runtime/control version selector branch" \
+    "runtime/control version returns AX=0001h and jumps to success" \
+    "successful selector clears CF and preserves AX result"
+
+require_runtime_fixture \
     "console/text.write_cstr" \
     "console/text write selector call helper" \
     "console/text write selector branch" \
@@ -156,17 +163,17 @@ require_runtime_fixture \
     "unsupported selector returns CF=1 AX=0001h" \
     "successful selector returns CF=0 AX=0000h"
 
-require_absent_text "$REGISTRY" '| `00h` | `01h` | `runtime/control.version` | implemented |' "unimplemented runtime/control.version implemented row"
 require_absent_text "$REGISTRY" '| `01h` | `03h` | `console/text.clear` | implemented |' "unimplemented console/text.clear implemented row"
-require_candidate_text '| `00h` | `01h` | `runtime/control.version` |' "runtime/control.version candidate row"
 require_candidate_text '| `01h` | `03h` | `console/text.clear` |' "console/text.clear candidate row"
 require_candidate_text '| `02h` | `00h` | `memory/seed.probe_map` |' "memory/seed.probe_map candidate row"
 require_candidate_text '| `03h` | `00h` | `boot/info.drive` |' "boot/info.drive candidate row"
+require_absent_candidate_text '| `00h` | `01h` | `runtime/control.version` |' "implemented runtime/control.version candidate row"
 require_absent_candidate_text '| `00h` | `02h` | `runtime/control.profile_id` |' "implemented runtime/control.profile_id candidate row"
 require_absent_candidate_text '| `01h` | `02h` | `console/text.write_crlf` |' "implemented console/text.write_crlf candidate row"
 
 require_text "$RUNTIME_ABI_DOC" '## GrSCall Service Namespace' "runtime ABI GrSCall namespace heading"
 require_text "$RUNTIME_ABI_DOC" 'docs/17-grscall-service-registry.md' "runtime ABI canonical GrSCall registry reference"
+require_text "$RUNTIME_ABI_DOC" 'runtime/control.version' "runtime ABI version service"
 require_text "$RUNTIME_ABI_DOC" 'runtime/control.profile_id' "runtime ABI profile_id service"
 require_text "$RUNTIME_ABI_DOC" 'console/text.write_crlf' "runtime ABI write_crlf service"
 require_absent_text "$RUNTIME_ABI_DOC" 'No other service IDs are implemented yet.' "runtime ABI stale no-extra-service claim"

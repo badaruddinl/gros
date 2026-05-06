@@ -160,6 +160,7 @@ Implemented selectors:
 | Selector | Name | Status |
 | --- | --- | --- |
 | `00h:00h` | `runtime/control.probe` | implemented |
+| `00h:01h` | `runtime/control.version` | implemented |
 | `00h:02h` | `runtime/control.profile_id` | implemented |
 | `01h:00h` | `console/text.write_cstr` | implemented |
 | `01h:01h` | `console/text.write_char` | implemented |

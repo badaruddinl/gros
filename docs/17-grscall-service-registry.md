@@ -57,6 +57,7 @@ AX = 0001h
 | Group | Service | Name | Status |
 | --- | --- | --- | --- |
 | `00h` | `00h` | `runtime/control.probe` | implemented |
+| `00h` | `01h` | `runtime/control.version` | implemented |
 | `00h` | `02h` | `runtime/control.profile_id` | implemented |
 | `01h` | `00h` | `console/text.write_cstr` | implemented |
 | `01h` | `01h` | `console/text.write_char` | implemented |
@@ -78,6 +79,30 @@ Expected success:
 CF = 0
 AX = 0000h
 ```
+
+### `00h:01h runtime/control.version`
+
+Purpose:
+
+```txt
+Return the current runtime ABI revision seed.
+```
+
+Inputs:
+
+```txt
+none beyond the selector in AX
+```
+
+Expected success:
+
+```txt
+CF = 0
+AX = 0001h
+```
+
+This value is a runtime ABI revision, not the visible GrOS boot banner or
+project version.
 
 ### `00h:02h runtime/control.profile_id`
 
@@ -201,7 +226,6 @@ These are candidates only. They are not implemented by this document:
 
 | Group | Service | Name |
 | --- | --- | --- |
-| `00h` | `01h` | `runtime/control.version` |
 | `01h` | `03h` | `console/text.clear` |
 | `02h` | `00h` | `memory/seed.probe_map` |
 | `03h` | `00h` | `boot/info.drive` |
