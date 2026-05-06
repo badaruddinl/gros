@@ -4,8 +4,10 @@ set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 DEFAULT_REGISTRY="$ROOT/docs/17-grscall-service-registry.md"
 DEFAULT_RUNTIME_ABI="$ROOT/scripts/check_runtime_abi.sh"
+DEFAULT_RUNTIME_ABI_DOC="$ROOT/docs/10-runtime-abi-seed.md"
 REGISTRY="${GRSCALL_REGISTRY_DOC:-$DEFAULT_REGISTRY}"
 RUNTIME_ABI="${GRSCALL_RUNTIME_ABI_CHECK:-$DEFAULT_RUNTIME_ABI}"
+RUNTIME_ABI_DOC="${GRSCALL_RUNTIME_ABI_DOC:-$DEFAULT_RUNTIME_ABI_DOC}"
 
 fail() {
     echo "error: $1" >&2
@@ -53,13 +55,14 @@ require_runtime_fixture() {
     done
 }
 
-if { [ -n "${GRSCALL_REGISTRY_DOC+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_CHECK+x}" ]; } &&
+if { [ -n "${GRSCALL_REGISTRY_DOC+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_CHECK+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_DOC+x}" ]; } &&
     [ "${GRSCALL_REGISTRY_SELF_TEST:-0}" != "1" ]; then
     fail "GrSCall registry overrides are only allowed with GRSCALL_REGISTRY_SELF_TEST=1"
 fi
 
 [ -f "$REGISTRY" ] || fail "missing GrSCall registry: $REGISTRY"
 [ -f "$RUNTIME_ABI" ] || fail "missing runtime ABI validator: $RUNTIME_ABI"
+[ -f "$RUNTIME_ABI_DOC" ] || fail "missing runtime ABI seed doc: $RUNTIME_ABI_DOC"
 
 require_text "$REGISTRY" '# GrSCall Service Registry' "GrSCall registry title"
 require_text "$REGISTRY" 'Current GrSCall entry mechanism:' "GrSCall entry mechanism heading"
@@ -102,5 +105,18 @@ require_absent_text "$REGISTRY" '| `00h` | `01h` | `runtime/control.version` | i
 require_absent_text "$REGISTRY" '| `00h` | `02h` | `runtime/control.profile_id` | implemented |' "unimplemented runtime/control.profile_id implemented row"
 require_absent_text "$REGISTRY" '| `01h` | `02h` | `console/text.write_crlf` | implemented |' "unimplemented console/text.write_crlf implemented row"
 require_absent_text "$REGISTRY" '| `01h` | `03h` | `console/text.clear` | implemented |' "unimplemented console/text.clear implemented row"
+
+require_text "$RUNTIME_ABI_DOC" '## GrSCall Service Namespace' "runtime ABI GrSCall namespace heading"
+require_text "$RUNTIME_ABI_DOC" 'docs/17-grscall-service-registry.md' "runtime ABI canonical GrSCall registry reference"
+require_text "$RUNTIME_ABI_DOC" 'No other service IDs are implemented yet.' "runtime ABI no extra service claim"
+require_absent_text "$RUNTIME_ABI_DOC" '## Initial Service Groups' "runtime ABI local GrSCall group table"
+require_absent_text "$RUNTIME_ABI_DOC" '## Reserved Groups' "runtime ABI local reserved group section"
+require_absent_text "$RUNTIME_ABI_DOC" '| Group | Namespace |' "runtime ABI local GrSCall namespace table"
+require_absent_text "$RUNTIME_ABI_DOC" '02h  storage/block' "runtime ABI stale storage/block group assignment"
+require_absent_text "$RUNTIME_ABI_DOC" '03h  process/task' "runtime ABI stale process/task group assignment"
+require_absent_text "$RUNTIME_ABI_DOC" '04h  memory' "runtime ABI stale memory group assignment"
+require_absent_text "$RUNTIME_ABI_DOC" '| `02h` | `storage/block` |' "runtime ABI stale storage/block table assignment"
+require_absent_text "$RUNTIME_ABI_DOC" '| `03h` | `process/task` |' "runtime ABI stale process/task table assignment"
+require_absent_text "$RUNTIME_ABI_DOC" '| `04h` | `memory` |' "runtime ABI stale memory table assignment"
 
 echo "grscall registry: ok"

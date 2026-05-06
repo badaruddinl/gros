@@ -234,18 +234,16 @@ The fixture reads the built stage-2 `.gwo` bytes and verifies:
 
 This fixture is static validation only. It does not emulate or execute a `.grw` payload.
 
-## Initial Service Groups
+## GrSCall Service Namespace
 
-These groups are reserved for future specification, except where an implemented service is explicitly listed:
+The canonical GrSCall service namespace, reserved groups, and candidate next
+services are owned by:
 
 ```txt
-00h  runtime/control, AL=00h probe implemented
-01h  console/text, AL=00h write C string and AL=01h write character implemented
-02h  storage/block
-03h  process/task
-04h  memory
+docs/17-grscall-service-registry.md
 ```
 
+This runtime ABI seed documents only the implemented selectors listed above.
 No other service IDs are implemented yet.
 
 ## Memory Model
