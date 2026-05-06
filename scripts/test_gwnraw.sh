@@ -62,6 +62,7 @@ bash -n \
     "$ROOT/scripts/check_boot.sh" \
     "$ROOT/scripts/check_stage2_image.sh" \
     "$ROOT/scripts/check_gwo_header_fixtures.sh" \
+    "$ROOT/scripts/test_gwo_header_fixture_failures.sh" \
     "$ROOT/scripts/run_qemu.sh" \
     "$ROOT/scripts/run_stage2_qemu.sh" \
     "$ROOT/scripts/smoke_stage2_qemu.sh"
