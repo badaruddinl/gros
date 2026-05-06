@@ -89,6 +89,10 @@ The current GrOS runtime service gate is:
 int 30h
 ```
 
+This is the current `GrSCall.real16.int30` seed. GrSCall is the canonical
+service-call name for the GrOS ecosystem. The current seed is not a complete OS
+syscall ABI.
+
 The stage-2 image installs this real-mode interrupt vector at boot. The current implementation exposes only the services defined below.
 
 Service selector:

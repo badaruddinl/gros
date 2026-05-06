@@ -13,7 +13,7 @@ Gr ecosystem
     GrBoot
     GrRT16
     GrABI
-    GrCall
+    GrSCall
     Grogan        reserved/future
   Grown
     .grw          seed/spec source form
@@ -32,7 +32,7 @@ Gr ecosystem
 | GrBoot | Boot sector and boot chain | implemented seed |
 | GrRT16 | Real16 stage-2 runtime | implemented seed |
 | GrABI | Handoff, calling, memory, and profile contracts | seed/spec with validation |
-| GrCall | Runtime service-call interface | implemented seed through `int 30h` |
+| GrSCall | Gr System Call service interface | implemented seed through `int 30h` |
 | Grown | Native low-level systems language | seed/spec only |
 | GWN | Low-level native/backend source layer | implemented for raw boot/stage source |
 | GWO | Object/output artifact form | implemented as raw artifacts |
@@ -50,7 +50,7 @@ Implemented and validated in the repository:
 - Built-in commands: `help`, `ver`, `cls`, `reboot`.
 - GWN raw builder: `scripts/gwnraw.sh`.
 - GWO raw artifacts under `dist/`.
-- GrCall seed through `int 30h`.
+- GrSCall seed through `int 30h`.
 - Runtime services:
   - `runtime/control.probe`
   - `console/text.write_cstr`

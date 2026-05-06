@@ -150,7 +150,7 @@ docs/13-abi-stability-gate.md
 docs/14-real16-memory-model.md
 docs/15-generated-code-fixture-contract.md
 docs/16-grown-main-runtime-contract.md
-docs/17-grcall-service-registry.md
+docs/17-grscall-service-registry.md
 docs/18-profile-registry.md
 docs/19-grogan-kernel-seed.md
 docs/20-grrt16-runtime-status.md
@@ -178,7 +178,7 @@ Their current responsibilities:
 - `14-real16-memory-model.md` defines the first memory model seed for the current real16 stage-2 profile.
 - `15-generated-code-fixture-contract.md` defines how expected generated-code fixtures must be represented before compiler work starts.
 - `16-grown-main-runtime-contract.md` defines the minimal `fn main()` runtime contract seed.
-- `17-grcall-service-registry.md` defines implemented and reserved GrCall selectors.
+- `17-grscall-service-registry.md` defines implemented and reserved GrSCall selectors.
 - `18-profile-registry.md` defines canonical profile names, current implementation status, and reserved future profile namespaces.
 - `19-grogan-kernel-seed.md` defines the boundary before any future implementation can be called a Grogan kernel seed.
 - `20-grrt16-runtime-status.md` records what the current real16 stage-2 runtime owns and how it is validated.

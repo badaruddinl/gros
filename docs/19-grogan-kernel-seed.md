@@ -39,7 +39,7 @@ Implemented today:
 GrBoot  loads the current stage-2 image
 GrRT16  owns the current real16 prompt/runtime seed
 GrABI   defines current machine, handoff, calling, memory, and profile contracts
-GrCall  exposes the current runtime service-call seed through int 30h
+GrSCall exposes the current runtime service-call seed through int 30h
 ```
 
 Reserved today:
@@ -94,7 +94,7 @@ Current responsibilities:
 - prompt loop,
 - basic command handling,
 - `int 30h` runtime service gate installation,
-- implemented GrCall seed services,
+- implemented GrSCall seed services,
 - static runtime ABI, memory, pointer, and data validation targets.
 
 GrRT16 may become a host for early Grogan experiments, but GrRT16 by itself is
@@ -121,9 +121,9 @@ Current responsibilities:
 
 Grogan must depend on explicit GrABI contracts, not on accidental loader state.
 
-### GrCall
+### GrSCall
 
-GrCall owns the service-call interface shape.
+GrSCall owns the service-call interface shape.
 
 Current entry mechanism:
 
@@ -139,7 +139,7 @@ Current implemented services:
 01h:01h console/text.write_char
 ```
 
-A future Grogan seed may own the dispatch implementation behind GrCall, but it
+A future Grogan seed may own the dispatch implementation behind GrSCall, but it
 must not change the meaning of already implemented selectors.
 
 ## Grogan Seed Admission Gate
@@ -187,11 +187,11 @@ The current real16 memory seed is defined by:
 docs/14-real16-memory-model.md
 ```
 
-### 3. GrCall Dispatch Ownership
+### 3. GrSCall Dispatch Ownership
 
-The seed must document whether Grogan owns the GrCall dispatch path.
+The seed must document whether Grogan owns the GrSCall dispatch path.
 
-If Grogan owns GrCall dispatch, the seed must preserve:
+If Grogan owns GrSCall dispatch, the seed must preserve:
 
 - selector encoding,
 - success and error return convention,
@@ -202,7 +202,7 @@ If Grogan owns GrCall dispatch, the seed must preserve:
 The current service registry is:
 
 ```txt
-docs/17-grcall-service-registry.md
+docs/17-grscall-service-registry.md
 ```
 
 ### 4. Kernel State Contract
@@ -229,7 +229,7 @@ Required validation shape:
 - source and artifact generation remain reproducible,
 - stage image size and boot signature remain validated when applicable,
 - entry bytes or transfer path are statically checked,
-- GrCall selectors remain byte-validated when implemented,
+- GrSCall selectors remain byte-validated when implemented,
 - memory ownership boundaries are checked,
 - QEMU smoke start remains green for bootable profiles.
 
@@ -249,7 +249,7 @@ The first seed may be only:
 - a named kernel entry boundary,
 - a minimal kernel-owned state block,
 - a panic or halt policy,
-- explicit ownership of the GrCall dispatch path,
+- explicit ownership of the GrSCall dispatch path,
 - static validation proving the boundary.
 
 Until those exist, Grogan remains `reserved/future`.
@@ -294,7 +294,7 @@ This seed does not add:
 - a Grogan kernel implementation,
 - a new boot stage,
 - a new runtime service,
-- a GrCall dispatch rewrite,
+- a GrSCall dispatch rewrite,
 - interrupt or exception management,
 - memory allocation,
 - paging,

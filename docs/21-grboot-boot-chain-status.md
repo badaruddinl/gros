@@ -126,7 +126,7 @@ The current stage-1 loader owns:
 The stage-1 loader does not own:
 
 - the prompt loop,
-- GrCall service dispatch,
+- GrSCall service dispatch,
 - GrRT16 runtime state,
 - Grogan kernel state,
 - headered `.gwo` classification,
@@ -302,7 +302,7 @@ GrBoot does not currently provide:
 - `x86_64` execution,
 - device driver model,
 - storage service API,
-- GrCall dispatch,
+- GrSCall dispatch,
 - `.grw` parser,
 - `.grw` compiler,
 - `.grw` interpreter,
