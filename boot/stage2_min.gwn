@@ -176,6 +176,7 @@ raw x86.bios.stage2 {
 
     ; runtime service gate int 30h
     ; AH=00h AL=00h probes runtime/control support.
+    ; AH=00h AL=02h returns DS:SI -> current profile identity.
     ; AH=01h AL=00h writes a NUL-terminated string from DS:SI.
     ; AH=01h AL=01h writes one byte from BL.
     ; AH=01h AL=02h writes CRLF.
@@ -185,6 +186,9 @@ raw x86.bios.stage2 {
     bytes 09 C0
     bytes 74
     rel8 runtime_probe_ok
+    bytes 3D 02 00
+    bytes 74
+    rel8 runtime_profile_id
     bytes 3D 00 01
     bytes 74
     rel8 runtime_write_cstr
@@ -200,6 +204,13 @@ raw x86.bios.stage2 {
     bytes 83 4E 06 01
     bytes 5D
     bytes CF
+
+    ; runtime/control.profile_id: returns DS:SI -> zero-terminated profile id.
+    label runtime_profile_id
+    bytes BE
+    addr16 profile_id_text
+    bytes EB
+    rel8 runtime_probe_ok
 
     ; console/text.write_char: BL contains the byte to write.
     label runtime_write_char
@@ -266,6 +277,9 @@ raw x86.bios.stage2 {
     bytes F8
     bytes C3
 
+    label profile_id_text
+    ascii "gros.x86.bios.real16.stage2.v0"
+    byte 00
     label banner
     ascii "GrOS v0.5\r\n"
     byte 00

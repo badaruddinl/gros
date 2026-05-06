@@ -156,6 +156,42 @@ AX = 0001h
 
 `0001h` means unsupported service selector.
 
+### Runtime/control Profile ID
+
+```txt
+AH = 00h
+AL = 02h
+```
+
+Inputs:
+
+```txt
+none beyond the selector in AX
+```
+
+Success return:
+
+```txt
+CF = 0
+AX = 0000h
+DS:SI  zero-terminated profile identity string
+```
+
+Meaning:
+
+```txt
+Return the current runtime profile identity string.
+```
+
+Current profile identity:
+
+```txt
+gros.x86.bios.real16.stage2.v0
+```
+
+The returned pointer is a near data pointer in segment `0000`. The pointed-to
+string is static runtime data and must be treated as read-only.
+
 ### Console/text Write C String
 
 ```txt
@@ -256,6 +292,7 @@ scripts/check_runtime_abi.sh
 The fixture reads the built stage-2 `.gwo` bytes and verifies:
 
 - the `runtime/control.probe` call shape
+- the `runtime/control.profile_id` selector and profile string shape
 - the `console/text.write_cstr` selector call shape
 - the `console/text.write_char` selector call shape
 - the `console/text.write_crlf` selector call shape

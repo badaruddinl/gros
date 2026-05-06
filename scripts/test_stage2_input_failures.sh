@@ -82,7 +82,7 @@ expect_validator_failure() {
             dd if=/dev/zero of="$CASE_IMAGE" bs=1 seek=512 count=2048 conv=notrunc status=none
             ;;
         missing-prompt-reset)
-            mutate_image_pattern_byte "be2981e89500bf738131c9" 0 0
+            mutate_image_pattern_byte "be5281e89500bf9c8131c9" 0 0
             ;;
         missing-keyboard-read)
             mutate_image_pattern_byte "31c0cd16" 0 0
@@ -103,7 +103,7 @@ expect_validator_failure() {
             mutate_image_pattern_byte "88c3aa41b80101cd30" 0 0
             ;;
         missing-backspace-edit)
-            mutate_image_pattern_byte "83f90074db4f49be3581e86300ebd1" 0 0
+            mutate_image_pattern_byte "83f90074db4f49be5e81e86300ebd1" 0 0
             ;;
         missing-enter-termination)
             mutate_image_pattern_byte "b000aab80201cd3083f90074" 0 0
