@@ -28,6 +28,8 @@ The prompt supports line editing with Backspace and built-in commands:
 
 ## Technical Specs
 
+- [Naming](docs/00-naming.md)
+- [Ecosystem map](docs/01-ecosystem-map.md)
 - [Raw `.gwn` format](docs/04-raw-gwn-format.md)
 - [Stage-1 to stage-2 boot contract](docs/05-stage2-contract.md)
 - [GrOS ABI handoff profile](docs/06-abi-handoff.md)
