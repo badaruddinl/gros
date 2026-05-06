@@ -69,6 +69,8 @@ bash -n \
     "$ROOT/scripts/test_gwo_header_fixture_failures.sh" \
     "$ROOT/scripts/check_gwo_artifact_inventory.sh" \
     "$ROOT/scripts/test_gwo_artifact_inventory_failures.sh" \
+    "$ROOT/scripts/check_memory_model.sh" \
+    "$ROOT/scripts/test_memory_model_failures.sh" \
     "$ROOT/scripts/run_qemu.sh" \
     "$ROOT/scripts/run_stage2_qemu.sh" \
     "$ROOT/scripts/smoke_stage2_qemu.sh"
