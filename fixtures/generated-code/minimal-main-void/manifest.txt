@@ -1,0 +1,6 @@
+name=minimal-main-void
+profile=gros.x86.bios.real16.stage2.v0
+source=source.gn
+expected_gr=expected.gr
+expected_gro=expected.gro
+status=expected-only
