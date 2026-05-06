@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-FIXTURE_ROOT="$ROOT/fixtures/generated-code"
+DEFAULT_FIXTURE_ROOT="$ROOT/fixtures/generated-code"
+FIXTURE_ROOT="${GENERATED_FIXTURES_ROOT:-$DEFAULT_FIXTURE_ROOT}"
 PROFILE="gros.x86.bios.real16.stage2.v0"
 EXPECTED_SIZE="2048"
 ENTRY_ADDRESS="0000:8000"
@@ -11,6 +12,45 @@ GROUND_PROFILE_PREFIX="x86.bios.real16.generated"
 fail() {
     echo "error: $1" >&2
     exit 1
+}
+
+if [ -n "${GENERATED_FIXTURES_ROOT:-}" ] && [ "${GENERATED_FIXTURES_SELF_TEST:-}" != "1" ]; then
+    fail "GENERATED_FIXTURES_ROOT is only allowed with GENERATED_FIXTURES_SELF_TEST=1"
+fi
+
+validate_manifest_schema() {
+    local manifest=$1
+    local line
+    local key
+    local seen=""
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || fail "$manifest must not contain blank lines"
+
+        case "$line" in
+            *=*)
+                key=${line%%=*}
+                ;;
+            *)
+                fail "$manifest line must use key=value: $line"
+                ;;
+        esac
+
+        case "$key" in
+            name|profile|source|expected_gwn|expected_gwo|expected_size|entry_address|status)
+                ;;
+            *)
+                fail "$manifest contains unknown key: $key"
+                ;;
+        esac
+
+        case " $seen " in
+            *" $key "*)
+                fail "$manifest contains duplicate key: $key"
+                ;;
+        esac
+        seen="$seen $key"
+    done < "$manifest"
 }
 
 manifest_value() {
@@ -97,7 +137,7 @@ require_source_target() {
     local source=$1
     local profile=$2
 
-    grep -F "target \"$profile\"" "$source" > /dev/null ||
+    grep -Eq "^[[:space:]]*target[[:space:]]+\"$profile\"[[:space:]]*$" "$source" ||
         fail "$source must declare target $profile"
 }
 
@@ -116,13 +156,12 @@ check_fixture() {
     local name
     local manifest
     local manifest_profile
-    local tmp_dir
-    local built
 
     name=$(basename -- "$dir")
     manifest="$dir/manifest.txt"
     [ -f "$manifest" ] || fail "fixture missing manifest: $dir"
 
+    validate_manifest_schema "$manifest"
     require_manifest_value "$manifest" "name" "$name"
     require_manifest_value "$manifest" "profile" "$PROFILE"
     manifest_profile=$(manifest_value "$manifest" "profile") || fail "$manifest missing key: profile"
@@ -140,16 +179,18 @@ check_fixture() {
     require_entry_origin "$dir/expected.gwn" "$ENTRY_ADDRESS"
     require_file_size "$dir/expected.gwo" "$EXPECTED_SIZE"
 
-    tmp_dir=$(mktemp -d "$ROOT/build/generated-fixture.XXXXXX")
-    built="$tmp_dir/expected.gwo"
-    trap 'rm -rf "$tmp_dir"' RETURN
+    (
+        local tmp_dir
+        local built
 
-    "$ROOT/scripts/gwnraw.sh" "$dir/expected.gwn" "$built" > /dev/null
-    require_file_size "$built" "$EXPECTED_SIZE"
-    cmp -s "$built" "$dir/expected.gwo" || fail "$name expected.gwo must match expected.gwn build output"
+        tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/generated-fixture.XXXXXX")
+        trap 'rm -rf "$tmp_dir"' EXIT
 
-    rm -rf "$tmp_dir"
-    trap - RETURN
+        built="$tmp_dir/expected.gwo"
+        "$ROOT/scripts/gwnraw.sh" "$dir/expected.gwn" "$built" > /dev/null
+        require_file_size "$built" "$EXPECTED_SIZE"
+        cmp -s "$built" "$dir/expected.gwo" || fail "$name expected.gwo must match expected.gwn build output"
+    )
     echo "generated fixture: $name ok"
 }
 
