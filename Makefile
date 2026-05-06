@@ -1,4 +1,4 @@
-.PHONY: build check test policy validate stage2 check-stage2 runtime-abi memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy generated-fixtures validate stage2 check-stage2 runtime-abi memory-model near-pointers stage2-data smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gro
 DIST_IMAGE := dist/gros-v0.5.gro
@@ -17,7 +17,10 @@ test:
 policy:
 	./scripts/check_project_policy.sh
 
-validate: policy test check stage2
+generated-fixtures:
+	./scripts/check_generated_fixtures.sh
+
+validate: policy generated-fixtures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
@@ -63,4 +66,4 @@ run-stage2: stage2
 	./scripts/run_stage2_qemu.sh
 
 clean:
-	rm -rf build/*.gro build/stage2-build.*
+	rm -rf build/*.gro build/stage2-build.* build/generated-fixture.*

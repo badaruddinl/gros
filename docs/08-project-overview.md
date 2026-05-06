@@ -109,6 +109,7 @@ make validate
 It checks:
 
 - project policy rules for local-only and generated files
+- generated-code fixture manifests when fixtures exist
 - raw builder tests
 - v0.5 boot sector size and signature
 - stage-2 image size and signature
@@ -163,10 +164,11 @@ Their current responsibilities:
 Runtime ABI validation is implemented in:
 
 ```txt
+scripts/check_generated_fixtures.sh
 scripts/check_runtime_abi.sh
 ```
 
-It is a Bash-only static fixture over the built stage-2 `.gro` image.
+These are Bash-only validators over expected generated-code fixtures and the built stage-2 `.gro` image.
 
 Real16 memory model validation is implemented in:
 
