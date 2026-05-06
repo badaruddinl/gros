@@ -134,6 +134,8 @@ It starts the stage-2 image under QEMU and fails when QEMU is unavailable.
 The core technical documents are:
 
 ```txt
+docs/00-naming.md
+docs/01-ecosystem-map.md
 docs/04-raw-gwn-format.md
 docs/05-stage2-contract.md
 docs/06-abi-handoff.md
@@ -149,6 +151,8 @@ docs/15-generated-code-fixture-contract.md
 
 Their current responsibilities:
 
+- `00-naming.md` defines official ecosystem terms and status wording.
+- `01-ecosystem-map.md` maps implemented, seeded, and reserved layers.
 - `04-raw-gwn-format.md` defines the raw `.gwn` source format.
 - `05-stage2-contract.md` defines the stage-1 to stage-2 boot contract.
 - `06-abi-handoff.md` defines the first machine-level handoff profile.
