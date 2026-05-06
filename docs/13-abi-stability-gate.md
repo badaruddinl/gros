@@ -179,6 +179,11 @@ The future header shape is reserved in:
 docs/11-gwo-payload-header.md
 ```
 
+The current gate treats raw `.gwo` boot artifacts and future headered executable
+`.gwo` payloads as separate classes. The stage-1 loader remains a raw-profile
+loader only. Headered execution stays closed until a future loader validates the
+header, profile, flags, size, reserved bytes, and entry offset before transfer.
+
 ## 6. Validation Requirements
 
 Required before `.grw` lowering starts:

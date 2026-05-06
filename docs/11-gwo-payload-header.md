@@ -32,6 +32,88 @@ The future `.gwo` header exists to let GrOS identify executable payloads before 
 
 The header is not required for boot sectors or the current stage-2 raw payload.
 
+## Loading Boundary
+
+There are two `.gwo` classes in the seed model:
+
+```txt
+raw-profile .gwo
+headered-executable .gwo
+```
+
+`raw-profile .gwo`:
+
+```txt
+Current bootable images whose layout is defined by a profile-specific boot or
+handoff contract outside a `.gwo` header.
+```
+
+Current raw-profile examples:
+
+```txt
+dist/gros-v0.5.gwo
+dist/gros-stage2.gwo
+```
+
+`headered-executable .gwo`:
+
+```txt
+Future payload images that begin with the reserved `.gwo` header and require a
+header-aware loader before execution.
+```
+
+The current stage-1 loader is a raw-profile loader only. It must continue to
+load the stage-2 payload by sector layout and fixed handoff contract:
+
+```txt
+LBA 1..4 -> 0000:8000
+```
+
+It must not be described as a header-aware `.gwo` executable loader.
+
+## Loader Decision Seed
+
+A future header-aware loader must classify a candidate payload before control
+transfer:
+
+```txt
+1. Read enough bytes to inspect the seed magic.
+2. If the magic is absent, either reject the payload or dispatch to an explicitly
+   selected raw-profile loader.
+3. If the magic is present, validate every supported header field before using
+   the entrypoint.
+4. Reject unsupported header size, version, profile, flags, size, checksum, or
+   nonzero reserved bytes.
+5. Reject any entry offset outside the declared payload.
+6. Transfer control only after the payload class and profile are accepted.
+```
+
+This decision seed prevents silent fallback from a malformed headered payload
+into raw execution.
+
+## Current Raw Profile Rule
+
+The current raw boot artifacts are valid only because their profile contracts
+define their layout:
+
+```txt
+gros-v0.5.gwo       raw 512-byte BIOS boot sector
+gros-stage2.gwo     raw 512-byte stage-1 plus 2048-byte stage-2 payload
+```
+
+They do not carry:
+
+```txt
+header magic
+profile_id
+entry_offset
+payload_size
+payload_checksum
+```
+
+Any future tooling that wants to inspect these files must treat them as raw
+profile artifacts, not as failed headered executables.
+
 ## Future Header Layout
 
 All integer fields are little-endian.
@@ -123,6 +205,9 @@ Must be zero in the seed layout.
 - If `magic` is absent, handling is profile-specific and may fall back to raw boot image behavior.
 - If `magic` is present but `header_size`, `header_version`, profile, flags, size, or checksum are unsupported, the loader must reject the payload.
 - Headered payloads must not be accepted by the current stage-1 loader until a future stage explicitly implements that behavior.
+- A malformed headered payload must not fall back to raw execution.
+- Header-aware execution requires an explicit accepted profile match.
+- Unknown flags and nonzero reserved bytes are rejection conditions in the seed.
 
 ## Relationship To Grown
 
@@ -144,6 +229,7 @@ This seed does not add:
 - relocation records
 - symbol tables
 - imported service tables
+- a header classifier implementation
 - executable loading in stage-2
 - protected mode or long mode
 - a boot banner change
