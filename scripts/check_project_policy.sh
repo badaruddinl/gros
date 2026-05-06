@@ -42,6 +42,7 @@ require_no_text_matches() {
         .github \
         boot \
         docs \
+        fixtures \
         scripts |
         grep -v '^scripts/check_project_policy[.]sh$' > "$path_list"
 
@@ -53,6 +54,24 @@ require_no_text_matches() {
     rm -f "$path_list"
 }
 
+require_gwo_header_fixture_policy() {
+    local file
+    local rel
+
+    [ -d "$ROOT/fixtures/gwo-header" ] || return
+
+    while IFS= read -r file; do
+        rel=${file#"$ROOT"/}
+        case "$rel" in
+            fixtures/gwo-header/*/manifest.txt|fixtures/gwo-header/*/candidate.gwo.hex)
+                ;;
+            *)
+                fail "unexpected GWO header fixture file: $rel"
+                ;;
+        esac
+    done < <(find "$ROOT/fixtures/gwo-header" -type f | sort)
+}
+
 require_no_tracked_matches "local checkpoint files" ".local/*"
 require_no_tracked_matches "generated code-review graph files" ".code-review-graph/*"
 require_no_tracked_matches "generated build files" "build/*"
@@ -62,5 +81,6 @@ require_no_tracked_regex "roadmap/checkpoint documents" '(^|/)(roadmap|road-map|
 
 FORBIDDEN_TEXT='G''an|v0[.]6|codex/grboot|(^|[^[:alnum:]_])[.](gn|gr|gro)([^[:alnum:]_]|$)'
 require_no_text_matches "$FORBIDDEN_TEXT"
+require_gwo_header_fixture_policy
 
 echo "project policy: ok"

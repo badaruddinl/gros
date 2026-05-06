@@ -1,0 +1,5 @@
+name=nonzero-flags
+status=header-candidate
+candidate_hex=candidate.gwo.hex
+expected_result=reject
+expected_error=flags

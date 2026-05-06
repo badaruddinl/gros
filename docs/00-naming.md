@@ -223,11 +223,11 @@ Current .gwo artifacts are raw profile artifacts.
 Avoid:
 
 ```txt
-GrOS already has a complete kernel.
-Grogan is implemented today.
-Grown currently compiles .grw to .gwo.
-Current .gwo artifacts are already full executable objects.
-GrCall is already a complete syscall ABI.
+Do not describe GrOS as having a complete kernel.
+Do not describe Grogan as implemented.
+Do not describe Grown as compiling .grw to .gwo.
+Do not describe current .gwo artifacts as full executable objects.
+Do not describe GrCall as a complete syscall ABI.
 ```
 
 The current implementation readiness gate is defined in:
