@@ -1,4 +1,4 @@
-.PHONY: build check test policy project-policy-failures status-consistency status-consistency-failures generated-fixtures generated-fixtures-failures grabi-generated-code grabi-generated-code-failures minimal-main minimal-main-failures minimal-main-qemu headered-stage2-rejection headered-stage2-rejection-failures release-ready boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures headered-stage2 headered-stage2-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-seed-qemu generated-fixtures generated-fixtures-failures grabi-generated-code grabi-generated-code-failures minimal-main minimal-main-failures minimal-main-qemu headered-stage2-rejection headered-stage2-rejection-failures release-ready boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures headered-stage2 headered-stage2-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gwo
 DIST_IMAGE := dist/gros-v0.5.gwo
@@ -25,6 +25,15 @@ status-consistency:
 
 status-consistency-failures:
 	./scripts/test_status_consistency_failures.sh
+
+grogan-seed: stage2
+	./scripts/check_grogan_seed.sh $(STAGE2_BUILD_IMAGE)
+
+grogan-seed-failures:
+	./scripts/test_grogan_seed_failures.sh
+
+grogan-seed-qemu: grogan-seed
+	./scripts/qemu_grogan_seed.sh $(STAGE2_BUILD_IMAGE)
 
 generated-fixtures:
 	./scripts/check_generated_fixtures.sh
@@ -79,7 +88,7 @@ gwo-artifact-inventory:
 gwo-artifact-inventory-failures:
 	./scripts/test_gwo_artifact_inventory_failures.sh
 
-validate: policy project-policy-failures status-consistency status-consistency-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures test check stage2
+validate: policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)

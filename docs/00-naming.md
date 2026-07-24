@@ -152,7 +152,7 @@ The reserved name for the future GrOS kernel proper.
 Current status:
 
 ```txt
-reserved/future
+implemented real16 seed; broader kernel remains reserved/future
 ```
 
 The current stage-2 runtime is GrRT16. It is not Grogan proper.
@@ -233,7 +233,7 @@ Use:
 ```txt
 GrBoot loads GrRT16 today.
 GrRT16 exposes the first GrSCall seed through int 30h.
-Grogan is reserved as the future GrOS kernel proper.
+Grogan owns the current narrow real16 kernel seed; broader kernel functionality remains future.
 The minimal documented Grown `.grw` subset is compiled into a fixed stage-2 payload.
 General Grown compilation remains unavailable.
 `gros-v0.5.gwo` is raw; `gros-stage2.gwo` contains a fixed stage-2 headered payload.

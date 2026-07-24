@@ -60,6 +60,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Headered stage-2 loader contract](docs/27-headered-stage2-loader-contract.md)
 - [Minimal-main compiler subset](docs/28-minimal-main-compiler-subset.md)
 - [Release readiness handoff](docs/29-release-readiness-handoff.md)
+- [Grogan real16 seed](docs/31-grogan-real16-seed.md)
 
 ## Stage-2 Loader Target
 

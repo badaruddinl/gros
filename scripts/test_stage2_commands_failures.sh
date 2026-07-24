@@ -85,25 +85,25 @@ expect_validator_failure() {
             mutate_image_pattern_byte "68656c7000" 0 0
             ;;
         missing-help-compare)
-            mutate_image_pattern_byte "beca81bf9081" 0 0
+            mutate_image_pattern_byte "bed881bf9e81" 0 0
             ;;
         missing-ver-compare)
-            mutate_image_pattern_byte "beca81bf9581" 0 0
+            mutate_image_pattern_byte "bed881bfa381" 0 0
             ;;
         missing-cls-compare)
-            mutate_image_pattern_byte "beca81bf9981" 0 0
+            mutate_image_pattern_byte "bed881bfa781" 0 0
             ;;
         missing-reboot-compare)
-            mutate_image_pattern_byte "beca81bf9d81" 0 0
+            mutate_image_pattern_byte "bed881bfab81" 0 0
             ;;
         missing-unknown-fallback)
-            mutate_image_pattern_byte "bec681e82200e984ff" 0 0
+            mutate_image_pattern_byte "bed481e82200e984ff" 0 0
             ;;
         missing-help-action)
-            mutate_image_pattern_byte "bea481e81900e97bff" 0 0
+            mutate_image_pattern_byte "beb281e81900e97bff" 0 0
             ;;
         missing-ver-action)
-            mutate_image_pattern_byte "beba81e81000e972ff" 0 0
+            mutate_image_pattern_byte "bec881e81000e972ff" 0 0
             ;;
         missing-cls-action)
             mutate_image_pattern_byte "b80300cd10e96aff" 0 0

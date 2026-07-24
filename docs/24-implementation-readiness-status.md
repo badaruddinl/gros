@@ -102,7 +102,7 @@ The following gates remain closed:
 | general generated `.gwo` output claim | closed |
 | general header-aware `.gwo` executable loader | closed (fixed stage-2 loader implemented) |
 | general GrBoot header loading | closed (fixed stage-2 reservation implemented) |
-| Grogan kernel implementation | closed |
+| general Grogan kernel implementation | closed (real16 seed implemented) |
 | new GrSCall runtime services | closed until selector contract and validation are updated |
 | heap allocator | closed |
 | protected mode | closed |

@@ -14,7 +14,7 @@ current repository has GrBoot and GrRT16, but it does not have Grogan proper.
 Current status:
 
 ```txt
-Grogan: reserved/future
+Grogan: implemented real16 seed; broader kernel remains future
 ```
 
 The purpose of this seed is to define what must become true before any future
@@ -255,7 +255,8 @@ The first seed may be only:
 - explicit ownership of the GrSCall dispatch path,
 - static validation proving the boundary.
 
-Until those exist, Grogan remains `reserved/future`.
+The first seed is implemented as documented in `docs/31-grogan-real16-seed.md`.
+Broader Grogan functionality remains future work.
 
 ## Relationship To Grown
 

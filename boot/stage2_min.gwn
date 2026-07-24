@@ -5,6 +5,8 @@
 raw x86.bios.stage2 {
     origin 8020
 
+    ; Grogan real16 seed entry: owns runtime state and GrSCall dispatch.
+    label grogan_entry
     ; setup segments and stack
     bytes FA
     bytes 31 C0
@@ -13,9 +15,14 @@ raw x86.bios.stage2 {
     bytes 8E D0
     bytes BC 00 7C
 
+    ; mark the kernel state as initialized before any service dispatch.
+    bytes C7 06
+    addr16 grogan_state_status
+    bytes 01 00
+
     ; install runtime service gate int 30h at IVT[30h]
     bytes C7 06 C0 00
-    addr16 runtime_int30_handler
+    addr16 grogan_grscall_handler
     bytes C7 06 C2 00 00 00
 
     bytes FB
@@ -181,7 +188,7 @@ raw x86.bios.stage2 {
     ; AH=01h AL=00h writes a NUL-terminated string from DS:SI.
     ; AH=01h AL=01h writes one byte from BL.
     ; AH=01h AL=02h writes CRLF.
-    label runtime_int30_handler
+    label grogan_grscall_handler
     bytes 55
     bytes 89 E5
     bytes 09 C0
@@ -295,6 +302,13 @@ raw x86.bios.stage2 {
     label profile_id_text
     ascii "gros.x86.bios.real16.stage2.v0"
     byte 00
+    ; Grogan-owned seed state: magic, initialized status, and panic code.
+    label grogan_state_magic
+    ascii "GRGN"
+    label grogan_state_status
+    bytes 00 00
+    label grogan_panic_code
+    bytes 00 00
     label banner
     ascii "GrOS v0.5\r\n"
     byte 00

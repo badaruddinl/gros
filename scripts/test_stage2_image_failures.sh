@@ -157,13 +157,13 @@ expect_validator_failure() {
             mutate_text "ground> "
             ;;
         missing-int30-vector-offset)
-            mutate_stage2_pattern_byte "c706c000e580" 0 0
+            mutate_stage2_pattern_byte "c706c000eb80" 0 0
             ;;
         missing-int30-vector-segment)
             mutate_stage2_pattern_byte "c706c2000000" 0 0
             ;;
         handler-out-of-range)
-            mutate_stage2_pattern_byte "c706c000e580" 5 136
+            mutate_stage2_pattern_byte "c706c000eb80" 5 136
             ;;
         *)
             fail "unknown stage-2 image negative test: $name"
