@@ -123,6 +123,7 @@ long_mode:
     mov al, 'T'
     out 0xe9, al
     call physical_memory_seed
+    call heap_seed
     ud2                         ; vector 6 must enter isr_default below.
     cli
 .halt: hlt
@@ -181,6 +182,53 @@ physical_memory_seed:
 .halt: hlt
     jmp .halt
 
+heap_seed:
+    ; A 16-byte-aligned bump heap inside the owned physical frame. The first
+    ; 16 bytes preserve the FRM1 ownership marker; no allocation may cross end.
+    mov rax, [abs phys_first_free]
+    add rax, 16
+    mov [abs heap_next], rax
+    add rax, 0xff0
+    mov [abs heap_end], rax
+    mov rdi, 32
+    call heap_alloc
+    test rax, rax
+    jz .fail
+    mov dword [rax], 0x31504548 ; "HEP1"
+    mov rdi, 64
+    call heap_alloc
+    test rax, rax
+    jz .fail
+    mov dword [rax], 0x32504548 ; "HEP2"
+    mov al, 'H'
+    out 0xe9, al
+    mov al, 'E'
+    out 0xe9, al
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'P'
+    out 0xe9, al
+    ret
+.fail:
+    cli
+.halt: hlt
+    jmp .halt
+
+heap_alloc:
+    mov rax, [abs heap_next]
+    add rdi, 15
+    and rdi, -16
+    mov rdx, rax
+    add rdx, rdi
+    jc .none
+    cmp rdx, [abs heap_end]
+    ja .none
+    mov [abs heap_next], rdx
+    ret
+.none:
+    xor eax, eax
+    ret
+
 isr_default:
     ; Deliberately fail-stop: no interrupted state is resumed before a full
     ; exception-frame ABI exists. Every vector has a present kernel-only gate.
@@ -225,5 +273,9 @@ idt_descriptor:
     dq idt
 align 8
 phys_first_free:
+    dq 0
+heap_next:
+    dq 0
+heap_end:
     dq 0
 times 512*32-($-$$) db 0

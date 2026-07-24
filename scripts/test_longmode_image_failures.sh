@@ -39,3 +39,13 @@ OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"46524d31") { pri
 [ -n "$OFFSET" ] || fail "baseline missing frame marker"
 printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
 expect_failure missing-frame-marker "missing physical frame ownership marker"
+"$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
+OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"4883c70f4883e7f0") { print (RSTART - 1) / 2; exit }')
+[ -n "$OFFSET" ] || fail "baseline missing heap alignment"
+printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+expect_failure missing-heap-alignment "missing heap 16-byte alignment"
+"$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
+OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"48455031") { print (RSTART - 1) / 2; exit }')
+[ -n "$OFFSET" ] || fail "baseline missing first heap payload"
+printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+expect_failure missing-heap-payload "missing first heap payload marker"

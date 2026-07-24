@@ -27,6 +27,7 @@ after this gate is the final handoff condition.
 | 10 | BIOS boot-info/E820 to x86_64 long-mode transition seed |
 | 11 | x86_64 IDT installation and fail-stop invalid-opcode exception proof |
 | 12 | E820-backed, page-aligned physical-frame ownership seed |
+| 13 | bounded, aligned bootstrap heap inside owned physical frame |
 
 ## Scope Boundaries
 
@@ -34,8 +35,8 @@ This readiness claim does not claim a general Grown compiler, general executable
 loader, call-ABI code generation, filesystem, process model, kernel, allocator,
 hardware IRQ delivery, recoverable fault handling, scheduler, allocator,
 general physical-frame allocation, filesystem, process model, UEFI, or
-hosted-native output. The compiler accepts only the minimal documented `main`
-subset.
+reclaiming heap allocator, hosted-native output. The compiler accepts only the
+minimal documented `main` subset.
 
 ## Handoff Commands
 

@@ -64,6 +64,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [BIOS to x86_64 long-mode transition seed](docs/32-long-mode-transition-contract.md)
 - [x86_64 exception and interrupt foundation](docs/33-x86_64-exception-interrupt-foundation.md)
 - [physical memory ownership seed](docs/34-physical-memory-ownership.md)
+- [kernel heap seed](docs/35-kernel-heap-seed.md)
 
 ## Stage-2 Loader Target
 
