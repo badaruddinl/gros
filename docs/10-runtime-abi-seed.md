@@ -381,13 +381,14 @@ Until then, payloads must choose their own halt or loop behavior.
 
 ## Executable Artifact Seed
 
-For the current GrOS stage-2 profile, executable payload layout remains the stage-2 raw payload inside:
+For the current GrOS stage-2 profile, executable payload layout is the fixed
+headered stage-2 reservation inside:
 
 ```txt
 dist/gros-stage2.gwo
 ```
 
-Future `.gwo` executable subformats are reserved. They must define:
+Future general `.gwo` executable subformats are reserved. They must define:
 
 - header shape
 - entrypoint representation
@@ -403,7 +404,7 @@ This seed does not add:
 - `int 30h` services outside the implemented selectors listed above
 - a syscall table
 - a standard library
-- `.grw` code generation
-- `.gwo` executable headers
+- general `.grw` code generation
+- general `.gwo` executable headers
 - protected mode or long mode
 - `x86_64` execution

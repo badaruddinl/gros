@@ -28,7 +28,7 @@ The boot banner is not bumped by documentation, validation, or spec-only changes
 .gwn   Ground/Woven Native, the low-level native/backend layer
 ```
 
-Current boot and stage code is still written as raw `.gwn` source and built with Bash tooling. Grown `.grw` is the readable native low-level language surface for the GrOS ecosystem; compiler, interpreter, parser, and build integration are not implemented yet.
+Current boot and stage code is still written as raw `.gwn` source and built with Bash tooling. The minimal documented subset is compiled through a deterministic Bash compiler into a fixed headered stage-2 payload; general compiler, interpreter, parser, and build integration remain unavailable.
 
 ## Main Directories
 

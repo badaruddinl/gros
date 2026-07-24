@@ -32,7 +32,8 @@ The full accepted field matrix and rejection contract are in
 
 The future `.gwo` header exists to let GrOS identify executable payloads before running them. It should describe enough metadata for a loader or runtime to reject incompatible payloads before control transfer.
 
-The header is not required for boot sectors or the current stage-2 raw payload.
+The header is not required for boot sectors; it is required by the current fixed
+stage-2 payload reservation.
 
 ## Loading Boundary
 
@@ -242,7 +243,8 @@ Future Grown `.grw` compilation may target:
 .grw source -> .gwn ground layer -> headered .gwo payload
 ```
 
-That path is not implemented. This seed only reserves the artifact metadata shape needed by a future loader and toolchain.
+The minimal-main path is implemented for the fixed reservation only. General
+Grown compilation and general artifact loading remain reserved.
 
 ## Non-Goals
 

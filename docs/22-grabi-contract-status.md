@@ -61,8 +61,8 @@ This is not an `x86_64` profile, not UEFI, and not Grogan proper.
 | GrSCall entry and return convention | implemented seed | `docs/10-runtime-abi-seed.md`, `docs/17-grscall-service-registry.md` |
 | Real16 memory model | seed/spec with validation | `docs/14-real16-memory-model.md` |
 | `.gwo` raw-profile boundary | implemented for current boot artifacts | `docs/11-gwo-payload-header.md`, `docs/21-grboot-boot-chain-status.md` |
-| Headered `.gwo` executable boundary | reserved/future | `docs/11-gwo-payload-header.md` |
-| Generated `.grw` code ABI | reserved/future | `docs/13-abi-stability-gate.md`, `docs/15-generated-code-fixture-contract.md` |
+| Headered `.gwo` executable boundary | fixed stage-2 reservation implemented; general boundary reserved | `docs/11-gwo-payload-header.md`, `docs/27-headered-stage2-loader-contract.md` |
+| Generated `.grw` code ABI | minimal-main subset implemented; general ABI reserved | `docs/13-abi-stability-gate.md`, `docs/28-minimal-main-compiler-subset.md` |
 
 ## Handoff Contract
 
@@ -202,13 +202,13 @@ make grabi-generated-code
 
 ## Compiler Gate Status
 
-GrABI is not stable enough for `.grw` compiler implementation yet.
+GrABI is not stable enough for general `.grw` compiler implementation yet.
 
 Current blockers:
 
-- generated-code fixtures are expected-only and do not establish compiler provenance,
+- only minimal-main establishes compiler provenance; call-ABI fixtures remain expected-only,
 - general headered `.gwo` execution beyond the fixed stage-2 reservation is not implemented,
-- payload loading for generated executable objects is not implemented,
+- generated payload loading is limited to the fixed stage-2 reservation,
 - memory model is static and has no heap or pointer-width contract beyond the
   current real16 near-pointer seed,
 - runtime services are intentionally minimal.

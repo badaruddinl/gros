@@ -146,7 +146,8 @@ header shape specified
 profile_id 0 assigned to the current real16 stage-2 profile
 fixed stage-1 header-aware loader implemented
 fixed stage-2 headered execution implemented
-generated .grw output not implemented
+minimal-main generated .grw output implemented in ignored build artifacts
+general generated .grw output not implemented
 ```
 
 The current stage-1 loader is header-aware for this one fixed reservation, not
@@ -208,8 +209,8 @@ reservation; it is not a general artifact loader.
 
 ## Relationship To Grown
 
-Future Grown `.grw` tooling may eventually produce `.gwn` and `.gwo` outputs.
-That is not implemented today.
+The minimal-main compiler produces `.gwn` and `.gwo` build artifacts for the
+fixed reservation. General Grown tooling remains future work.
 
 Current build truth remains:
 
@@ -245,11 +246,11 @@ This status document does not add:
 - relocation records,
 - symbol tables,
 - dynamic linking,
-- `.grw` parser,
-- `.grw` compiler,
+- a general `.grw` parser,
+- a general `.grw` compiler,
 - `.grw` interpreter,
-- generated `.gwn`,
-- generated `.gwo`,
+- general generated `.gwn`,
+- general generated `.gwo`,
 - Grogan kernel implementation,
 - hosted-native executable output,
 - protected mode,

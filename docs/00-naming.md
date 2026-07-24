@@ -140,7 +140,7 @@ The future native low-level systems language for GrOS.
 Current status:
 
 ```txt
-seed/spec only
+minimal documented subset is compiled and QEMU-validated; general language remains seed/spec
 ```
 
 `Grogan`:
@@ -180,7 +180,7 @@ Readable Grown source form.
 Current status:
 
 ```txt
-seed/spec only
+minimal documented subset is compiled; general language remains seed/spec
 ```
 
 `.gwo`:
@@ -198,8 +198,8 @@ Compiled/output artifact form.
 Current status:
 
 ```txt
-implemented as raw boot and stage artifacts
-headered executable form reserved/future
+implemented as raw boot artifacts; fixed stage-2 headered payload is implemented
+general headered executable form reserved/future
 ```
 
 The current `.gwo` artifact status is defined in:
@@ -234,8 +234,9 @@ Use:
 GrBoot loads GrRT16 today.
 GrRT16 exposes the first GrSCall seed through int 30h.
 Grogan is reserved as the future GrOS kernel proper.
-Grown .grw is specified but not compiled yet.
-Current .gwo artifacts are raw profile artifacts.
+The minimal documented Grown `.grw` subset is compiled into a fixed stage-2 payload.
+General Grown compilation remains unavailable.
+`gros-v0.5.gwo` is raw; `gros-stage2.gwo` contains a fixed stage-2 headered payload.
 ```
 
 Avoid:

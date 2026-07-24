@@ -59,7 +59,7 @@ do not execute a generated payload and do not claim compiler output.
 ```txt
 generated-code calling compatibility: locked for grabi.real16.call.v1
 .grw compiler implementation: only minimal-main subset is implemented
-headered executable loading: closed
+general headered executable loading: closed
 ```
 
 The ABI contract is stable enough for expected generated-code fixtures to name

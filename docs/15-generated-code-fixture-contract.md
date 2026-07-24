@@ -63,7 +63,7 @@ manifest.txt
 ```txt
 Informational future source input.
 Not parsed by the current build.
-Not compiled by the current build.
+Not compiled by the current minimal-main build; this remains an expected-only ABI fixture.
 ```
 
 `expected.gwn`:

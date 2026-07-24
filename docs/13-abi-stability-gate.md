@@ -194,7 +194,7 @@ Required:
 Current status:
 
 ```txt
-header seed reserved, loader not implemented
+fixed v1 stage-2 header and loader implemented; general headered loading reserved
 ```
 
 The future header shape is reserved in:
@@ -203,10 +203,10 @@ The future header shape is reserved in:
 docs/11-gwo-payload-header.md
 ```
 
-The current gate treats raw `.gwo` boot artifacts and future headered executable
-`.gwo` payloads as separate classes. The stage-1 loader remains a raw-profile
-loader only. Headered execution stays closed until a future loader validates the
-header, profile, flags, size, reserved bytes, and entry offset before transfer.
+The current gate treats raw `gros-v0.5.gwo` and the fixed headered stage-2
+reservation as separate classes. The stage-1 loader validates header, profile,
+flags, size, reserved bytes, and entry offset before transfer, but only for that
+fixed reservation. General headered execution remains closed.
 
 ## 6. Validation Requirements
 

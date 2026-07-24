@@ -28,11 +28,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y make nasm qemu-system-x86
 
-      - name: Run full validation
-        run: make validate
-
-      - name: Smoke stage-2 boot
-        run: make smoke-stage2
-
-      - name: Exercise stage-2 interaction
-        run: make qemu-interaction
+      - name: Run release readiness gate
+        run: make release-ready

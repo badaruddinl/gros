@@ -1,10 +1,10 @@
 # GrOS Profile Registry
 
 This document defines the first GrOS profile registry seed. It is a registry and
-status contract only. It does not add a new profile implementation, parser,
-compiler, interpreter, linker, allocator, executable loader, hosted-native
-output, UEFI target, `x86_64` execution, GrSCall profile query service, profile
-version bump, or boot banner change.
+status contract only. It does not add a new profile implementation, general
+parser/compiler, interpreter, linker, allocator, general executable loader,
+hosted-native output, UEFI target, `x86_64` execution, profile version bump, or
+boot banner change.
 
 ## Purpose
 
@@ -101,9 +101,9 @@ not assign numeric profile IDs yet.
 Current status:
 
 ```txt
-profile_id numeric mapping is reserved/future
-header-aware loader is not implemented
-profile query service is not implemented
+profile_id 0 is assigned to gros.x86.bios.real16.stage2.v0
+fixed stage-2 header-aware loader is implemented
+profile query service is implemented through runtime/control.profile_id
 ```
 
 A future profile ID assignment must define:

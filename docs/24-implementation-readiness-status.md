@@ -82,7 +82,7 @@ The first implementation class uses:
 
 The generated-code compatibility class uses:
 
-- informational `.grw` source that is not parsed or compiled,
+- expected-only ABI fixture source that is not parsed or compiled,
 - handwritten expected `.gwn` and golden `.gwo` bytes,
 - a direct-call convention fixture for `grabi.real16.call.v1`,
 - byte-level validation of register arguments, stack cleanup, return, DF, and
@@ -95,13 +95,13 @@ The following gates remain closed:
 
 | Work Class | Status |
 | --- | --- |
-| `.grw` parser | closed |
+| general `.grw` parser | closed (minimal-main lexical subset implemented) |
 | general `.grw` compiler | closed (minimal-main subset implemented) |
 | `.grw` interpreter | closed |
 | general generated `.gwn` output | closed |
 | general generated `.gwo` output claim | closed |
-| header-aware `.gwo` executable loader | closed |
-| GrBoot header loading | closed |
+| general header-aware `.gwo` executable loader | closed (fixed stage-2 loader implemented) |
+| general GrBoot header loading | closed (fixed stage-2 reservation implemented) |
 | Grogan kernel implementation | closed |
 | new GrSCall runtime services | closed until selector contract and validation are updated |
 | heap allocator | closed |

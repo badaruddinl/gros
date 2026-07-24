@@ -178,7 +178,8 @@ Future `.grw` programs targeting this profile must not require heap allocation u
 
 ## Grown `.grw` Constraints
 
-This memory model is a seed for future `.grw` lowering only. It does not make `.grw` executable in this repository yet.
+This memory model is a seed for future `.grw` lowering. The minimal-main subset is compiled; it does not make general `.grw`
+executable in this repository.
 
 Until the ABI stability gate opens, `.grw` profile rules must treat these features as reserved:
 
@@ -201,7 +202,8 @@ fn main() -> void {
 }
 ```
 
-This example is not compiled by the current repository.
+This exact minimal-main example is compiled by the current repository; other
+source forms remain reserved.
 
 ## Runtime Service Interaction
 
@@ -238,11 +240,9 @@ Existing validation covers:
 - runtime ABI byte fixtures
 - QEMU stage-2 smoke start
 
-Missing validation:
-
-- generated-code fixture
-
-The missing generated-code fixture still blocks `.grw` pointer types and generated `.gwo` payloads.
+Generated-code validation now covers the minimal-main subset and the expected
+calling-convention fixture. Pointer types and general generated payloads remain
+blocked by the absence of a pointer-width, allocator, and broader memory ABI.
 
 ## Non-Goals
 
@@ -257,6 +257,6 @@ This seed does not define:
 - a userspace heap
 - dynamic linking
 - relocations
-- a `.grw` compiler
+- a general `.grw` compiler
 - hosted-native executable output
 - a version bump
