@@ -16,9 +16,10 @@ This is still x86 BIOS real mode, not `x86_64`.
 
 ## Gate Status
 
-Current status:
+Current overall status:
 
 ```txt
+function-call compatibility locked for expected generated-code fixtures
 not stable for `.grw` compiler implementation
 ```
 
@@ -102,7 +103,14 @@ callee-saved SI DI BP SP DS ES SS
 Status:
 
 ```txt
-seeded, not proven by generated code
+locked as `grabi.real16.call.v1` for expected-only fixture validation
+```
+
+The generated-code compatibility contract and its direct-call fixture are:
+
+```txt
+docs/26-grabi-generated-code-compatibility.md
+fixtures/generated-code/abi-call-preserve/
 ```
 
 ## 3. Runtime Service Gate
@@ -214,6 +222,10 @@ Current status:
 ```txt
 manual `.gwn` runtime fixtures plus expected-only generated-code fixture coverage
 ```
+
+The expected-only fixtures now cover minimal entry/halt behavior and the v1
+direct-call convention. They are ABI compatibility evidence, not compiler
+provenance or executable-payload evidence.
 
 The fixture representation contract is defined in:
 

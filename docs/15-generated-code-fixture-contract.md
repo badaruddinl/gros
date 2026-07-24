@@ -126,10 +126,16 @@ It validates existing fixtures by:
 - rejecting unknown fixture status values
 - building `expected.gwn` through `scripts/gwnraw.sh`
 - comparing the built bytes with `expected.gwo`
-- checking profile-specific ABI fixtures over `expected.gwo`
+- checking profile-specific ABI fixtures over `expected.gwo` when a fixture
+  family declares such a contract
 - confirming that `source.grw` is informational only
 
 The validation script passes when no generated-code fixtures exist yet. That keeps the contract active before the first fixture is added.
+
+The `abi-call-preserve` fixture is additionally checked by
+`scripts/check_grabi_generated_code.sh`. It proves the expected
+`grabi.real16.call.v1` byte representation only; `status=expected-only` still
+means that no current `.grw` compiler produced the artifact.
 
 The validation script must not:
 

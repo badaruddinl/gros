@@ -1,0 +1,10 @@
+target "gros.x86.bios.real16.stage2.v0"
+
+fn echo_fifth(a0: u16, a1: u16, a2: u16, a3: u16, a4: u16) -> u16 {
+    return a4;
+}
+
+fn main() -> void {
+    echo_fifth(0x1111, 0x2222, 0x3333, 0x4444, 0x7777);
+    return;
+}

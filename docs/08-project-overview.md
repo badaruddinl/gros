@@ -120,6 +120,7 @@ It checks:
 - stage-2 near-pointer immediates
 - stage-2 static text/data bytes
 - runtime ABI byte fixtures for implemented `int 30h` services
+- generated-code real16 calling-convention compatibility fixture
 - stage-2 debug-console mirroring used only for QEMU transcript validation
 
 The stage-2 smoke command is:
@@ -171,6 +172,7 @@ docs/22-grabi-contract-status.md
 docs/23-gwo-artifact-status.md
 docs/24-implementation-readiness-status.md
 docs/25-qemu-interaction-contract.md
+docs/26-grabi-generated-code-compatibility.md
 ```
 
 Their current responsibilities:
@@ -200,6 +202,7 @@ Their current responsibilities:
 - `23-gwo-artifact-status.md` records current raw-profile `.gwo` artifacts and future headered executable `.gwo` readiness rules.
 - `24-implementation-readiness-status.md` records the first validation-only implementation gate and which gates remain closed.
 - `25-qemu-interaction-contract.md` defines deterministic QEMU interaction validation for the implemented stage-2 prompt.
+- `26-grabi-generated-code-compatibility.md` locks the first expected-only generated-code calling-convention surface.
 
 Runtime ABI validation is implemented in:
 

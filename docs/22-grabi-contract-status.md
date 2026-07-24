@@ -57,7 +57,7 @@ This is not an `x86_64` profile, not UEFI, and not Grogan proper.
 | --- | --- | --- |
 | Stage-1 to stage-2 handoff | seed/spec with validation | `docs/05-stage2-contract.md`, `docs/06-abi-handoff.md` |
 | Runtime profile identity | implemented seed | `docs/18-profile-registry.md` |
-| Function calling convention | seed/spec | `docs/10-runtime-abi-seed.md` |
+| Function calling convention | v1 compatibility contract with static fixture validation | `docs/10-runtime-abi-seed.md`, `docs/26-grabi-generated-code-compatibility.md` |
 | GrSCall entry and return convention | implemented seed | `docs/10-runtime-abi-seed.md`, `docs/17-grscall-service-registry.md` |
 | Real16 memory model | seed/spec with validation | `docs/14-real16-memory-model.md` |
 | `.gwo` raw-profile boundary | implemented for current boot artifacts | `docs/11-gwo-payload-header.md`, `docs/21-grboot-boot-chain-status.md` |
@@ -189,6 +189,7 @@ GrABI status is validated through static fixtures over the built `.gwo` images.
 | Near pointers | `scripts/check_near_pointers.sh` |
 | Static stage-2 data | `scripts/check_stage2_data.sh` |
 | Generated-code fixture metadata | `scripts/check_generated_fixtures.sh` |
+| Generated-code calling convention | `scripts/check_grabi_generated_code.sh` |
 | QEMU smoke | `scripts/smoke_stage2_qemu.sh` |
 
 The full local validation path remains:
@@ -196,6 +197,7 @@ The full local validation path remains:
 ```bash
 make validate
 make smoke-stage2
+make grabi-generated-code
 ```
 
 ## Compiler Gate Status
@@ -204,7 +206,7 @@ GrABI is not stable enough for `.grw` compiler implementation yet.
 
 Current blockers:
 
-- generated-code fixture coverage is expected-only,
+- generated-code fixtures are expected-only and do not establish compiler provenance,
 - headered `.gwo` execution is not implemented,
 - payload loading for generated executable objects is not implemented,
 - memory model is static and has no heap or pointer-width contract beyond the
@@ -280,6 +282,7 @@ docs/20-grrt16-runtime-status.md
 docs/21-grboot-boot-chain-status.md
 docs/23-gwo-artifact-status.md
 docs/24-implementation-readiness-status.md
+docs/26-grabi-generated-code-compatibility.md
 ```
 
 This document summarizes current GrABI status. It does not override those

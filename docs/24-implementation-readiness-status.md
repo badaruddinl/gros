@@ -52,10 +52,11 @@ or hosted-native executable implementation.
 
 ## Implemented Gate
 
-The following implementation class is now present:
+The following validation-only implementation classes are now present:
 
 ```txt
 validation-only Bash tooling for headered .gwo candidate fixtures
+validation-only Bash tooling for expected generated-code ABI fixtures
 ```
 
 Allowed properties:
@@ -77,6 +78,15 @@ The first implementation class uses:
 - a Makefile validation target that runs locally,
 - policy coverage that keeps the fixtures from being mistaken for bootable
   artifacts.
+
+The generated-code compatibility class uses:
+
+- informational `.grw` source that is not parsed or compiled,
+- handwritten expected `.gwn` and golden `.gwo` bytes,
+- a direct-call convention fixture for `grabi.real16.call.v1`,
+- byte-level validation of register arguments, stack cleanup, return, DF, and
+  callee preservation,
+- no payload execution, loader behavior, or compiler-output claim.
 
 ## Closed Gates
 

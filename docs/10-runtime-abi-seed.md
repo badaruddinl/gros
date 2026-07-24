@@ -64,6 +64,15 @@ SI DI BP SP DS ES SS
 
 Direction flag must be clear on function entry and on return.
 
+The first expected generated-code compatibility binding for this seed is:
+
+```txt
+docs/26-grabi-generated-code-compatibility.md
+```
+
+It locks `grabi.real16.call.v1` through handwritten expected fixture bytes. It
+does not claim a current `.grw` compiler or loader.
+
 ## Stack Rules
 
 The stack starts from the stage-2 handoff state:

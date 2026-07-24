@@ -1,0 +1,42 @@
+; Expected-only GrABI real16 calling-convention fixture.
+; Handwritten .gwn, not output from a current .grw compiler.
+
+raw x86.bios.real16.generated.abi_call_preserve {
+    origin 8000
+
+    ; Generated entry has DF clear. Arguments 0..3 occupy AX/BX/CX/DX.
+    label main
+    bytes FC
+    bytes B8 11 11
+    bytes BB 22 22
+    bytes B9 33 33
+    bytes BA 44 44
+
+    ; Argument 4 is a word on the caller-owned stack.
+    bytes 68 77 77
+    bytes E8
+    rel16 echo_fifth
+    bytes 83 C4 02
+
+    ; Bare-metal main does not return to a caller.
+    label halt
+    bytes FA
+    bytes F4
+    bytes EB
+    rel8 halt
+
+    ; Callee restores all mutable callee-saved state and returns a4 in AX.
+    label echo_fifth
+    bytes 55 89 E5
+    bytes 1E 06 56 57
+    bytes BE AA AA
+    bytes BF BB BB
+    bytes 31 C0
+    bytes 8E D8
+    bytes 8E C0
+    bytes 8B 46 04
+    bytes FC
+    bytes 07 1F 5F 5E 5D C3
+
+    pad_to 2048 with 00
+}

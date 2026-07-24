@@ -1,4 +1,4 @@
-.PHONY: build check test policy project-policy-failures generated-fixtures generated-fixtures-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures qemu-interaction qemu-interaction-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy project-policy-failures generated-fixtures generated-fixtures-failures grabi-generated-code grabi-generated-code-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures qemu-interaction qemu-interaction-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gwo
 DIST_IMAGE := dist/gros-v0.5.gwo
@@ -26,6 +26,12 @@ generated-fixtures:
 generated-fixtures-failures:
 	./scripts/test_generated_fixtures_failures.sh
 
+grabi-generated-code: generated-fixtures
+	./scripts/check_grabi_generated_code.sh
+
+grabi-generated-code-failures:
+	./scripts/test_grabi_generated_code_failures.sh
+
 boot-image-failures:
 	./scripts/test_boot_image_failures.sh
 
@@ -47,7 +53,7 @@ gwo-artifact-inventory:
 gwo-artifact-inventory-failures:
 	./scripts/test_gwo_artifact_inventory_failures.sh
 
-validate: policy project-policy-failures generated-fixtures generated-fixtures-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures test check stage2
+validate: policy project-policy-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
@@ -68,6 +74,7 @@ validate: policy project-policy-failures generated-fixtures generated-fixtures-f
 	./scripts/check_stage2_debugcon.sh $(STAGE2_DIST_IMAGE)
 	./scripts/check_runtime_abi.sh $(STAGE2_BUILD_IMAGE)
 	./scripts/check_runtime_abi.sh $(STAGE2_DIST_IMAGE)
+	./scripts/check_grabi_generated_code.sh
 	cmp -s $(STAGE2_BUILD_IMAGE) $(STAGE2_DIST_IMAGE)
 	@echo "ok: build matches dist artifacts"
 
