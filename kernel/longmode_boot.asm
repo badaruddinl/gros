@@ -107,6 +107,7 @@ long_mode:
     mov es, ax
     mov ss, ax
     mov rsp, 0x90000
+    lidt [abs idt_descriptor]
     mov al, 'L'
     out 0xe9, al
     mov al, 'M'
@@ -114,6 +115,28 @@ long_mode:
     mov al, '6'
     out 0xe9, al
     mov al, '4'
+    out 0xe9, al
+    mov al, 'I'
+    out 0xe9, al
+    mov al, 'D'
+    out 0xe9, al
+    mov al, 'T'
+    out 0xe9, al
+    ud2                         ; vector 6 must enter isr_default below.
+    cli
+.halt: hlt
+    jmp .halt
+
+isr_default:
+    ; Deliberately fail-stop: no interrupted state is resumed before a full
+    ; exception-frame ABI exists. Every vector has a present kernel-only gate.
+    mov al, 'E'
+    out 0xe9, al
+    mov al, 'X'
+    out 0xe9, al
+    mov al, '0'
+    out 0xe9, al
+    mov al, '6'
     out 0xe9, al
     cli
 .halt: hlt
@@ -130,4 +153,20 @@ gdt_descriptor:
     dw gdt_end - gdt - 1
     dd gdt
 gdt_end:
+default abs
+align 16
+idt:
+%rep 256
+    dw isr_default
+    dw 0x18
+    db 0
+    db 0x8e
+    dw 0
+    dd 0
+    dd 0
+%endrep
+idt_end:
+idt_descriptor:
+    dw idt_end - idt - 1
+    dq idt
 times 512*32-($-$$) db 0

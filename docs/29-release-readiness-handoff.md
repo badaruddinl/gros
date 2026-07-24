@@ -25,14 +25,15 @@ after this gate is the final handoff condition.
 | 6 | QEMU proof malformed header does not execute `0000:8020` |
 | 7 | `release-ready` aggregate gate and this handoff |
 | 10 | BIOS boot-info/E820 to x86_64 long-mode transition seed |
+| 11 | x86_64 IDT installation and fail-stop invalid-opcode exception proof |
 
 ## Scope Boundaries
 
 This readiness claim does not claim a general Grown compiler, general executable
 loader, call-ABI code generation, filesystem, process model, kernel, allocator,
-an interrupt subsystem, scheduler, allocator, filesystem, process model, UEFI,
-or hosted-native output. The compiler accepts only the minimal documented `main`
-subset.
+hardware IRQ delivery, recoverable fault handling, scheduler, allocator,
+filesystem, process model, UEFI, or hosted-native output. The compiler accepts
+only the minimal documented `main` subset.
 
 ## Handoff Commands
 

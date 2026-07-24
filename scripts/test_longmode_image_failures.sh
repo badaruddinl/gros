@@ -29,3 +29,8 @@ OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"e4920c02e692") {
 [ -n "$OFFSET" ] || fail "baseline missing A20 sequence"
 printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
 expect_failure missing-a20 "missing A20 enable"
+"$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
+OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"0f011c25") { print (RSTART - 1) / 2; exit }')
+[ -n "$OFFSET" ] || fail "baseline missing IDT load"
+printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+expect_failure missing-idt "missing IDT load"
