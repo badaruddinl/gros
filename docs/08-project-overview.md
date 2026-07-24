@@ -120,12 +120,24 @@ It checks:
 - stage-2 near-pointer immediates
 - stage-2 static text/data bytes
 - runtime ABI byte fixtures for implemented `int 30h` services
+- stage-2 debug-console mirroring used only for QEMU transcript validation
 
 The stage-2 smoke command is:
 
 ```bash
 make smoke-stage2
 ```
+
+The deterministic interactive QEMU gate is:
+
+```bash
+make qemu-interaction
+```
+
+It sends `help`, `ver`, an unknown command, a Backspace-edited command, and
+`cls` through the QEMU monitor and validates their mirrored transcript. The
+test-only debug mirror is defined in `docs/25-qemu-interaction-contract.md`; it
+does not add a GrSCall service or a runtime console ABI.
 
 It starts the stage-2 image under QEMU and fails when QEMU is unavailable.
 
@@ -158,6 +170,7 @@ docs/21-grboot-boot-chain-status.md
 docs/22-grabi-contract-status.md
 docs/23-gwo-artifact-status.md
 docs/24-implementation-readiness-status.md
+docs/25-qemu-interaction-contract.md
 ```
 
 Their current responsibilities:
@@ -186,6 +199,7 @@ Their current responsibilities:
 - `22-grabi-contract-status.md` records the current handoff, runtime ABI, memory, profile, and validation contract status.
 - `23-gwo-artifact-status.md` records current raw-profile `.gwo` artifacts and future headered executable `.gwo` readiness rules.
 - `24-implementation-readiness-status.md` records the first validation-only implementation gate and which gates remain closed.
+- `25-qemu-interaction-contract.md` defines deterministic QEMU interaction validation for the implemented stage-2 prompt.
 
 Runtime ABI validation is implemented in:
 

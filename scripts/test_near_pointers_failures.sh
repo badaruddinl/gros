@@ -94,23 +94,23 @@ expect_validator_failure() {
             mutate_stage2_pattern_byte "c706c000c580c706c2000000" 5 136
             ;;
         too-few-si-write-loads)
-            mutate_stage2_pattern_byte "be5081e89b00" 0 0
-            mutate_stage2_pattern_byte "be5c81e89500" 0 0
+            mutate_stage2_pattern_byte "be5481e89b00" 0 0
+            mutate_stage2_pattern_byte "be6081e89500" 0 0
             ;;
         si-write-past-stage2)
-            mutate_stage2_pattern_byte "be5081e89b00" 2 136
+            mutate_stage2_pattern_byte "be5481e89b00" 2 136
             ;;
         too-few-compare-pairs)
-            mutate_stage2_pattern_byte "bea681bf6c81e8b100" 0 0
+            mutate_stage2_pattern_byte "beaa81bf7081e8b500" 0 0
             ;;
         di-compare-past-stage2)
-            mutate_stage2_pattern_byte "bea681bf6c81e8b100" 5 136
+            mutate_stage2_pattern_byte "beaa81bf7081e8b500" 5 136
             ;;
         missing-input-buffer-pointer)
-            mutate_stage2_pattern_byte "bfa68131c9" 0 0
+            mutate_stage2_pattern_byte "bfaa8131c9" 0 0
             ;;
         input-buffer-past-stage2)
-            mutate_stage2_pattern_byte "bfa68131c9" 2 136
+            mutate_stage2_pattern_byte "bfaa8131c9" 2 136
             ;;
         missing-write-string-forward)
             mutate_stage2_pattern_byte "b80001cd30c3" 0 0

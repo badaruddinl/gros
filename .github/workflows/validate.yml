@@ -33,3 +33,6 @@ jobs:
 
       - name: Smoke stage-2 boot
         run: make smoke-stage2
+
+      - name: Exercise stage-2 interaction
+        run: make qemu-interaction

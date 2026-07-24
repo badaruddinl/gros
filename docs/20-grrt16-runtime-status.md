@@ -220,6 +220,8 @@ GrRT16 status is validated by direct checks over source and `.gwo` artifacts.
 | `scripts/check_memory_model.sh` | real16 memory ranges and stage-2 setup bytes |
 | `scripts/check_near_pointers.sh` | near-pointer immediates used by stage-2 |
 | `scripts/check_stage2_data.sh` | static text/data bytes and zero-filled command buffer tail |
+| `scripts/check_stage2_debugcon.sh` | test-only E9h mirror for both stage-2 console output paths |
+| `scripts/qemu_stage2_interaction.sh` | deterministic QEMU interaction transcript for implemented prompt behavior |
 | `scripts/smoke_stage2_qemu.sh` | QEMU smoke start for the stage-2 image |
 
 The full local validation path remains:
@@ -227,6 +229,7 @@ The full local validation path remains:
 ```bash
 make validate
 make smoke-stage2
+make qemu-interaction
 ```
 
 Validated image facts today:

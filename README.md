@@ -55,6 +55,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [GrABI contract status](docs/22-grabi-contract-status.md)
 - [GWO artifact status](docs/23-gwo-artifact-status.md)
 - [Implementation readiness status](docs/24-implementation-readiness-status.md)
+- [QEMU interaction contract](docs/25-qemu-interaction-contract.md)
 
 ## Stage-2 Loader Target
 
@@ -80,6 +81,12 @@ Run the QEMU smoke start:
 
 ```bash
 make smoke-stage2
+```
+
+Exercise the deterministic prompt interactions under QEMU:
+
+```bash
+make qemu-interaction
 ```
 
 Run interactively:

@@ -225,6 +225,7 @@ raw x86.bios.stage2 {
     ; console/text.write_char: BL contains the byte to write.
     label runtime_write_char
     bytes 88 D8
+    bytes E6 E9
     bytes B4 0E
     bytes CD 10
     bytes EB
@@ -266,6 +267,7 @@ raw x86.bios.stage2 {
     bytes 84 C0
     bytes 74
     rel8 print_done
+    bytes E6 E9
     bytes B4 0E
     bytes CD 10
     bytes EB

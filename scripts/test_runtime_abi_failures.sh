@@ -118,7 +118,7 @@ expect_validator_failure() {
             mutate_stage2_pattern "3d020174"
             ;;
         missing-write-char-service-body)
-            mutate_stage2_pattern "88d8b40ecd10"
+            mutate_stage2_pattern "88d8e6e9b40ecd10"
             ;;
         missing-version-service-body)
             mutate_stage2_regex "b80100eb[0-9a-f]{2}"
