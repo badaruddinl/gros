@@ -135,8 +135,11 @@ Current implemented services:
 
 ```txt
 00h:00h runtime/control.probe
+00h:01h runtime/control.version
+00h:02h runtime/control.profile_id
 01h:00h console/text.write_cstr
 01h:01h console/text.write_char
+01h:02h console/text.write_crlf
 ```
 
 A future Grogan seed may own the dispatch implementation behind GrSCall, but it

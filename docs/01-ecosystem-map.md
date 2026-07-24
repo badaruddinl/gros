@@ -53,8 +53,11 @@ Implemented and validated in the repository:
 - GrSCall seed through `int 30h`.
 - Runtime services:
   - `runtime/control.probe`
+  - `runtime/control.version`
+  - `runtime/control.profile_id`
   - `console/text.write_cstr`
   - `console/text.write_char`
+  - `console/text.write_crlf`
 - Static validation for boot, stage-2, runtime ABI, real16 memory, near pointers,
   stage-2 data, generated-code fixtures, and policy rules.
 

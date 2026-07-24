@@ -66,9 +66,9 @@ if command -v ndisasm > /dev/null 2>&1; then
     trap 'rm -f "$DISASM"' EXIT
 
     ndisasm -b 16 -o 0x7c00 "$FILE" > "$DISASM"
-    require_instruction "$DISASM" '[[:space:]]int[[:space:]]+0x10' 'BIOS video interrupt'
-    require_instruction "$DISASM" '[[:space:]]int[[:space:]]+0x16' 'BIOS keyboard interrupt'
-    require_instruction "$DISASM" '[[:space:]]int[[:space:]]+0x19' 'BIOS bootstrap interrupt'
+    require_instruction "$DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x10' 'BIOS video interrupt'
+    require_instruction "$DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x16' 'BIOS keyboard interrupt'
+    require_instruction "$DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x19' 'BIOS bootstrap interrupt'
     echo "ndisasm  : ok"
 elif [ "$REQUIRE_NDISASM" -eq 1 ]; then
     fail "ndisasm is required for this validation"

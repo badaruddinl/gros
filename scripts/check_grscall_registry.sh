@@ -5,9 +5,15 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 DEFAULT_REGISTRY="$ROOT/docs/17-grscall-service-registry.md"
 DEFAULT_RUNTIME_ABI="$ROOT/scripts/check_runtime_abi.sh"
 DEFAULT_RUNTIME_ABI_DOC="$ROOT/docs/10-runtime-abi-seed.md"
+DEFAULT_ECOSYSTEM_DOC="$ROOT/docs/01-ecosystem-map.md"
+DEFAULT_ABI_GATE_DOC="$ROOT/docs/13-abi-stability-gate.md"
+DEFAULT_GROGAN_DOC="$ROOT/docs/19-grogan-kernel-seed.md"
 REGISTRY="${GRSCALL_REGISTRY_DOC:-$DEFAULT_REGISTRY}"
 RUNTIME_ABI="${GRSCALL_RUNTIME_ABI_CHECK:-$DEFAULT_RUNTIME_ABI}"
 RUNTIME_ABI_DOC="${GRSCALL_RUNTIME_ABI_DOC:-$DEFAULT_RUNTIME_ABI_DOC}"
+ECOSYSTEM_DOC="${GRSCALL_ECOSYSTEM_DOC:-$DEFAULT_ECOSYSTEM_DOC}"
+ABI_GATE_DOC="${GRSCALL_ABI_GATE_DOC:-$DEFAULT_ABI_GATE_DOC}"
+GROGAN_DOC="${GRSCALL_GROGAN_DOC:-$DEFAULT_GROGAN_DOC}"
 
 fail() {
     echo "error: $1" >&2
@@ -88,7 +94,7 @@ require_absent_candidate_text() {
     fi
 }
 
-if { [ -n "${GRSCALL_REGISTRY_DOC+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_CHECK+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_DOC+x}" ]; } &&
+if { [ -n "${GRSCALL_REGISTRY_DOC+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_CHECK+x}" ] || [ -n "${GRSCALL_RUNTIME_ABI_DOC+x}" ] || [ -n "${GRSCALL_ECOSYSTEM_DOC+x}" ] || [ -n "${GRSCALL_ABI_GATE_DOC+x}" ] || [ -n "${GRSCALL_GROGAN_DOC+x}" ]; } &&
     [ "${GRSCALL_REGISTRY_SELF_TEST:-0}" != "1" ]; then
     fail "GrSCall registry overrides are only allowed with GRSCALL_REGISTRY_SELF_TEST=1"
 fi
@@ -96,6 +102,9 @@ fi
 [ -f "$REGISTRY" ] || fail "missing GrSCall registry: $REGISTRY"
 [ -f "$RUNTIME_ABI" ] || fail "missing runtime ABI validator: $RUNTIME_ABI"
 [ -f "$RUNTIME_ABI_DOC" ] || fail "missing runtime ABI seed doc: $RUNTIME_ABI_DOC"
+[ -f "$ECOSYSTEM_DOC" ] || fail "missing ecosystem map: $ECOSYSTEM_DOC"
+[ -f "$ABI_GATE_DOC" ] || fail "missing ABI stability gate: $ABI_GATE_DOC"
+[ -f "$GROGAN_DOC" ] || fail "missing Grogan seed: $GROGAN_DOC"
 
 require_text "$REGISTRY" '# GrSCall Service Registry' "GrSCall registry title"
 require_text "$REGISTRY" 'Current GrSCall entry mechanism:' "GrSCall entry mechanism heading"
@@ -186,5 +195,17 @@ require_absent_text "$RUNTIME_ABI_DOC" '04h  memory' "runtime ABI stale memory g
 require_absent_text "$RUNTIME_ABI_DOC" '| `02h` | `storage/block` |' "runtime ABI stale storage/block table assignment"
 require_absent_text "$RUNTIME_ABI_DOC" '| `03h` | `process/task` |' "runtime ABI stale process/task table assignment"
 require_absent_text "$RUNTIME_ABI_DOC" '| `04h` | `memory` |' "runtime ABI stale memory table assignment"
+
+for service in \
+    "runtime/control.probe" \
+    "runtime/control.version" \
+    "runtime/control.profile_id" \
+    "console/text.write_cstr" \
+    "console/text.write_char" \
+    "console/text.write_crlf"; do
+    require_text "$ECOSYSTEM_DOC" "$service" "ecosystem map implemented service"
+    require_text "$ABI_GATE_DOC" "$service" "ABI stability gate implemented service"
+    require_text "$GROGAN_DOC" "$service" "Grogan seed implemented service"
+done
 
 echo "grscall registry: ok"

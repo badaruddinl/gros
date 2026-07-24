@@ -64,7 +64,7 @@ require_near_boot_drive_reload() {
     local disasm=$1
     local jump_line reload_line
 
-    jump_line=$(grep -nE '[[:space:]]jmp[[:space:]]+0x0:0x8000' "$disasm" | head -n 1 | cut -d: -f1 || true)
+    jump_line=$(grep -nE '[[:space:]]jmp([[:space:]]+word)?[[:space:]]+0x0:(word[[:space:]]+)?0x8000' "$disasm" | head -n 1 | cut -d: -f1 || true)
     [ -n "$jump_line" ] || fail "missing expected instruction: stage-2 far jump"
 
     reload_line=$(awk -v jump="$jump_line" '
@@ -82,7 +82,7 @@ require_stage2_runtime_gate() {
 
     vector_line=$(grep -nE '[[:space:]]mov[[:space:]]+word[[:space:]]+\[0xc0\],0x[0-9a-fA-F]+' "$disasm" | head -n 1 | cut -d: -f1 || true)
     segment_line=$(grep -nE '[[:space:]]mov[[:space:]]+word[[:space:]]+\[0xc2\],0x0' "$disasm" | head -n 1 | cut -d: -f1 || true)
-    first_int30_line=$(grep -nE '[[:space:]]int[[:space:]]+0x30' "$disasm" | head -n 1 | cut -d: -f1 || true)
+    first_int30_line=$(grep -nE '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x30' "$disasm" | head -n 1 | cut -d: -f1 || true)
 
     [ -n "$vector_line" ] || fail "missing expected instruction: int 30h IVT offset install"
     [ -n "$segment_line" ] || fail "missing expected instruction: int 30h IVT segment install"
@@ -99,7 +99,7 @@ require_stage2_runtime_gate() {
     [ "$handler_value" -ge $((0x8000)) ] || fail "int 30h handler must be inside stage-2 payload"
     [ "$handler_value" -le $((0x87ff)) ] || fail "int 30h handler must be inside stage-2 payload"
 
-    require_instruction_count "$disasm" '[[:space:]]int[[:space:]]+0x30' 3 'runtime service probe and console write calls'
+    require_instruction_count "$disasm" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x30' 3 'runtime service probe and console write calls'
     require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x100' 'console/text write selector call'
     require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x101' 'console/text write-char selector call'
     require_instruction "$disasm" '[[:space:]]or[[:space:]]+ax,ax' 'runtime/control probe selector check'
@@ -110,8 +110,8 @@ require_stage2_runtime_gate() {
     require_instruction "$disasm" '[[:space:]]push[[:space:]]+si' 'console/text SI preservation entry'
     require_instruction "$disasm" '[[:space:]]pop[[:space:]]+si' 'console/text SI preservation exit'
     require_instruction "$disasm" '[[:space:]]mov[[:space:]]+ax,0x1' 'unsupported runtime service error code'
-    require_instruction "$disasm" '[[:space:]]or[[:space:]]+word[[:space:]]+\[bp\+0x6\],byte[[:space:]]+\+0x1' 'unsupported runtime service CF=1 return'
-    require_instruction "$disasm" '[[:space:]]and[[:space:]]+word[[:space:]]+\[bp\+0x6\],byte[[:space:]]+-0x2' 'runtime/control probe CF=0 return'
+    require_instruction "$disasm" '[[:space:]]or[[:space:]]+word[[:space:]]+\[bp\+0x6\],[[:space:]]*(byte[[:space:]]+)?\+?0x1' 'unsupported runtime service CF=1 return'
+    require_instruction "$disasm" '[[:space:]]and[[:space:]]+word[[:space:]]+\[bp\+0x6\],[[:space:]]*(byte[[:space:]]+)?(-0x2|0xfffffffffffffffe)' 'runtime/control probe CF=0 return'
     require_instruction "$disasm" '[[:space:]]iret' 'runtime service interrupt return'
 }
 
@@ -150,15 +150,15 @@ if command -v ndisasm > /dev/null 2>&1; then
     require_instruction "$STAGE1_DISASM" '[[:space:]]mov[[:space:]]+ax,0x204' 'stage-2 sector read count'
     require_instruction "$STAGE1_DISASM" '[[:space:]]mov[[:space:]]+bx,0x8000' 'stage-2 load offset'
     require_instruction "$STAGE1_DISASM" '[[:space:]]mov[[:space:]]+cx,0x2' 'stage-2 starting sector'
-    require_instruction "$STAGE1_DISASM" '[[:space:]]int[[:space:]]+0x13' 'BIOS disk read interrupt'
-    require_instruction "$STAGE1_DISASM" '[[:space:]]jmp[[:space:]]+0x0:0x8000' 'stage-2 far jump'
+    require_instruction "$STAGE1_DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x13' 'BIOS disk read interrupt'
+    require_instruction "$STAGE1_DISASM" '[[:space:]]jmp([[:space:]]+word)?[[:space:]]+0x0:(word[[:space:]]+)?0x8000' 'stage-2 far jump'
     require_near_boot_drive_reload "$STAGE1_DISASM"
 
     require_text "$STAGE2" 'GrOS v0.5' 'stage-2 banner'
     require_text "$STAGE2" 'ground> ' 'stage-2 prompt'
-    require_instruction "$STAGE2_DISASM" '[[:space:]]int[[:space:]]+0x16' 'keyboard read interrupt'
-    require_instruction "$STAGE2_DISASM" '[[:space:]]int[[:space:]]+0x10' 'video interrupt'
-    require_instruction "$STAGE2_DISASM" '[[:space:]]int[[:space:]]+0x19' 'BIOS reboot interrupt'
+    require_instruction "$STAGE2_DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x16' 'keyboard read interrupt'
+    require_instruction "$STAGE2_DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x10' 'video interrupt'
+    require_instruction "$STAGE2_DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x19' 'BIOS reboot interrupt'
     require_stage2_runtime_gate "$STAGE2_DISASM"
     echo "ndisasm  : ok"
 elif [ "$REQUIRE_NDISASM" -eq 1 ]; then

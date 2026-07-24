@@ -6,6 +6,9 @@ VALIDATOR="$ROOT/scripts/check_grscall_registry.sh"
 SOURCE_REGISTRY="$ROOT/docs/17-grscall-service-registry.md"
 SOURCE_RUNTIME_ABI="$ROOT/scripts/check_runtime_abi.sh"
 SOURCE_RUNTIME_ABI_DOC="$ROOT/docs/10-runtime-abi-seed.md"
+SOURCE_ECOSYSTEM_DOC="$ROOT/docs/01-ecosystem-map.md"
+SOURCE_ABI_GATE_DOC="$ROOT/docs/13-abi-stability-gate.md"
+SOURCE_GROGAN_DOC="$ROOT/docs/19-grogan-kernel-seed.md"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -13,6 +16,9 @@ pass_count=0
 CASE_REGISTRY=""
 CASE_RUNTIME_ABI=""
 CASE_RUNTIME_ABI_DOC=""
+CASE_ECOSYSTEM_DOC=""
+CASE_ABI_GATE_DOC=""
+CASE_GROGAN_DOC=""
 
 pass() {
     pass_count=$((pass_count + 1))
@@ -32,10 +38,16 @@ copy_registry_case() {
     CASE_REGISTRY="$case_root/docs/17-grscall-service-registry.md"
     CASE_RUNTIME_ABI="$case_root/scripts/check_runtime_abi.sh"
     CASE_RUNTIME_ABI_DOC="$case_root/docs/10-runtime-abi-seed.md"
+    CASE_ECOSYSTEM_DOC="$case_root/docs/01-ecosystem-map.md"
+    CASE_ABI_GATE_DOC="$case_root/docs/13-abi-stability-gate.md"
+    CASE_GROGAN_DOC="$case_root/docs/19-grogan-kernel-seed.md"
 
     cp "$SOURCE_REGISTRY" "$CASE_REGISTRY"
     cp "$SOURCE_RUNTIME_ABI" "$CASE_RUNTIME_ABI"
     cp "$SOURCE_RUNTIME_ABI_DOC" "$CASE_RUNTIME_ABI_DOC"
+    cp "$SOURCE_ECOSYSTEM_DOC" "$CASE_ECOSYSTEM_DOC"
+    cp "$SOURCE_ABI_GATE_DOC" "$CASE_ABI_GATE_DOC"
+    cp "$SOURCE_GROGAN_DOC" "$CASE_GROGAN_DOC"
 }
 
 run_self_test_validator() {
@@ -43,6 +55,9 @@ run_self_test_validator() {
         GRSCALL_REGISTRY_DOC="$CASE_REGISTRY" \
         GRSCALL_RUNTIME_ABI_CHECK="$CASE_RUNTIME_ABI" \
         GRSCALL_RUNTIME_ABI_DOC="$CASE_RUNTIME_ABI_DOC" \
+        GRSCALL_ECOSYSTEM_DOC="$CASE_ECOSYSTEM_DOC" \
+        GRSCALL_ABI_GATE_DOC="$CASE_ABI_GATE_DOC" \
+        GRSCALL_GROGAN_DOC="$CASE_GROGAN_DOC" \
         "$VALIDATOR"
 }
 
@@ -151,6 +166,15 @@ expect_validator_failure() {
             ;;
         missing-runtime-abi-doc)
             rm -f "$CASE_RUNTIME_ABI_DOC"
+            ;;
+        missing-ecosystem-version-service)
+            sed -i 's/runtime\/control[.]version/runtime\/control.revision/g' "$CASE_ECOSYSTEM_DOC"
+            ;;
+        missing-abi-gate-crlf-service)
+            sed -i 's/console\/text[.]write_crlf/console\/text.write_lf/g' "$CASE_ABI_GATE_DOC"
+            ;;
+        missing-grogan-profile-id-service)
+            sed -i 's/runtime\/control[.]profile_id/runtime\/control.profile_name/g' "$CASE_GROGAN_DOC"
             ;;
         missing-runtime-abi-namespace-heading)
             sed -i 's/## GrSCall Service Namespace/## Runtime Service Namespace/' \
@@ -263,6 +287,9 @@ expect_validator_failure "missing-entry-mechanism" "missing GrSCall real16 entry
 expect_validator_failure "missing-unsupported-carry" "missing unsupported selector carry flag: CF = 1"
 expect_validator_failure "missing-validation-reference" "missing runtime ABI validation reference: scripts/check_runtime_abi.sh"
 expect_validator_failure "missing-runtime-abi-doc" "missing runtime ABI seed doc:"
+expect_validator_failure "missing-ecosystem-version-service" "missing ecosystem map implemented service: runtime/control.version"
+expect_validator_failure "missing-abi-gate-crlf-service" "missing ABI stability gate implemented service: console/text.write_crlf"
+expect_validator_failure "missing-grogan-profile-id-service" "missing Grogan seed implemented service: runtime/control.profile_id"
 expect_validator_failure "missing-runtime-abi-namespace-heading" "missing runtime ABI GrSCall namespace heading: ## GrSCall Service Namespace"
 expect_validator_failure "missing-runtime-abi-registry-reference" "missing runtime ABI canonical GrSCall registry reference: docs/17-grscall-service-registry.md"
 expect_validator_failure "missing-runtime-abi-version-service" "missing runtime ABI version service: runtime/control.version"
