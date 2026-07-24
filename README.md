@@ -59,6 +59,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [GrABI generated-code compatibility](docs/26-grabi-generated-code-compatibility.md)
 - [Headered stage-2 loader contract](docs/27-headered-stage2-loader-contract.md)
 - [Minimal-main compiler subset](docs/28-minimal-main-compiler-subset.md)
+- [Release readiness handoff](docs/29-release-readiness-handoff.md)
 
 ## Stage-2 Loader Target
 
@@ -82,6 +83,7 @@ make grabi-generated-code
 make minimal-main
 make minimal-main-qemu
 make headered-stage2-rejection
+make release-ready
 make headered-stage2
 ```
 
