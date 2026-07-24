@@ -46,9 +46,9 @@ The current status coverage is:
 | GrABI contract status | `docs/22-grabi-contract-status.md` |
 | GWO artifact status | `docs/23-gwo-artifact-status.md` |
 
-This coverage is sufficient for validation-only implementation work around
-artifact classification. It is not sufficient to begin compiler, loader, kernel,
-or hosted-native executable implementation.
+This coverage is sufficient for validation-only work and the deliberately tiny
+minimal-main compiler subset. It is not sufficient to begin general compiler,
+loader, kernel, or hosted-native executable implementation.
 
 ## Implemented Gate
 
@@ -57,16 +57,17 @@ The following validation-only implementation classes are now present:
 ```txt
 validation-only Bash tooling for headered .gwo candidate fixtures
 validation-only Bash tooling for expected generated-code ABI fixtures
+minimal-main `.grw` subset compiler and headered boot proof
 ```
 
 Allowed properties:
 
 - Bash-only,
-- no payload execution,
-- no boot-time header loading,
+- payload execution only for the fixed stage-2 reservation,
+- fixed boot-time header validation only,
 - no stage-1 behavior change,
-- no `.grw` parser or compiler,
-- no generated-code claim,
+- no general `.grw` parser or compiler,
+- no general generated-code claim,
 - no version bump,
 - direct byte validation over fixture files.
 
@@ -95,10 +96,10 @@ The following gates remain closed:
 | Work Class | Status |
 | --- | --- |
 | `.grw` parser | closed |
-| `.grw` compiler | closed |
+| general `.grw` compiler | closed (minimal-main subset implemented) |
 | `.grw` interpreter | closed |
-| generated `.gwn` output | closed |
-| generated `.gwo` output claim | closed |
+| general generated `.gwn` output | closed |
+| general generated `.gwo` output claim | closed |
 | header-aware `.gwo` executable loader | closed |
 | GrBoot header loading | closed |
 | Grogan kernel implementation | closed |
@@ -132,12 +133,12 @@ Any new validation target must be runnable locally under WSL/Bash.
 
 ## Required Non-Claims
 
-Validation-only implementation must not claim:
+Implementation outside the minimal-main subset must not claim:
 
 - headered `.gwo` execution,
 - accepted payload transfer,
 - boot-time header classification,
-- `.grw` compilation,
+- general `.grw` compilation,
 - generated `.gwo` production,
 - Grogan kernel implementation,
 - a complete syscall ABI,

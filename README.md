@@ -58,6 +58,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [QEMU interaction contract](docs/25-qemu-interaction-contract.md)
 - [GrABI generated-code compatibility](docs/26-grabi-generated-code-compatibility.md)
 - [Headered stage-2 loader contract](docs/27-headered-stage2-loader-contract.md)
+- [Minimal-main compiler subset](docs/28-minimal-main-compiler-subset.md)
 
 ## Stage-2 Loader Target
 
@@ -67,7 +68,7 @@ The experimental stage-2 image keeps the `GrOS v0.5` banner and moves the prompt
 - Stage-2 source: `boot/stage2_min.gwn`
 - Boot-chain status: [docs/21-grboot-boot-chain-status.md](docs/21-grboot-boot-chain-status.md)
 - Product output: `build/gros-stage2.gwo`
-- Product form: 512-byte stage-1 plus a 2048-byte stage-2 payload
+- Product form: 512-byte stage-1 plus a 32-byte header and 2016-byte stage-2 payload
 - Runtime gate: `int 30h`
 - Implemented runtime services: `runtime/control.probe`, `console/text.write_cstr`, and `console/text.write_char`
 
@@ -78,6 +79,8 @@ make stage2
 make check-stage2
 make runtime-abi
 make grabi-generated-code
+make minimal-main
+make minimal-main-qemu
 make headered-stage2
 ```
 

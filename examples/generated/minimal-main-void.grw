@@ -1,0 +1,5 @@
+target "gros.x86.bios.real16.stage2.v0"
+
+fn main() -> void {
+    return;
+}

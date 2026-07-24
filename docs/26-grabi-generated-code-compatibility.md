@@ -58,14 +58,15 @@ do not execute a generated payload and do not claim compiler output.
 
 ```txt
 generated-code calling compatibility: locked for grabi.real16.call.v1
-.grw compiler implementation: closed
+.grw compiler implementation: only minimal-main subset is implemented
 headered executable loading: closed
 ```
 
 The ABI contract is stable enough for expected generated-code fixtures to name
-this calling surface. Compiler work remains blocked by parser/type-checking
-implementation, emitted-code provenance, and the executable payload/loader
-work that belongs to later phases.
+this calling surface. General compiler work, including call ABI emission,
+remains blocked by parser/type-checking implementation and broader emitted-code
+provenance. The separate minimal-main subset is documented in
+`docs/28-minimal-main-compiler-subset.md`.
 
 ## Non-Goals
 

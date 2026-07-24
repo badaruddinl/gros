@@ -20,7 +20,8 @@ Current overall status:
 
 ```txt
 function-call compatibility locked for expected generated-code fixtures
-not stable for `.grw` compiler implementation
+minimal `main` compiler subset implemented and end-to-end validated
+not stable for general `.grw` compiler implementation
 ```
 
 The current GrABI contract status is summarized in:
@@ -38,7 +39,7 @@ docs/24-implementation-readiness-status.md
 Reason:
 
 - runtime services are minimal
-- general payload loading is not implemented beyond the fixed stage-2 reservation
+- generated `minimal-main-void` payload loading is limited to the fixed stage-2 reservation
 - general headered `.gwo` execution is not implemented
 - generated-code fixture coverage is expected-only and not produced by `.grw` tooling
 
@@ -209,7 +210,7 @@ header, profile, flags, size, reserved bytes, and entry offset before transfer.
 
 ## 6. Validation Requirements
 
-Required before `.grw` lowering starts:
+The minimal-main subset is implemented. Required before general `.grw` lowering starts:
 
 - raw boot validation remains green
 - stage-2 handoff validation remains green

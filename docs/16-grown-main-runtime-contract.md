@@ -1,9 +1,9 @@
 # Grown Main Runtime Contract Seed
 
-This document defines the first runtime contract seed for a minimal Grown
-`fn main()` under the current GrOS stage-2 profile. It is specification only. It
-does not add a parser, compiler, interpreter, linker, code generator, allocator,
-hosted-native executable output, executable `.gwo` loader, or boot banner change.
+This document defines the runtime contract for a minimal Grown `fn main()` under
+the current GrOS stage-2 profile. The exact minimal subset is compiled by local
+Bash tooling; it does not add a general parser, compiler, interpreter, linker,
+allocator, hosted-native executable output, or general executable loader.
 
 ## Scope
 
@@ -17,8 +17,8 @@ Current machine environment:
 
 ```txt
 x86 BIOS real mode
-stage-2 payload loaded at 0000:8000
-2048-byte raw payload reservation
+stage-2 container loaded at 0000:8000
+2016-byte executable payload reservation entered at 0000:8020
 ```
 
 This contract covers only the smallest future Grown source shape:
@@ -43,7 +43,7 @@ The current profile maps that logical entry to the physical stage-2 payload
 entrypoint:
 
 ```txt
-CS:IP = 0000:8000
+CS:IP = 0000:8020
 ```
 
 Future profiles may place a small profile entry stub before `main`. The current
@@ -55,7 +55,7 @@ The stage-1 to stage-2 handoff defines the physical entry state. The relevant
 seed state for a minimal `main` is:
 
 ```txt
-CS:IP = 0000:8000
+CS:IP = 0000:8020
 SS:SP = 0000:7C00
 DF clear
 ```
@@ -69,7 +69,7 @@ them.
 Returning from the current bare-metal stage-2 entrypoint is undefined. There is
 no caller above the stage-2 payload.
 
-For the expected-only minimal fixture, this source behavior:
+For the implemented minimal subset, this source behavior:
 
 ```grw
 fn main() -> void {
@@ -91,7 +91,8 @@ In current raw bytes, the seed representation is:
 FA F4 EB FC
 ```
 
-This is a fixture contract only. It is not compiler output.
+The compiler emits this representation deterministically; it is not a general
+code-generation claim.
 
 ## Data Requirements
 
@@ -130,7 +131,7 @@ The first expected-only fixture is:
 fixtures/generated-code/minimal-main-void/
 ```
 
-Its manifest records:
+The expected-only fixture manifest records:
 
 ```txt
 expected_size=2048
@@ -154,7 +155,9 @@ Still missing before `.grw` lowering can start:
 - generated `.gwo` parity against fixtures
 - payload format decision for executable generated artifacts
 
-Until those exist, Grown work remains specification and expected-fixture work.
+Until those exist, Grown beyond the exact minimal subset remains specification
+and expected-fixture work. The implemented subset and its QEMU proof are in
+`docs/28-minimal-main-compiler-subset.md`.
 
 ## Non-Goals
 

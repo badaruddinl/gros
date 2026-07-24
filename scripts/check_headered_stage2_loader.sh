@@ -20,12 +20,6 @@ HEADER=$(dd if="$FILE" bs=1 skip=512 count=32 2> /dev/null | od -An -tx1 -v | tr
 [ "${HEADER:40:8}" = "00000000" ] || fail "missing accepted headered stage-2 seed header"
 [ "${HEADER:48:16}" = "0000000000000000" ] || fail "missing accepted headered stage-2 seed header"
 
-PAYLOAD=$(dd if="$FILE" bs=1 skip=544 count=2016 2> /dev/null | od -An -tx1 -v | tr -d ' \n')
-case "$PAYLOAD" in
-    *"47724f532076302e35"*) ;;
-    *) fail "headered stage-2 payload must contain runtime banner" ;;
-esac
-
 if command -v ndisasm > /dev/null 2>&1; then
     TMP_DIR=$(mktemp -d)
     trap 'rm -rf "$TMP_DIR"' EXIT
