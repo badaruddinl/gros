@@ -1,6 +1,9 @@
 # Grown `.grw` Front-End Seed
 
-This document defines the first source front-end seed for Grown `.grw`. It is specification only. It does not add a parser, compiler, interpreter, type checker, code generator, standard library, hosted-native executable output, or boot banner change.
+This document defines the first source front-end seed for Grown `.grw`. Its
+minimal-main lexical subset is implemented; it does not add a general parser,
+compiler, interpreter, type checker, standard library, hosted-native output, or
+boot banner change.
 
 ## Scope
 
@@ -47,6 +50,10 @@ Block comments are reserved and not part of the seed:
 ```grw
 /* reserved */
 ```
+
+The implemented minimal-main compiler accepts LF/CRLF and `//` comments, and
+rejects block comments. Its exact grammar boundary is documented in
+`docs/28-minimal-main-compiler-subset.md`.
 
 ## Identifiers
 

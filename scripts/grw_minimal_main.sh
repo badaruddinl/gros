@@ -18,10 +18,17 @@ fail() {
 [ "$#" -eq 2 ] || { usage; exit 2; }
 [ -f "$SOURCE" ] || fail "source file not found: $SOURCE"
 
-# This deliberately accepts one grammar production only.  Removing whitespace
-# makes formatting irrelevant while rejecting comments, declarations, calls,
-# and every other future language feature.
-NORMALIZED=$(tr -d '[:space:]' < "$SOURCE")
+# This deliberately accepts one grammar production only. It does, however,
+# implement the front-end seed's CRLF normalization and line comments.
+grep -qE '/\*|\*/' "$SOURCE" && fail "block comments are reserved"
+CLEAN=$(mktemp)
+trap 'rm -f "$CLEAN"' EXIT
+while IFS= read -r LINE || [ -n "$LINE" ]; do
+    LINE=${LINE%$'\r'}
+    LINE=${LINE%%//*}
+    printf '%s\n' "$LINE" >> "$CLEAN"
+done < "$SOURCE"
+NORMALIZED=$(tr -d '[:space:]' < "$CLEAN")
 EXPECTED="target\"$PROFILE\"fnmain()->void{return;}"
 [ "$NORMALIZED" = "$EXPECTED" ] ||
     fail "unsupported source; expected target $PROFILE and fn main() -> void { return; }"
