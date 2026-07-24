@@ -41,6 +41,10 @@ must enter the loader error halt path. A malformed header must never fall back
 to raw execution, and stage-1 must not transfer control before validation
 completes.
 
+`scripts/qemu_headered_stage2_rejection.sh` mutates the accepted image magic
+and uses QEMU instruction tracing to prove stage-1 runs while `0000:8020` is
+never executed. This is runtime evidence complementary to byte-level checks.
+
 ## Scope Boundaries
 
 This is an executable loader for the fixed stage-2 boot-container payload. It

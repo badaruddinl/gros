@@ -81,6 +81,7 @@ make runtime-abi
 make grabi-generated-code
 make minimal-main
 make minimal-main-qemu
+make headered-stage2-rejection
 make headered-stage2
 ```
 
