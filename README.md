@@ -61,6 +61,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Minimal-main compiler subset](docs/28-minimal-main-compiler-subset.md)
 - [Release readiness handoff](docs/29-release-readiness-handoff.md)
 - [Grogan real16 seed](docs/31-grogan-real16-seed.md)
+- [BIOS to x86_64 long-mode transition seed](docs/32-long-mode-transition-contract.md)
 
 ## Stage-2 Loader Target
 
@@ -86,6 +87,17 @@ make minimal-main-qemu
 make headered-stage2-rejection
 make release-ready
 make headered-stage2
+```
+
+## x86_64 Transition Seed
+
+The separate BIOS transition image proves only the initial x86_64 long-mode
+handoff. It is not the current GrOS runtime profile or a complete kernel.
+
+```bash
+make longmode-image
+make longmode-image-failures
+make longmode-qemu
 ```
 
 Run the QEMU smoke start:

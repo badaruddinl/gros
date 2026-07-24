@@ -1,9 +1,11 @@
-.PHONY: build check test policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-seed-qemu generated-fixtures generated-fixtures-failures grabi-generated-code grabi-generated-code-failures minimal-main minimal-main-failures minimal-main-qemu headered-stage2-rejection headered-stage2-rejection-failures release-ready boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures headered-stage2 headered-stage2-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-seed-qemu longmode-image longmode-image-failures longmode-qemu generated-fixtures generated-fixtures-failures grabi-generated-code grabi-generated-code-failures minimal-main minimal-main-failures minimal-main-qemu headered-stage2-rejection headered-stage2-rejection-failures release-ready boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate stage2 check-stage2 stage2-image-failures headered-stage2 headered-stage2-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gwo
 DIST_IMAGE := dist/gros-v0.5.gwo
 STAGE2_BUILD_IMAGE := build/gros-stage2.gwo
 STAGE2_DIST_IMAGE := dist/gros-stage2.gwo
+LONGMODE_BUILD_IMAGE := build/gros-longmode.img
+LONGMODE_DIST_IMAGE := dist/gros-longmode.img
 
 build:
 	./scripts/build_boot.sh
@@ -64,7 +66,7 @@ headered-stage2-rejection: stage2
 headered-stage2-rejection-failures:
 	./scripts/test_qemu_headered_stage2_rejection_failures.sh
 
-release-ready: validate smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection
+release-ready: validate smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection longmode-qemu longmode-image-failures
 	@echo "ok: release readiness gate"
 
 boot-image-failures:
@@ -88,7 +90,7 @@ gwo-artifact-inventory:
 gwo-artifact-inventory-failures:
 	./scripts/test_gwo_artifact_inventory_failures.sh
 
-validate: policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures test check stage2
+validate: policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures longmode-image longmode-image-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
@@ -113,7 +115,19 @@ validate: policy project-policy-failures status-consistency status-consistency-f
 	./scripts/check_runtime_abi.sh $(STAGE2_DIST_IMAGE)
 	./scripts/check_grabi_generated_code.sh
 	cmp -s $(STAGE2_BUILD_IMAGE) $(STAGE2_DIST_IMAGE)
+	./scripts/check_longmode_image.sh $(LONGMODE_DIST_IMAGE)
+	cmp -s $(LONGMODE_BUILD_IMAGE) $(LONGMODE_DIST_IMAGE)
 	@echo "ok: build matches dist artifacts"
+
+longmode-image:
+	./scripts/build_longmode_image.sh $(LONGMODE_BUILD_IMAGE)
+	./scripts/check_longmode_image.sh $(LONGMODE_BUILD_IMAGE)
+
+longmode-image-failures:
+	./scripts/test_longmode_image_failures.sh
+
+longmode-qemu: longmode-image
+	./scripts/qemu_longmode_image.sh
 
 stage2:
 	./scripts/build_stage2_image.sh

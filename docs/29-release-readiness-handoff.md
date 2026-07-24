@@ -8,9 +8,9 @@ make release-ready
 ```
 
 It runs the full static/negative validation suite, normal stage-2 QEMU smoke and
-interaction cases, the compiled minimal-main payload trace, and malformed-header
-runtime rejection. A clean Git worktree after this gate is the final handoff
-condition.
+interaction cases, the compiled minimal-main payload trace, malformed-header
+runtime rejection, and the BIOS-to-x86_64 transition trace. A clean Git worktree
+after this gate is the final handoff condition.
 
 ## Implemented Evidence
 
@@ -24,13 +24,15 @@ condition.
 | 5 | CRLF and line-comment normalization with bounded parser rejection |
 | 6 | QEMU proof malformed header does not execute `0000:8020` |
 | 7 | `release-ready` aggregate gate and this handoff |
+| 10 | BIOS boot-info/E820 to x86_64 long-mode transition seed |
 
 ## Scope Boundaries
 
 This readiness claim does not claim a general Grown compiler, general executable
 loader, call-ABI code generation, filesystem, process model, kernel, allocator,
-protected mode, UEFI, or hosted-native output. The compiler accepts only the
-minimal documented `main` subset.
+an interrupt subsystem, scheduler, allocator, filesystem, process model, UEFI,
+or hosted-native output. The compiler accepts only the minimal documented `main`
+subset.
 
 ## Handoff Commands
 

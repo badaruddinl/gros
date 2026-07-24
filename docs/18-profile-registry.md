@@ -1,10 +1,9 @@
 # GrOS Profile Registry
 
 This document defines the first GrOS profile registry seed. It is a registry and
-status contract only. It does not add a new profile implementation, general
-parser/compiler, interpreter, linker, allocator, general executable loader,
-hosted-native output, UEFI target, `x86_64` execution, profile version bump, or
-boot banner change.
+status contract only. It does not add a general parser/compiler, interpreter,
+linker, allocator, general executable loader, hosted-native output, UEFI target,
+profile version bump, or boot banner change.
 
 ## Purpose
 
@@ -70,6 +69,16 @@ interrupt controller support
 native drivers
 Grogan kernel implementation
 ```
+
+## Implemented Bootstrap Transition Seed
+
+| Profile | Class | Status | Evidence |
+| --- | --- | --- | --- |
+| `x86.bios.longmode.transition.v0` | machine bootstrap transition | implemented seed | NASM raw image, structural/negative checks, QEMU `LM64` trace |
+
+This is an x86 BIOS transition proof, not a GrOS runtime profile. Its exact
+boot-info ABI and scope boundary are defined in
+`docs/32-long-mode-transition-contract.md`.
 
 ## Reserved Hosted Compatibility Profiles
 
@@ -180,8 +189,6 @@ This registry does not add:
 
 - a new boot profile
 - UEFI loading
-- protected mode
-- long mode
 - an `x86_64` runtime
 - an `aarch64` runtime
 - a hosted-native executable backend
