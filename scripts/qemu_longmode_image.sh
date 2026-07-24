@@ -10,5 +10,5 @@ timeout 4 qemu-system-x86_64 -drive format=raw,file="$FILE" -display none -no-re
 STATUS=$?
 set -e
 [ "$STATUS" = 124 ] || { echo "error: qemu status $STATUS" >&2; exit 1; }
-grep -F 'LM64IDTEX06' "$LOG" > /dev/null || { echo 'error: exception-handler marker missing' >&2; exit 1; }
-echo 'long mode: qemu reached IDT-backed exception handler'
+grep -F 'LM64IDTPMEMF1EX06' "$LOG" > /dev/null || { echo 'error: physical-memory/exception marker missing' >&2; exit 1; }
+echo 'long mode: qemu allocated E820 physical frame and reached IDT-backed exception handler'

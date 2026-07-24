@@ -122,7 +122,61 @@ long_mode:
     out 0xe9, al
     mov al, 'T'
     out 0xe9, al
+    call physical_memory_seed
     ud2                         ; vector 6 must enter isr_default below.
+    cli
+.halt: hlt
+    jmp .halt
+
+physical_memory_seed:
+    ; First-MiB is permanently bootstrap/platform-reserved. Select the first
+    ; page from an E820 type-1 usable range that is identity-mapped (< 2 MiB).
+    xor ecx, ecx
+    mov cx, [abs 0x5ffc]
+    mov rsi, 0x6000
+.next:
+    test ecx, ecx
+    jz .fail
+    cmp dword [rsi + 16], 1
+    jne .skip
+    cmp dword [rsi + 4], 0
+    jne .skip
+    mov rax, [rsi]
+    cmp rax, 0x100000
+    jb .skip
+    mov rdx, [rsi + 8]
+    cmp rdx, 0x1000
+    jb .skip
+    mov r8, rax
+    add r8, rdx
+    add rax, 0xfff
+    and rax, -0x1000
+    cmp rax, 0x200000
+    jae .skip
+    mov rdx, rax
+    add rdx, 0x1000
+    cmp r8, rdx
+    jb .skip
+    mov [abs phys_first_free], rax
+    mov dword [rax], 0x314d5246 ; "FRM1": prove selected frame is writable.
+    mov al, 'P'
+    out 0xe9, al
+    mov al, 'M'
+    out 0xe9, al
+    mov al, 'E'
+    out 0xe9, al
+    mov al, 'M'
+    out 0xe9, al
+    mov al, 'F'
+    out 0xe9, al
+    mov al, '1'
+    out 0xe9, al
+    ret
+.skip:
+    add rsi, 24
+    dec ecx
+    jmp .next
+.fail:
     cli
 .halt: hlt
     jmp .halt
@@ -169,4 +223,7 @@ idt_end:
 idt_descriptor:
     dw idt_end - idt - 1
     dq idt
+align 8
+phys_first_free:
+    dq 0
 times 512*32-($-$$) db 0

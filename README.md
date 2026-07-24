@@ -63,6 +63,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Grogan real16 seed](docs/31-grogan-real16-seed.md)
 - [BIOS to x86_64 long-mode transition seed](docs/32-long-mode-transition-contract.md)
 - [x86_64 exception and interrupt foundation](docs/33-x86_64-exception-interrupt-foundation.md)
+- [physical memory ownership seed](docs/34-physical-memory-ownership.md)
 
 ## Stage-2 Loader Target
 
