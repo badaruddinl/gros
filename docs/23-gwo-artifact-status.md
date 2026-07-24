@@ -1,16 +1,17 @@
 # GWO Artifact Status
 
 This document records the current status of `.gwo` artifacts in the GrOS
-repository. It is a status and validation map only. It does not add a headered
-`.gwo` loader, executable loader, parser, compiler, interpreter, linker,
+repository. It is a status and validation map only. It does not add a general
+headered `.gwo` loader, parser, compiler, interpreter, linker,
 allocator, kernel implementation, hosted-native output, profile version bump, or
 boot banner change.
 
 ## Purpose
 
 `.gwo` means Grown Object. In the current repository, `.gwo` is already used for
-raw bootable artifacts. A future headered executable `.gwo` class is specified,
-but it is not implemented or loaded today.
+raw bootable artifacts. A fixed headered executable payload is implemented
+inside the current stage-2 boot container; general headered execution remains
+reserved.
 
 This document keeps those artifact classes separate before validation tooling or
 loader work grows around them.
@@ -23,17 +24,18 @@ Current implemented artifact class:
 raw-profile .gwo
 ```
 
-Current reserved artifact class:
+Current implemented nested artifact class:
 
 ```txt
-headered-executable .gwo
+headered stage-2 executable payload
 ```
 
 Status words:
 
 ```txt
-raw-profile .gwo         implemented seed
-headered-executable .gwo reserved/future
+raw-profile .gwo                    implemented seed
+headered stage-2 executable payload  implemented seed
+general headered-executable .gwo     reserved/future
 ```
 
 ## Implemented Raw-Profile Artifacts
@@ -82,7 +84,7 @@ Shape:
 
 ```txt
 LBA 0     512-byte stage-1 BIOS loader
-LBA 1..4  2048-byte stage-2 payload
+LBA 1..4  32-byte header plus 2016-byte stage-2 payload
 total     2560 bytes
 ```
 
@@ -92,8 +94,9 @@ Stage-1 loads stage-2 to:
 0000:8000
 ```
 
-This artifact is the current GrBoot-to-GrRT16 path. It is still a raw-profile
-image, not a headered executable object.
+This artifact is the current GrBoot-to-GrRT16 path. Its outer boot container is
+raw-profile; its LBA 1..4 stage-2 area contains a validated 32-byte header and
+a 2016-byte executable payload reservation.
 
 ## Raw-Profile Rules
 
@@ -109,7 +112,7 @@ docs/21-grboot-boot-chain-status.md
 docs/22-grabi-contract-status.md
 ```
 
-Raw-profile artifacts do not carry:
+The standalone `gros-v0.5.gwo` raw artifact does not carry:
 
 ```txt
 header magic
@@ -122,42 +125,42 @@ payload size
 payload checksum
 ```
 
-Tools must not treat a current raw-profile artifact as a malformed headered
-artifact.
+Tools must not treat `gros-v0.5.gwo` as a malformed headered artifact. The
+stage-2 boot container has its own nested-header contract.
 
 ## Headered Executable Boundary
 
-The future headered executable `.gwo` seed is defined by:
+The headered executable `.gwo` contract is defined by:
 
 ```txt
 docs/11-gwo-payload-header.md
 ```
 
-Headered executable `.gwo` payloads are reserved for future GrOS execution and
-tooling. They require explicit validation before any loader accepts them.
+The fixed stage-2 payload is implemented. Other headered `.gwo` payloads are
+reserved and require explicit validation before any loader accepts them.
 
 Current status:
 
 ```txt
 header shape specified
-numeric profile_id mapping not assigned
-header-aware loader not implemented
-headered execution not implemented
+profile_id 0 assigned to the current real16 stage-2 profile
+fixed stage-1 header-aware loader implemented
+fixed stage-2 headered execution implemented
 generated .grw output not implemented
 ```
 
-The current stage-1 loader is raw-profile only. It must not be described as a
-header-aware `.gwo` executable loader.
+The current stage-1 loader is header-aware for this one fixed reservation, not
+a general `.gwo` executable loader.
 
 ## Header Validation Readiness
 
-Validation-only tooling exists before a loader exists and follows these rules:
+Validation tooling and the fixed loader follow these rules:
 
 - it must inspect bytes without transferring control,
 - it must reject malformed header candidates,
 - it must keep raw-profile artifacts separate from headered artifacts,
-- it must not make stage-1 header-aware,
-- it must not claim executable loading,
+- it must not alter acceptance outside the fixed stage-2 reservation,
+- it must not claim general executable loading,
 - it must remain Bash-only unless a future repository contract changes the build
   dependency rule.
 
@@ -182,13 +185,14 @@ Current raw-profile validation:
 | --- | --- |
 | `scripts/check_boot.sh` | raw 512-byte boot sector |
 | `scripts/validate_boot_image.sh` | raw 512-byte boot sector |
-| `scripts/check_stage2_image.sh` | raw stage-1 plus stage-2 boot image |
-| `scripts/check_runtime_abi.sh` | raw stage-2 runtime ABI bytes |
-| `scripts/check_memory_model.sh` | raw stage-2 memory model bytes |
-| `scripts/check_near_pointers.sh` | raw stage-2 near-pointer bytes |
-| `scripts/check_stage2_data.sh` | raw stage-2 static data bytes |
+| `scripts/check_stage2_image.sh` | stage-1 plus headered stage-2 boot image |
+| `scripts/check_runtime_abi.sh` | headered stage-2 runtime ABI bytes |
+| `scripts/check_memory_model.sh` | headered stage-2 memory model bytes |
+| `scripts/check_near_pointers.sh` | headered stage-2 near-pointer bytes |
+| `scripts/check_stage2_data.sh` | headered stage-2 static data bytes |
 | `scripts/check_generated_fixtures.sh` | expected-only generated-code fixture artifacts |
 | `scripts/check_gwo_header_fixtures.sh` | headered `.gwo` candidate fixture bytes |
+| `scripts/check_headered_stage2_loader.sh` | fixed stage-1 header acceptance and transfer bytes |
 
 The full current validation path remains:
 
@@ -198,8 +202,9 @@ make gwo-header-fixtures
 make smoke-stage2
 ```
 
-The header fixture validator is validation-only. It does not make GrBoot,
-GrRT16, or any future loader accept a headered payload.
+The header fixture validator remains validation-only. The separate fixed
+stage-1 loader accepts only its current-profile header in the stage-2
+reservation; it is not a general artifact loader.
 
 ## Relationship To Grown
 
@@ -234,9 +239,9 @@ expectations, but they are not compiler output today.
 This status document does not add:
 
 - a header to current `.gwo` artifacts,
-- a headered `.gwo` executable loader,
-- executable payload classification at boot time,
-- profile ID numeric mapping,
+- a general headered `.gwo` executable loader,
+- executable payload classification outside the stage-2 reservation,
+- additional profile ID numeric mappings,
 - relocation records,
 - symbol tables,
 - dynamic linking,

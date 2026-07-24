@@ -2,7 +2,7 @@
 
 This document records the current implemented status of GrBoot, the boot chain
 and bootloader layer for the GrOS repository. It is a status and validation map
-only. It does not add a new boot path, executable `.gwo` loader, kernel
+only. It does not add a new boot path, general executable `.gwo` loader, kernel
 implementation, parser, compiler, interpreter, linker, allocator, hosted-native
 output, UEFI target, `x86_64` execution, profile version bump, or boot banner
 change.
@@ -11,7 +11,7 @@ change.
 
 GrBoot owns the current bootable raw-profile `.gwo` images and the first
 transfer of control into GrOS runtime code. It proves that GrOS can start from
-BIOS-loaded bytes before Grogan, headered `.gwo` execution, generated Grown
+BIOS-loaded bytes before Grogan, general headered `.gwo` execution, generated Grown
 code, or richer platform profiles exist.
 
 Current status:
@@ -95,7 +95,7 @@ Shape:
 
 ```txt
 LBA 0     512-byte stage-1 BIOS loader
-LBA 1..4  2048-byte stage-2 payload
+LBA 1..4  32-byte fixed header plus 2016-byte stage-2 payload
 total     2560 bytes
 ```
 
@@ -108,7 +108,7 @@ Stage-1 loads stage-2 to:
 and transfers control to:
 
 ```txt
-CS:IP = 0000:8000
+CS:IP = 0000:8020 (default current header entry)
 ```
 
 ## Stage-1 Loader Responsibilities
@@ -120,7 +120,7 @@ The current stage-1 loader owns:
 - BIOS disk reset,
 - BIOS `int 13h` sector read for the reserved stage-2 sectors,
 - `DL` reload before stage-2 entry,
-- transfer to `0000:8000`,
+- validate the fixed v1 header and dynamically transfer to its payload entry,
 - short disk-error output and halt loop when the read fails.
 
 The stage-1 loader does not own:
@@ -129,7 +129,7 @@ The stage-1 loader does not own:
 - GrSCall service dispatch,
 - GrRT16 runtime state,
 - Grogan kernel state,
-- headered `.gwo` classification,
+- general headered `.gwo` classification,
 - filesystem lookup,
 - relocation,
 - profile negotiation.
@@ -146,7 +146,7 @@ docs/06-abi-handoff.md
 At stage-2 entry, the current stable handoff includes:
 
 ```txt
-CS:IP = 0000:8000
+CS:IP = 0000:8020 for the current built header
 DS = 0000
 ES = 0000
 SS = 0000
@@ -181,13 +181,14 @@ dist/gros-v0.5.gwo
 dist/gros-stage2.gwo
 ```
 
-The current stage-1 loader is not a header-aware `.gwo` executable loader. It
-must not be described as one.
+The current stage-1 loader is header-aware for the one fixed stage-2
+reservation. It must not be described as a general `.gwo` executable loader.
 
 The future header boundary is defined by:
 
 ```txt
 docs/11-gwo-payload-header.md
+docs/27-headered-stage2-loader-contract.md
 ```
 
 ## Validation Map
@@ -218,10 +219,10 @@ Validated boot facts today:
 - `dist/gros-v0.5.gwo` ends with `55aa`,
 - `dist/gros-stage2.gwo` is exactly 2560 bytes,
 - stage-1 in `dist/gros-stage2.gwo` is 512 bytes,
-- stage-2 payload reservation is 2048 bytes,
+- stage-2 reservation is 2048 bytes (32-byte header plus 2016-byte payload),
 - stage-1 uses BIOS `int 13h` for the stage-2 read,
 - stage-1 reloads the boot drive before transfer,
-- stage-1 jumps to `0000:8000`,
+- stage-1 validates the header and dynamically transfers to its entry,
 - build artifacts match committed `dist/` artifacts.
 
 ## Change Rules
@@ -235,8 +236,8 @@ Rules:
 - A stage-2 load address change must update the stage-2 contract, ABI handoff,
   runtime status, and validation.
 - A disk read behavior change must keep the failure contract explicit.
-- Headered `.gwo` loading must not be claimed until a header-aware loader
-  exists and validates rejection behavior.
+- General headered `.gwo` loading must not be claimed beyond the fixed current
+  reservation and its validated rejection behavior.
 - Boot code must remain `.gwn` plus Bash tooling unless a future contract changes
   the build source of truth.
 - GrBoot must not be described as Grogan or as the full GrOS kernel.

@@ -147,8 +147,8 @@ expect_validator_failure() {
             mutate_image_pattern_byte "cd13" 0 0
             mutate_image_pattern_byte "cd13" 0 0
             ;;
-        missing-stage2-far-jump)
-            mutate_image_pattern_byte "ea00800000" 0 0
+        missing-stage2-dynamic-transfer)
+            mutate_image_pattern_byte "81c32080" 0 0
             ;;
         missing-banner)
             mutate_text "GrOS v0.5"
@@ -157,13 +157,13 @@ expect_validator_failure() {
             mutate_text "ground> "
             ;;
         missing-int30-vector-offset)
-            mutate_stage2_pattern_byte "c706c000c580" 0 0
+            mutate_stage2_pattern_byte "c706c000e580" 0 0
             ;;
         missing-int30-vector-segment)
             mutate_stage2_pattern_byte "c706c2000000" 0 0
             ;;
         handler-out-of-range)
-            mutate_stage2_pattern_byte "c706c000c580" 5 136
+            mutate_stage2_pattern_byte "c706c000e580" 5 136
             ;;
         *)
             fail "unknown stage-2 image negative test: $name"
@@ -201,7 +201,7 @@ expect_validator_failure "missing-sector-read-count" "missing expected instructi
 expect_validator_failure "missing-stage2-load-offset" "missing expected instruction: stage-2 load offset"
 expect_validator_failure "missing-starting-sector" "missing expected instruction: stage-2 starting sector"
 expect_validator_failure "missing-bios-disk-read" "missing expected instruction: BIOS disk read interrupt"
-expect_validator_failure "missing-stage2-far-jump" "missing expected instruction: stage-2 far jump"
+expect_validator_failure "missing-stage2-dynamic-transfer" "missing expected instruction: stage-2 header payload base"
 expect_validator_failure "missing-banner" "missing expected text: stage-2 banner"
 expect_validator_failure "missing-prompt" "missing expected text: stage-2 prompt"
 expect_validator_failure "missing-int30-vector-offset" "missing expected instruction: int 30h IVT offset install"

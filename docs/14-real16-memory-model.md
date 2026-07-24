@@ -70,7 +70,8 @@ The following physical ranges are externally owned or reserved:
 07000h..07BFFh  reserved stack growth zone
 07C00h..07DFFh  stage-1 load area, not stable payload data
 07E00h..07FFFh  reserved guard space before stage-2
-08000h..087FFh  stage-2 payload image
+08000h..0801Fh  stage-2 loader header
+08020h..087FFh  stage-2 executable payload
 08800h..09FFFh  reserved stage-2 expansion window
 0A000h..0FFFFh  reserved platform and future profile space
 ```
@@ -85,13 +86,26 @@ The current stage-2 image is loaded at:
 0000:8000
 ```
 
-The current stage-2 payload size is:
+The current stage-2 container size is:
 
 ```txt
 2048 bytes
 ```
 
-Therefore the current payload image occupies:
+Its fixed v1 loader header occupies 32 bytes at `0000:8000`, and the executable
+payload therefore starts at:
+
+```txt
+0000:8020
+```
+
+The current executable payload size is:
+
+```txt
+2016 bytes
+```
+
+The complete container occupies:
 
 ```txt
 08000h..087FFh
@@ -99,10 +113,14 @@ Therefore the current payload image occupies:
 
 Rules:
 
-- Code and static data may live inside the loaded stage-2 image.
+- Stage-1 validates the fixed v1 header before dynamically transferring to the
+  payload entry; malformed headers are not interpreted as a legacy raw payload.
+- Code and static data may live inside the executable payload region
+  `08020h..087FFh`, not in the header.
 - Static strings used by current runtime services are payload-owned only while they remain inside this image.
 - Stage-2 must not treat padding bytes as stable data unless the source labels and emitted bytes explicitly define them.
-- No relocation, symbol table, or headered payload metadata is active in this seed.
+- The header carries no relocation or symbol table; its fixed current fields and
+  loader behavior are defined in `docs/27-headered-stage2-loader-contract.md`.
 
 ## Stack Region
 

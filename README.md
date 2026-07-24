@@ -57,6 +57,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Implementation readiness status](docs/24-implementation-readiness-status.md)
 - [QEMU interaction contract](docs/25-qemu-interaction-contract.md)
 - [GrABI generated-code compatibility](docs/26-grabi-generated-code-compatibility.md)
+- [Headered stage-2 loader contract](docs/27-headered-stage2-loader-contract.md)
 
 ## Stage-2 Loader Target
 
@@ -77,6 +78,7 @@ make stage2
 make check-stage2
 make runtime-abi
 make grabi-generated-code
+make headered-stage2
 ```
 
 Run the QEMU smoke start:

@@ -3,7 +3,7 @@
 ; This raw-byte source is consumed by scripts/gwnraw.sh.
 
 raw x86.bios.stage2 {
-    origin 8000
+    origin 8020
 
     ; setup segments and stack
     bytes FA
@@ -332,5 +332,5 @@ raw x86.bios.stage2 {
     label input_buffer
     ; 16-byte command buffer starts in zero-filled padding.
 
-    pad_to 2048 with 00
+    pad_to 2016 with 00
 }

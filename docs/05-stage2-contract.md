@@ -74,20 +74,22 @@ The stage-2 physical load address is:
 0x00008000
 ```
 
-The stage-2 entrypoint is the first byte of the loaded payload:
+The loaded stage-2 area begins with a 32-byte header. The default payload entry
+is:
 
 ```txt
-0000:8000
+0000:8020
 ```
 
-Stage-1 transfers control with a far jump or an equivalent `CS:IP` transfer to `0000:8000`.
+Stage-1 transfers control through an equivalent `CS:IP` transfer to the
+validated `0000:(8020h + entry_offset)` payload address.
 
 ## Entry State
 
 At stage-2 entry:
 
 - CPU mode is 16-bit real mode.
-- `CS:IP` points to `0000:8000`.
+- `CS:IP` points to the validated `0000:(8020h + entry_offset)` payload entry.
 - `DL` contains the BIOS boot drive.
 - `DS`, `ES`, and `SS` are `0000`.
 - `SP` is `7C00`.

@@ -1,23 +1,22 @@
 # `.gwo` Payload Header Seed
 
-This document defines the first reserved header shape for future executable `.gwo` payloads. It is a seed specification only. It does not change the current boot images, add a loader implementation, add a `.grw` compiler, add a linker, add relocations, or change the GrOS boot banner.
+This document defines the first header shape for executable `.gwo` payloads. The
+fixed v1 header is implemented for the current stage-2 reservation only; it
+does not add a general executable loader, `.grw` compiler, linker, or relocation.
 
 ## Current State
 
-Current committed `.gwo` artifacts remain raw boot images:
+The committed single-sector baseline remains raw:
 
 ```txt
 dist/gros-v0.5.gwo
-dist/gros-stage2.gwo
 ```
 
-They are headerless by design.
-
-The stage-2 image remains:
+`dist/gros-stage2.gwo` is a hybrid boot container:
 
 ```txt
 LBA 0     512-byte stage-1 BIOS loader
-LBA 1..4  2048-byte raw stage-2 payload
+LBA 1..4  32-byte fixed v1 header plus 2016-byte executable payload
 ```
 
 Stage-1 still loads stage-2 to:
@@ -25,6 +24,9 @@ Stage-1 still loads stage-2 to:
 ```txt
 0000:8000
 ```
+
+The full accepted field matrix and rejection contract are in
+`docs/27-headered-stage2-loader-contract.md`.
 
 ## Header Goal
 
@@ -48,28 +50,28 @@ Current bootable images whose layout is defined by a profile-specific boot or
 handoff contract outside a `.gwo` header.
 ```
 
-Current raw-profile examples:
+Current raw-profile example:
 
 ```txt
 dist/gros-v0.5.gwo
-dist/gros-stage2.gwo
 ```
 
 `headered-executable .gwo`:
 
 ```txt
-Future payload images that begin with the reserved `.gwo` header and require a
-header-aware loader before execution.
+Payload images that begin with the `.gwo` header and require a header-aware
+loader before execution.
 ```
 
-The current stage-1 loader is a raw-profile loader only. It must continue to
-load the stage-2 payload by sector layout and fixed handoff contract:
+The current stage-1 loader recognizes the fixed current header within its
+stage-2 reservation. It loads all four sectors by fixed layout:
 
 ```txt
 LBA 1..4 -> 0000:8000
 ```
 
-It must not be described as a header-aware `.gwo` executable loader.
+It validates the fixed v1 current-profile fields and transfers dynamically to
+the declared payload entry. It is not a general `.gwo` executable loader.
 
 The current GrBoot raw-profile loader status is summarized in:
 
@@ -110,10 +112,10 @@ define their layout:
 
 ```txt
 gros-v0.5.gwo       raw 512-byte BIOS boot sector
-gros-stage2.gwo     raw 512-byte stage-1 plus 2048-byte stage-2 payload
+gros-stage2.gwo     512-byte stage-1 plus 32-byte header and 2016-byte payload
 ```
 
-They do not carry:
+`gros-v0.5.gwo` does not carry:
 
 ```txt
 header magic
@@ -123,8 +125,9 @@ payload_size
 payload_checksum
 ```
 
-Any future tooling that wants to inspect these files must treat them as raw
-profile artifacts, not as failed headered executables.
+Tooling must treat `gros-v0.5.gwo` as raw. It must inspect the stage-2
+reservation according to the fixed current loader contract, not as a generic
+headered executable.
 
 ## Future Header Layout
 
@@ -177,7 +180,8 @@ GRO\0
 
 `profile_id`:
 
-Reserved profile compatibility marker. The exact numeric mapping is not assigned yet.
+Profile compatibility marker. The first assigned mapping is `00000000h` for
+`gros.x86.bios.real16.stage2.v0`.
 
 Profile names and statuses are registered in:
 
@@ -219,12 +223,13 @@ Must be zero in the seed layout.
 
 ## Compatibility Rules
 
-- Current raw `.gwo` boot images do not carry this header.
+- `gros-v0.5.gwo` does not carry this header.
 - A loader must not assume all `.gwo` files are headered.
 - A header-aware loader must first check `magic`.
 - If `magic` is absent, handling is profile-specific and may fall back to raw boot image behavior.
 - If `magic` is present but `header_size`, `header_version`, profile, flags, size, or checksum are unsupported, the loader must reject the payload.
-- Headered payloads must not be accepted by the current stage-1 loader until a future stage explicitly implements that behavior.
+- The current stage-1 loader accepts only the v1 current-profile header inside
+  the fixed `gros-stage2.gwo` stage-2 reservation.
 - A malformed headered payload must not fall back to raw execution.
 - Header-aware execution requires an explicit accepted profile match.
 - Unknown flags and nonzero reserved bytes are rejection conditions in the seed.
@@ -243,13 +248,12 @@ That path is not implemented. This seed only reserves the artifact metadata shap
 
 This seed does not add:
 
-- a header to existing `.gwo` artifacts
+- a general header classifier implementation
 - a `.grw` compiler
 - a linker
 - relocation records
 - symbol tables
 - imported service tables
-- a header classifier implementation
 - executable loading in stage-2
 - protected mode or long mode
 - a boot banner change

@@ -46,7 +46,7 @@ Machine environment:
 ```txt
 x86 BIOS real mode
 16-bit
-stage-2 entry at 0000:8000
+stage-2 header at 0000:8000, default payload entry at 0000:8020
 ```
 
 This is not an `x86_64` profile, not UEFI, and not Grogan proper.
@@ -72,7 +72,7 @@ the stage-2 payload.
 Stable current entry state:
 
 ```txt
-CS:IP = 0000:8000
+CS:IP = 0000:(8020h + validated entry_offset)
 DS = 0000
 ES = 0000
 SS = 0000
@@ -207,7 +207,7 @@ GrABI is not stable enough for `.grw` compiler implementation yet.
 Current blockers:
 
 - generated-code fixtures are expected-only and do not establish compiler provenance,
-- headered `.gwo` execution is not implemented,
+- general headered `.gwo` execution beyond the fixed stage-2 reservation is not implemented,
 - payload loading for generated executable objects is not implemented,
 - memory model is static and has no heap or pointer-width contract beyond the
   current real16 near-pointer seed,
@@ -283,6 +283,7 @@ docs/21-grboot-boot-chain-status.md
 docs/23-gwo-artifact-status.md
 docs/24-implementation-readiness-status.md
 docs/26-grabi-generated-code-compatibility.md
+docs/27-headered-stage2-loader-contract.md
 ```
 
 This document summarizes current GrABI status. It does not override those
@@ -305,7 +306,7 @@ GrABI status does not add:
 - long mode,
 - UEFI loading,
 - `x86_64` execution,
-- headered `.gwo` executable loading,
+- general headered `.gwo` executable loading,
 - `.grw` parser,
 - `.grw` compiler,
 - `.grw` interpreter,

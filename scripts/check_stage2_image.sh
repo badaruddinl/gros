@@ -64,16 +64,16 @@ require_near_boot_drive_reload() {
     local disasm=$1
     local jump_line reload_line
 
-    jump_line=$(grep -nE '[[:space:]]jmp([[:space:]]+word)?[[:space:]]+0x0:(word[[:space:]]+)?0x8000' "$disasm" | head -n 1 | cut -d: -f1 || true)
-    [ -n "$jump_line" ] || fail "missing expected instruction: stage-2 far jump"
+    jump_line=$(grep -nE '[[:space:]]retf' "$disasm" | head -n 1 | cut -d: -f1 || true)
+    [ -n "$jump_line" ] || fail "missing expected instruction: validated stage-2 transfer"
 
     reload_line=$(awk -v jump="$jump_line" '
         NR < jump && /[[:space:]]mov[[:space:]]+dl,\[0x[0-9a-fA-F]+\]/ { line = NR }
         END { if (line) print line }
     ' "$disasm")
 
-    [ -n "$reload_line" ] || fail "missing expected instruction: boot drive reload before stage-2 jump"
-    [ "$((jump_line - reload_line))" -le 2 ] || fail "boot drive reload must be adjacent to stage-2 jump"
+    [ -n "$reload_line" ] || fail "missing expected instruction: boot drive reload before stage-2 transfer"
+    [ "$((jump_line - reload_line))" -le 5 ] || fail "boot drive reload must be adjacent to stage-2 transfer"
 }
 
 require_stage2_runtime_gate() {
@@ -143,15 +143,17 @@ if command -v ndisasm > /dev/null 2>&1; then
     STAGE2_DISASM="$TMP_DIR/stage2.ndisasm"
 
     dd if="$FILE" of="$STAGE1" bs=512 count=1 2> /dev/null
-    dd if="$FILE" of="$STAGE2" bs=512 skip=1 count=4 2> /dev/null
+    dd if="$FILE" of="$STAGE2" bs=1 skip=544 count=2016 2> /dev/null
     ndisasm -b 16 -o 0x7c00 "$STAGE1" > "$STAGE1_DISASM"
-    ndisasm -b 16 -o 0x8000 "$STAGE2" > "$STAGE2_DISASM"
+    ndisasm -b 16 -o 0x8020 "$STAGE2" > "$STAGE2_DISASM"
 
     require_instruction "$STAGE1_DISASM" '[[:space:]]mov[[:space:]]+ax,0x204' 'stage-2 sector read count'
     require_instruction "$STAGE1_DISASM" '[[:space:]]mov[[:space:]]+bx,0x8000' 'stage-2 load offset'
     require_instruction "$STAGE1_DISASM" '[[:space:]]mov[[:space:]]+cx,0x2' 'stage-2 starting sector'
     require_instruction "$STAGE1_DISASM" '[[:space:]]int([[:space:]]+byte)?[[:space:]]+0x13' 'BIOS disk read interrupt'
-    require_instruction "$STAGE1_DISASM" '[[:space:]]jmp([[:space:]]+word)?[[:space:]]+0x0:(word[[:space:]]+)?0x8000' 'stage-2 far jump'
+    require_instruction "$STAGE1_DISASM" '[[:space:]]cmp[[:space:]]+word[[:space:]]+\[0x8000\],0x5247' 'stage-2 header magic validation'
+    require_instruction "$STAGE1_DISASM" '[[:space:]]add[[:space:]]+bx,0x8020' 'stage-2 header payload base'
+    require_instruction "$STAGE1_DISASM" '[[:space:]]retf' 'validated stage-2 dynamic transfer'
     require_near_boot_drive_reload "$STAGE1_DISASM"
 
     require_text "$STAGE2" 'GrOS v0.5' 'stage-2 banner'

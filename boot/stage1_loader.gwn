@@ -25,7 +25,7 @@ raw x86.bios.stage1 {
     addr16 boot_drive
     bytes CD 13
     bytes 72
-    rel8 disk_error
+    rel8 disk_error_jump
 
     ; restore data/load segments before the read
     bytes 31 C0
@@ -41,9 +41,71 @@ raw x86.bios.stage1 {
     addr16 boot_drive
     bytes CD 13
     bytes 72
-    rel8 disk_error
+    rel8 disk_error_jump
+    bytes EB
+    rel8 header_validate
 
-    ; restore stage-2 entry state
+    label disk_error_jump
+    bytes E9
+    rel16 disk_error
+
+    label header_validate
+    ; validate the fixed stage-2 GWO header at 0000:8000
+    bytes 81 3E 00 80 47 52
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 02 80 4F 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 04 80 20 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 06 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 08 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 0A 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 0C 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 14 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 16 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 18 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 1A 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 1C 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 1E 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes 81 3E 12 80 00 00
+    bytes 0F 85
+    rel16 disk_error
+    bytes A1 10 80
+    bytes 09 C0
+    bytes 0F 84
+    rel16 disk_error
+    bytes 3D E0 07
+    bytes 0F 87
+    rel16 disk_error
+    bytes 8B 1E 0E 80
+    bytes 39 C3
+    bytes 0F 83
+    rel16 disk_error
+
+    ; restore validated payload entry state
     bytes FA
     bytes 31 C0
     bytes 8E D8
@@ -55,8 +117,11 @@ raw x86.bios.stage1 {
     bytes 8A 16
     addr16 boot_drive
 
-    ; jump to stage-2 entry at 0000:8000
-    bytes EA 00 80 00 00
+    ; transfer to 0000:(8020h + validated entry_offset)
+    bytes 81 C3 20 80
+    bytes 6A 00
+    bytes 53
+    bytes CB
 
     label disk_error
     bytes 31 C0

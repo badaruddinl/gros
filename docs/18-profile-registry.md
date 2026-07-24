@@ -32,7 +32,7 @@ This profile is:
 ```txt
 x86 BIOS
 16-bit real mode
-stage-2 payload loaded at 0000:8000
+stage-2 container loaded at 0000:8000; payload entered at 0000:8020
 not x86_64
 not UEFI
 not Grogan proper

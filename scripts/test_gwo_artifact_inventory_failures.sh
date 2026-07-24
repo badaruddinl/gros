@@ -36,9 +36,12 @@ copy_inventory_root() {
         cp "$ROOT/$path" "$CASE_ROOT/$path"
     done < "$CASE_LIST"
 
-    mkdir -p "$CASE_ROOT/fixtures/generated-code/minimal-main-void"
-    cp "$ROOT/fixtures/generated-code/minimal-main-void/manifest.txt" \
-        "$CASE_ROOT/fixtures/generated-code/minimal-main-void/manifest.txt"
+    for path in "$ROOT"/fixtures/generated-code/*; do
+        [ -d "$path" ] || continue
+        name=$(basename -- "$path")
+        mkdir -p "$CASE_ROOT/fixtures/generated-code/$name"
+        cp "$path/manifest.txt" "$CASE_ROOT/fixtures/generated-code/$name/manifest.txt"
+    done
 }
 
 run_self_test_validator() {

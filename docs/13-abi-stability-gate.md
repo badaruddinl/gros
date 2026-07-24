@@ -38,8 +38,8 @@ docs/24-implementation-readiness-status.md
 Reason:
 
 - runtime services are minimal
-- payload loading is not implemented
-- headered `.gwo` execution is not implemented
+- general payload loading is not implemented beyond the fixed stage-2 reservation
+- general headered `.gwo` execution is not implemented
 - generated-code fixture coverage is expected-only and not produced by `.grw` tooling
 
 ## Required Stable Contracts
@@ -62,7 +62,7 @@ Required:
 Current seed:
 
 ```txt
-CS:IP = 0000:8000
+CS:IP = 0000:8020 for the current fixed header
 SS:SP = 0000:7C00
 DF clear
 ```

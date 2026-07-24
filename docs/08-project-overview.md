@@ -65,14 +65,16 @@ The stage-2 image is laid out as:
 
 ```txt
 LBA 0     512-byte stage-1 BIOS loader
-LBA 1..4  2048-byte stage-2 payload
+LBA 1..4  32-byte header plus 2016-byte stage-2 payload
 ```
 
-Stage-1 loads stage-2 to:
+Stage-1 loads the stage-2 container to:
 
 ```txt
 0000:8000
 ```
+
+and validates its fixed header before entering the payload at `0000:8020`.
 
 ## Build Flow
 

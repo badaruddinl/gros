@@ -11,6 +11,7 @@ REQUIRED_GWO_ARTIFACTS="
 dist/gros-v0.5.gwo
 dist/gros-stage2.gwo
 fixtures/generated-code/minimal-main-void/expected.gwo
+fixtures/generated-code/abi-call-preserve/expected.gwo
 "
 
 fail() {

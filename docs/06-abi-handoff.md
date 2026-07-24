@@ -47,10 +47,10 @@ Stage-1 loads stage-2 to physical address:
 0x00008000
 ```
 
-Stage-2 entry is:
+The header is loaded at `0000:8000`; the default validated stage-2 entry is:
 
 ```txt
-CS:IP = 0000:8000
+CS:IP = 0000:8020
 ```
 
 The loader must complete the full stage-2 sector read before transferring control. If the disk read fails, the loader must not jump into the stage-2 load area.
@@ -59,7 +59,7 @@ The loader must complete the full stage-2 sector read before transferring contro
 
 At stage-2 entry:
 
-- `CS:IP = 0000:8000`
+- `CS:IP = 0000:(8020h + header entry_offset)` after header acceptance
 - `DS = 0000`
 - `ES = 0000`
 - `SS = 0000`

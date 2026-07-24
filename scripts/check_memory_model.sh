@@ -11,6 +11,9 @@ IMAGE_SIZE=2560
 SECTOR_SIZE=512
 STAGE1_SIZE=512
 STAGE2_SIZE=2048
+STAGE2_HEADER_SIZE=32
+STAGE2_PAYLOAD_START=$((0x8020))
+STAGE2_PAYLOAD_SIZE=2016
 
 IVT_START=$((0x0000))
 IVT_END=$((0x03ff))
@@ -166,7 +169,8 @@ require_ordered "$EXPANSION_END" "$PLATFORM_START" "expansion and platform"
 
 require_hex "$STAGE1_HEX" "fa31c08ed88ec08ed0bc007cfbfc" "stage-1 real16 segment and stack setup"
 require_hex "$STAGE1_HEX" "b80402bb0080b90200" "stage-1 reads 4 sectors to 0000:8000 from sector 2"
-require_hex "$STAGE1_HEX" "ea00800000" "stage-1 jumps to 0000:8000"
+require_hex "$STAGE1_HEX" "81c32080" "stage-1 advances the validated payload entry past its 32-byte header"
+require_hex "$STAGE1_HEX" "cb" "stage-1 transfers dynamically with retf"
 require_hex "$STAGE2_HEX" "fa31c08ed88ec08ed0bc007c" "stage-2 real16 segment and stack setup"
 require_hex "$STAGE2_HEX" "c706c000" "stage-2 installs int 30h offset in IVT"
 require_hex "$STAGE2_HEX" "c706c2000000" "stage-2 installs int 30h segment 0000 in IVT"
@@ -174,7 +178,9 @@ require_hex "$STAGE2_HEX" "b80001cd30c3" "runtime string service uses DS:SI near
 
 require_doc_text "$PROFILE" "profile name"
 require_doc_text "0000:8000" "stage-2 load address"
+require_doc_text "0000:8020" "stage-2 payload entry address"
 require_doc_text "2048 bytes" "stage-2 payload size"
+require_doc_text "2016 bytes" "stage-2 executable payload size"
 require_doc_text "07000h..07BFFh" "stack range"
 require_doc_text "08000h..087FFh" "stage-2 range"
 require_doc_text "There is no heap in this seed." "no-heap rule"

@@ -122,7 +122,7 @@ expect_validator_failure() {
             mutate_image_pattern_byte "b80402bb0080b90200"
             ;;
         missing-stage1-jump)
-            mutate_image_pattern_byte "ea00800000"
+            mutate_image_pattern_byte "81c32080"
             ;;
         missing-stage2-segment-stack)
             mutate_stage2_pattern_byte "fa31c08ed88ec08ed0bc007c"
@@ -170,7 +170,7 @@ expect_validator_failure "missing-signature" "stage-1 boot signature must be 55a
 expect_validator_failure "empty-stage2-payload" "stage-2 payload must not be empty"
 expect_validator_failure "missing-stage1-segment-stack" "missing memory model byte fixture: stage-1 real16 segment and stack setup"
 expect_validator_failure "missing-stage1-read" "missing memory model byte fixture: stage-1 reads 4 sectors to 0000:8000 from sector 2"
-expect_validator_failure "missing-stage1-jump" "missing memory model byte fixture: stage-1 jumps to 0000:8000"
+expect_validator_failure "missing-stage1-jump" "missing memory model byte fixture: stage-1 advances the validated payload entry past its 32-byte header"
 expect_validator_failure "missing-stage2-segment-stack" "missing memory model byte fixture: stage-2 real16 segment and stack setup"
 expect_validator_failure "missing-int30-offset" "missing memory model byte fixture: stage-2 installs int 30h offset in IVT"
 expect_validator_failure "missing-int30-segment" "missing memory model byte fixture: stage-2 installs int 30h segment 0000 in IVT"

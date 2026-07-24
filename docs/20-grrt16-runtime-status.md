@@ -38,7 +38,7 @@ Machine environment:
 ```txt
 x86 BIOS real mode
 16-bit
-stage-2 payload loaded at 0000:8000
+stage-2 container loaded at 0000:8000; validated payload entered at 0000:8020
 ```
 
 This is not an `x86_64` profile, not UEFI, and not Grogan proper.
@@ -75,8 +75,8 @@ The current handoff shape is:
 
 ```txt
 LBA 0     512-byte stage-1 BIOS loader
-LBA 1..4  2048-byte stage-2 payload
-entry     0000:8000
+LBA 1..4  32-byte header plus 2016-byte stage-2 payload
+entry     0000:8020 (default current header entry)
 ```
 
 The handoff contracts are defined by:
@@ -196,12 +196,13 @@ Important current ranges:
 ```txt
 07000h..07BFFh  conservative stack region
 07C00h..07DFFh  stage-1 load area, not stable runtime data
-08000h..087FFh  stage-2 payload image
+08000h..0801Fh  stage-2 header
+08020h..087FFh  stage-2 executable payload
 ```
 
 Current data status:
 
-- static strings live inside the stage-2 payload image,
+- static strings live inside the executable stage-2 payload,
 - the command buffer starts in zero-filled stage-2 padding,
 - near pointers are 16-bit offsets in segment `0000`,
 - no heap exists,
@@ -221,6 +222,7 @@ GrRT16 status is validated by direct checks over source and `.gwo` artifacts.
 | `scripts/check_near_pointers.sh` | near-pointer immediates used by stage-2 |
 | `scripts/check_stage2_data.sh` | static text/data bytes and zero-filled command buffer tail |
 | `scripts/check_stage2_debugcon.sh` | test-only E9h mirror for both stage-2 console output paths |
+| `scripts/check_headered_stage2_loader.sh` | current fixed header bytes and validated transfer contract |
 | `scripts/qemu_stage2_interaction.sh` | deterministic QEMU interaction transcript for implemented prompt behavior |
 | `scripts/smoke_stage2_qemu.sh` | QEMU smoke start for the stage-2 image |
 
@@ -236,10 +238,10 @@ Validated image facts today:
 
 - the full stage-2 boot image is 2560 bytes,
 - stage-1 is 512 bytes,
-- stage-2 payload is 2048 bytes,
+- stage-2 reservation is 2048 bytes: 32-byte header plus 2016-byte payload,
 - the stage-1 boot signature is `55aa`,
 - stage-1 reads the stage-2 payload to `0000:8000`,
-- stage-1 jumps to `0000:8000`,
+- stage-1 validates the header then dynamically transfers to the payload entry,
 - stage-2 contains `GrOS v0.5`,
 - stage-2 contains `ground> `.
 
@@ -255,8 +257,8 @@ Rules:
   data fixtures green.
 - A memory ownership change must update the real16 memory model before it is
   claimed as implemented.
-- A loader, headered `.gwo`, or generated `.grw` path must stay outside GrRT16
-  status until its own contract and validation exist.
+- General executable loading and generated `.grw` execution stay outside
+  GrRT16; the fixed current boot-header contract is validated separately.
 - GrRT16 must not be renamed or described as Grogan proper.
 
 ## Relationship To Grogan
