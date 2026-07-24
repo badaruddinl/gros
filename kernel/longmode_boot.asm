@@ -124,6 +124,7 @@ long_mode:
     out 0xe9, al
     call physical_memory_seed
     call heap_seed
+    call scheduler_seed
     ud2                         ; vector 6 must enter isr_default below.
     cli
 .halt: hlt
@@ -229,6 +230,64 @@ heap_alloc:
     xor eax, eax
     ret
 
+scheduler_seed:
+    ; Two cooperative task descriptors: next, entry, state. They are allocated
+    ; from the heap, then traversed through the run queue by scheduler_run.
+    mov rdi, 24
+    call heap_alloc
+    test rax, rax
+    jz .fail
+    mov rbx, rax
+    mov qword [rbx], 0
+    mov rax, task_one
+    mov [rbx + 8], rax
+    mov dword [rbx + 16], 0
+    mov [abs run_queue], rbx
+    mov rdi, 24
+    call heap_alloc
+    test rax, rax
+    jz .fail
+    mov qword [rax], 0
+    mov rcx, task_two
+    mov [rax + 8], rcx
+    mov dword [rax + 16], 0
+    mov [rbx], rax
+    call scheduler_run
+    ret
+.fail:
+    cli
+.halt: hlt
+    jmp .halt
+
+scheduler_run:
+    mov rsi, [abs run_queue]
+.next:
+    test rsi, rsi
+    jz .done
+    cmp dword [rsi + 16], 0
+    jne .advance
+    call qword [rsi + 8]
+    mov dword [rsi + 16], 1
+.advance:
+    mov rsi, [rsi]
+    jmp .next
+.done:
+    ret
+
+task_one:
+    mov al, 'T'
+    out 0xe9, al
+    mov al, '1'
+    out 0xe9, al
+    ret
+
+task_two:
+    mov al, 'T'
+    out 0xe9, al
+    mov al, '2'
+    out 0xe9, al
+    ret
+
 isr_default:
     ; Deliberately fail-stop: no interrupted state is resumed before a full
     ; exception-frame ABI exists. Every vector has a present kernel-only gate.
@@ -277,5 +336,7 @@ phys_first_free:
 heap_next:
     dq 0
 heap_end:
+    dq 0
+run_queue:
     dq 0
 times 512*32-($-$$) db 0

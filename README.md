@@ -65,6 +65,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [x86_64 exception and interrupt foundation](docs/33-x86_64-exception-interrupt-foundation.md)
 - [physical memory ownership seed](docs/34-physical-memory-ownership.md)
 - [kernel heap seed](docs/35-kernel-heap-seed.md)
+- [cooperative scheduler seed](docs/36-cooperative-scheduler-seed.md)
 
 ## Stage-2 Loader Target
 

@@ -49,3 +49,13 @@ OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"48455031") { pri
 [ -n "$OFFSET" ] || fail "baseline missing first heap payload"
 printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
 expect_failure missing-heap-payload "missing first heap payload marker"
+"$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
+OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"ff5608") { print (RSTART - 1) / 2; exit }')
+[ -n "$OFFSET" ] || fail "baseline missing task dispatch"
+printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+expect_failure missing-task-dispatch "missing task entry dispatch"
+"$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
+OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"c7461001000000") { print (RSTART - 1) / 2; exit }')
+[ -n "$OFFSET" ] || fail "baseline missing task state transition"
+printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+expect_failure missing-task-state "missing completed-task state transition"

@@ -10,5 +10,5 @@ timeout 4 qemu-system-x86_64 -drive format=raw,file="$FILE" -display none -no-re
 STATUS=$?
 set -e
 [ "$STATUS" = 124 ] || { echo "error: qemu status $STATUS" >&2; exit 1; }
-grep -F 'LM64IDTPMEMF1HEAPEX06' "$LOG" > /dev/null || { echo 'error: heap/exception marker missing' >&2; exit 1; }
-echo 'long mode: qemu allocated E820 physical frame, initialized heap, and reached IDT-backed exception handler'
+grep -F 'LM64IDTPMEMF1HEAPT1T2EX06' "$LOG" > /dev/null || { echo 'error: scheduler/exception marker missing' >&2; exit 1; }
+echo 'long mode: qemu allocated E820 physical frame, initialized heap, ran cooperative tasks, and reached IDT-backed exception handler'
