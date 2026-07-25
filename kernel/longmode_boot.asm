@@ -125,6 +125,7 @@ long_mode:
     call physical_memory_seed
     call heap_seed
     call scheduler_seed
+    call fs_seed
     ud2                         ; vector 6 must enter isr_default below.
     cli
 .halt: hlt
@@ -288,6 +289,40 @@ task_two:
     out 0xe9, al
     ret
 
+fs_seed:
+    ; Read-only boot-resident filesystem: superblock plus one root entry. Its
+    ; payload is copied through heap_alloc, not accessed through a raw pointer.
+    cmp dword [abs fs_image], 0x31534647 ; "GFS1"
+    jne .fail
+    cmp dword [abs fs_entry], 0x54494e49 ; root name "INIT"
+    jne .fail
+    mov edi, [abs fs_entry + 4]
+    cmp edi, 4
+    jne .fail
+    mov rdi, 16
+    call heap_alloc
+    test rax, rax
+    jz .fail
+    mov rdi, rax
+    mov rsi, fs_payload
+    mov ecx, 4
+    rep movsb
+    cmp dword [rdi - 4], 0x53465247 ; "GRFS"
+    jne .fail
+    mov al, 'F'
+    out 0xe9, al
+    mov al, 'S'
+    out 0xe9, al
+    mov al, 'O'
+    out 0xe9, al
+    mov al, 'K'
+    out 0xe9, al
+    ret
+.fail:
+    cli
+.halt: hlt
+    jmp .halt
+
 isr_default:
     ; Deliberately fail-stop: no interrupted state is resumed before a full
     ; exception-frame ABI exists. Every vector has a present kernel-only gate.
@@ -339,4 +374,14 @@ heap_end:
     dq 0
 run_queue:
     dq 0
+align 16
+fs_image:
+    dd 0x31534647 ; GFS1
+    dd 1          ; root-entry count
+fs_entry:
+    dd 0x54494e49 ; INIT
+    dd 4          ; payload size
+    dq fs_payload
+fs_payload:
+    db 'GRFS'
 times 512*32-($-$$) db 0

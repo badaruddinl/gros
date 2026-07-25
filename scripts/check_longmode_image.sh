@@ -10,6 +10,11 @@ HEX=$(od -An -tx1 -v "$FILE" | tr -d ' \n')
 require_hex() {
     case "$HEX" in *"$1"*) ;; *) fail "$2";; esac
 }
+require_hex_count() {
+    local count
+    count=$(printf '%s' "$HEX" | grep -o "$1" | wc -l | tr -d ' ')
+    [ "$count" = "$2" ] || fail "$3"
+}
 require_hex 8816fe5f "missing boot-drive ABI storage"
 require_hex c706fc5f "missing E820-count ABI storage"
 require_hex b820e80000 "missing E820 query"
@@ -36,4 +41,10 @@ require_hex 48455032 "missing second heap payload marker"
 require_hex bf18000000 "missing task descriptor allocation"
 require_hex ff5608 "missing task entry dispatch"
 require_hex c7461001000000 "missing completed-task state transition"
-echo "long mode image: BIOS bootstrap, boot-info ABI, IDT, physical-memory seed, heap seed, scheduler seed, and x86_64 transition structure ok"
+require_hex 47465331 "missing GFS1 filesystem superblock"
+require_hex 494e4954 "missing INIT root entry"
+require_hex f3a4 "missing filesystem read copy"
+require_hex 47524653 "missing filesystem payload"
+require_hex_count 47465331 2 "missing GFS1 filesystem image data"
+require_hex_count 47524653 2 "missing filesystem payload data"
+echo "long mode image: BIOS bootstrap, boot-info ABI, IDT, physical-memory seed, heap seed, scheduler seed, and filesystem seed ok"

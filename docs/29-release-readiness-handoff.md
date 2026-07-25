@@ -29,6 +29,7 @@ after this gate is the final handoff condition.
 | 12 | E820-backed, page-aligned physical-frame ownership seed |
 | 13 | bounded, aligned bootstrap heap inside owned physical frame |
 | 14 | heap-backed cooperative FIFO task queue and completion states |
+| 15 | boot-resident read-only filesystem lookup and heap-backed read |
 
 ## Scope Boundaries
 
@@ -38,7 +39,7 @@ hardware IRQ delivery, recoverable fault handling, scheduler, allocator,
 general physical-frame allocation, filesystem, process model, UEFI, or
 reclaiming heap allocator, hosted-native output. The compiler accepts only the
 minimal documented `main` subset. It does not claim preemptive scheduling,
-context switching, or task isolation.
+context switching, task isolation, writable filesystem, or block-device driver.
 
 ## Handoff Commands
 

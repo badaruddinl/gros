@@ -66,6 +66,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [physical memory ownership seed](docs/34-physical-memory-ownership.md)
 - [kernel heap seed](docs/35-kernel-heap-seed.md)
 - [cooperative scheduler seed](docs/36-cooperative-scheduler-seed.md)
+- [boot-resident filesystem seed](docs/37-boot-filesystem-seed.md)
 
 ## Stage-2 Loader Target
 

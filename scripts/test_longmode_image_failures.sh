@@ -59,3 +59,13 @@ OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"c7461001000000")
 [ -n "$OFFSET" ] || fail "baseline missing task state transition"
 printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
 expect_failure missing-task-state "missing completed-task state transition"
+"$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
+OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk '{ while (match($0,"47465331")) { answer = offset + RSTART - 1; offset += RSTART + 7; $0 = substr($0, RSTART + 8) } } END { if (answer != "") print answer / 2 }')
+[ -n "$OFFSET" ] || fail "baseline missing filesystem superblock"
+printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+expect_failure missing-fs-superblock "missing GFS1 filesystem image data"
+"$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
+OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk '{ while (match($0,"47524653")) { answer = offset + RSTART - 1; offset += RSTART + 7; $0 = substr($0, RSTART + 8) } } END { if (answer != "") print answer / 2 }')
+[ -n "$OFFSET" ] || fail "baseline missing filesystem payload"
+printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+expect_failure missing-fs-payload "missing filesystem payload data"
