@@ -1,16 +1,17 @@
 # Physical Memory Ownership Seed
 
-The long-mode transition now turns the BIOS E820 map into one concrete physical
-ownership decision. The first MiB is permanently reserved for firmware and
-bootstrap state. The seed scans E820 entries at `0000:6000` and accepts only a
-type-1 usable range whose first fully contained, 4 KiB-aligned page is in
-`00100000h..001fffffh`, the initial identity-mapped window.
+The Grogan x86_64 profile turns the BIOS E820 map into a bounded physical-frame
+pool. The first MiB is permanently reserved for firmware and bootstrap state.
+The seed scans E820 entries at `0000:6000` and accepts only type-1 usable ranges
+whose fully contained, 4 KiB-aligned pages are in
+`00100000h..003fffffh`, the identity-mapped bootstrap window.
 
-The first selected 4 KiB frame becomes `phys_first_free`; the seed writes the
-physical marker `FRM1` there. QEMU must emit `PMEMF1` before the controlled
-invalid-opcode proof. This establishes that the selected frame was both
-available by E820 policy and writable under the active page map.
+The first selected frame becomes `phys_first_free`; a second frame is allocated,
+written with `FRM2`, and returned to the free bitmap. QEMU must emit
+`PMEMF1F2` before the controlled invalid-opcode proof. This establishes that
+the pool can allocate and release frames that were both available by E820 policy
+and writable under the active page map.
 
-This is not a general physical-frame allocator yet: it does not track free
-lists, split ranges, reclaim boot memory, support memory above 2 MiB, or expose
-allocation/deallocation to other kernel subsystems.
+This is still a bounded physical-frame allocator: it tracks at most 64 pages in
+the first 4 MiB, does not merge E820 ranges, reclaim boot memory, support memory
+above the mapped window, or expose allocation/deallocation as a public ABI.

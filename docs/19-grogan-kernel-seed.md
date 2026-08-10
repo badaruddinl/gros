@@ -14,7 +14,7 @@ current repository has GrBoot and GrRT16, but it does not have Grogan proper.
 Current status:
 
 ```txt
-Grogan: implemented real16 seed; broader kernel remains future
+Grogan: implemented real16 and bounded x86_64 bootstrap seeds; broader kernel remains future
 ```
 
 The purpose of this seed is to define what must become true before any future
@@ -47,6 +47,12 @@ Reserved today:
 ```txt
 Grogan  future GrOS kernel proper
 ```
+
+The repository also contains a separate BIOS-to-x86_64 bootstrap image with
+validated transition, IDT, physical-memory, heap, preemptive-task, and
+boot-filesystem seeds. Those pieces are machine/bootstrap evidence; they do not
+make the transition image a complete Grogan runtime or change the current
+real16 GrOS profile.
 
 The current concrete runtime profile remains:
 
@@ -221,7 +227,10 @@ Examples of kernel state are:
 - device or console descriptor,
 - task or execution context record.
 
-None of these are implemented as Grogan-owned kernel structures today.
+The x86_64 bootstrap image contains bounded seed state for the memory map,
+physical frame, heap, task queue, filesystem image, and exception table. None of
+those seeds is yet a complete Grogan-owned kernel structure with a public ABI,
+isolation, or lifecycle contract.
 
 ### 5. Validation Contract
 
@@ -255,8 +264,11 @@ The first seed may be only:
 - explicit ownership of the GrSCall dispatch path,
 - static validation proving the boundary.
 
-The first seed is implemented as documented in `docs/31-grogan-real16-seed.md`.
-Broader Grogan functionality remains future work.
+The first real16 seed is implemented as documented in
+`docs/31-grogan-real16-seed.md`. The later x86_64 bootstrap seeds are documented
+in `docs/32-long-mode-transition-contract.md` through
+`docs/37-boot-filesystem-seed.md`. Broader Grogan functionality remains future
+work.
 
 ## Relationship To Grown
 
@@ -293,19 +305,18 @@ This document narrows the Grogan boundary. It does not override those documents.
 
 ## Non-Goals
 
-This seed does not add:
+This seed does not add a complete implementation of:
 
 - a Grogan kernel implementation,
 - a new boot stage,
 - a new runtime service,
 - a GrSCall dispatch rewrite,
-- interrupt or exception management,
-- memory allocation,
-- paging,
-- protected mode,
-- long mode,
+- general hardware interrupt or recoverable exception management,
+- general memory allocation,
+- general paging and address-space management,
+- a protected-mode or long-mode runtime,
 - UEFI loading,
-- `x86_64` execution,
+- a complete `x86_64` runtime,
 - process, task, or thread management,
 - filesystem services,
 - driver model,

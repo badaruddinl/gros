@@ -1,9 +1,10 @@
 # BIOS to x86_64 Long-Mode Transition Seed
 
 This document defines the implemented, deliberately narrow bootstrap transition
-seed. Its artifact is `gros-longmode.img`, built from
-`kernel/longmode_boot.asm`. It is separate from the current real16 GrOS runtime
-profile and does not replace the stage-2 boot chain.
+seed that backs the `gros.x86.bios.longmode.grogan.v0` product profile. Its
+artifact is `gros-longmode.img`, built from `kernel/longmode_boot.asm`. The
+profile is the next GrOS boot path alongside the current real16 runtime; it is
+not yet a complete kernel or a replacement for every stage-2 compatibility path.
 
 ## Contract
 
@@ -11,9 +12,11 @@ The image is a 33-sector raw BIOS disk image:
 
 1. sector 1 loads sectors 2 through 33 to `0000:8000` and transfers control;
 2. stage 2 enables A20, obtains the BIOS E820 map, then enters protected mode;
-3. it creates PML4, PDPT, and PD tables and identity-maps the first 2 MiB;
+3. it creates PML4, PDPT, and PD tables and identity-maps the first 4 MiB as
+   two 2 MiB windows;
 4. it enables PAE, EFER.LME, and paging, then jumps to a 64-bit code segment;
-5. the x86_64 entry writes `LM64` to QEMU debug port `0xe9` and halts.
+5. the x86_64 entry writes `LM64IDTGRO64` to QEMU debug port `0xe9` and enters
+   the bounded Grogan bootstrap seed.
 
 The marker is proof of the transition entry only. It is not proof of an
 interrupt subsystem, scheduler, allocator, filesystem, process model, or
@@ -39,19 +42,20 @@ copies or explicitly retires them.
 ## Verification
 
 ```bash
-make longmode-image
-make longmode-image-failures
-make longmode-qemu
+make grogan-x86_64-image
+make grogan-x86_64-image-failures
+make grogan-x86_64-qemu
 ```
 
 The static validator checks image size, boot signature, boot-info stores, E820,
-A20, GDT, control-register, EFER, and page-map instruction signatures. The
-negative suite proves corrupted size, signature, and A20 signatures are
-rejected. The QEMU gate proves that the CPU reaches the 64-bit entry marker.
+A20, GDT, control-register, EFER, page-map, profile-marker, and direction-flag
+instruction signatures. The negative suite proves corrupted size, signature,
+and profile-marker inputs are rejected. The QEMU gate proves that the CPU
+reaches the 64-bit Grogan profile entry marker and completes the bounded seed.
 
 ## Boundary
 
-This is registered as `x86.bios.longmode.transition.v0`, a machine bootstrap
-seed rather than a GrOS application/runtime profile. It does not define Grown
-lowering, a `.gwo` executable format, a syscall ABI, UEFI support, or Grogan
-kernel completeness.
+The transition mechanism remains registered as `x86.bios.longmode.transition.v0`
+and backs `gros.x86.bios.longmode.grogan.v0`. The product profile does not yet
+define Grown lowering, a `.gwo` executable format, a syscall ABI, UEFI support,
+or Grogan kernel completeness.

@@ -1,0 +1,7 @@
+target "gros.x86.bios.longmode.grogan.v0"
+
+// Phase-8 stdlib smoke program: lower stable calls to the phase-7 syscall ABI.
+fn main() -> void {
+    grogan::write();
+    grogan::exit();
+}

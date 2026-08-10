@@ -14,7 +14,7 @@ Gr ecosystem
     GrRT16
     GrABI
     GrSCall
-    Grogan        reserved/future
+    Grogan        implemented bootstrap seeds; full kernel future
   Grown
     .grw          seed/spec source form
   GWN
@@ -36,7 +36,7 @@ Gr ecosystem
 | Grown | Native low-level systems language | seed/spec only |
 | GWN | Low-level native/backend source layer | implemented for raw boot/stage source |
 | GWO | Object/output artifact form | implemented as raw artifacts |
-| Grogan | Future kernel proper | reserved/future |
+| Grogan | Kernel/bootstrap ownership seeds | implemented seed; full kernel reserved/future |
 
 ## Implemented Today
 
@@ -60,6 +60,10 @@ Implemented and validated in the repository:
   - `console/text.write_crlf`
 - Static validation for boot, stage-2, runtime ABI, real16 memory, near pointers,
   stage-2 data, generated-code fixtures, and policy rules.
+- BIOS-to-x86_64 long-mode transition seed with boot-info and E820 discovery.
+- x86_64 IDT installation and fail-stop exception proof.
+- E820-backed frame ownership, bounded bitmap heap, and timer-preemptive task
+  queue, and boot-resident read-only filesystem seed.
 
 The current GrBoot boot chain status is:
 
@@ -93,7 +97,7 @@ docs/20-grrt16-runtime-status.md
 
 ## Seeded But Not Complete
 
-Seeded contracts:
+Seeded contracts and bounded implementations:
 
 - Grown `.grw` front-end shape.
 - Generated-code fixture representation.
@@ -102,6 +106,9 @@ Seeded contracts:
 - Calling convention seed.
 - `.gwo` payload header shape.
 - `.gwo` raw-profile versus future headered-executable boundary.
+- BIOS-to-x86_64 transition and initial x86_64 machine ownership.
+- Exception, physical-memory, bootstrap-heap, preemptive-task, and boot-filesystem
+  seeds.
 
 These are contracts, not complete toolchain or kernel implementation.
 
@@ -109,7 +116,7 @@ These are contracts, not complete toolchain or kernel implementation.
 
 Reserved/future layers:
 
-- Grogan kernel proper.
+- Grogan kernel proper beyond the bounded bootstrap seeds.
 - Headered `.gwo` executable loader.
 - Grown parser.
 - Grown compiler.
@@ -117,11 +124,12 @@ Reserved/future layers:
 - Type checker.
 - Linker.
 - Relocation model.
-- Heap allocator.
-- Process/task model.
-- Filesystem.
-- Protected mode or long mode.
-- x86_64, aarch64, and riscv64 native profiles.
+- General physical-frame allocator, paging, and heap beyond bounded seeds.
+- Process/task isolation, context switching, and preemptive scheduling.
+- General filesystem, block-device drivers, and writable storage.
+- General hardware IRQ/device delivery and recoverable exception handling.
+- x86_64 GrOS runtime profile integration beyond the transition seed.
+- aarch64 and riscv64 native profiles.
 - Hosted-native executable outputs.
 
 ## Profile Model
@@ -132,6 +140,15 @@ Current concrete profile:
 gros.x86.bios.real16.stage2.v0
 ```
 
+The first x86_64 Grogan product seed is:
+
+```txt
+gros.x86.bios.longmode.grogan.v0
+```
+
+It is bootable and validated, but remains a bounded bootstrap profile rather
+than a complete kernel runtime.
+
 Future native profile names may include:
 
 ```txt
@@ -139,6 +156,15 @@ gros.x86_64.uefi.v0
 gros.aarch64.uefi.v0
 gros.riscv64.machine.v0
 ```
+
+The transition mechanism is also registered as a machine bootstrap seed:
+
+```txt
+x86.bios.longmode.transition.v0
+```
+
+It proves the BIOS-to-x86_64 handoff backing the product profile above; it is not
+itself a complete Grogan kernel.
 
 Future hosted compatibility profile names may include:
 

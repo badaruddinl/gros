@@ -102,11 +102,22 @@ It provides a raw source format with:
 
 ## Validation Flow
 
-The main validation command is:
+The main static validation command is:
 
 ```bash
-make validate
+make validate-static
 ```
+
+The positive emulator lane and the aggregate release gate are:
+
+```bash
+make validate-qemu
+make validate-release
+```
+
+`make validate` remains a compatibility alias for the static lane. The static
+lane contains byte checks and negative self-tests; the QEMU lane contains
+positive runtime traces; the release gate measures both lanes separately.
 
 It checks:
 
@@ -175,6 +186,14 @@ docs/23-gwo-artifact-status.md
 docs/24-implementation-readiness-status.md
 docs/25-qemu-interaction-contract.md
 docs/26-grabi-generated-code-compatibility.md
+docs/31-grogan-real16-seed.md
+docs/32-long-mode-transition-contract.md
+docs/33-x86_64-exception-interrupt-foundation.md
+docs/34-physical-memory-ownership.md
+docs/35-kernel-heap-seed.md
+docs/36-cooperative-scheduler-seed.md
+docs/37-boot-filesystem-seed.md
+docs/38-grogan-x86_64-profile.md
 ```
 
 Their current responsibilities:
@@ -205,6 +224,10 @@ Their current responsibilities:
 - `24-implementation-readiness-status.md` records the first validation-only implementation gate and which gates remain closed.
 - `25-qemu-interaction-contract.md` defines deterministic QEMU interaction validation for the implemented stage-2 prompt.
 - `26-grabi-generated-code-compatibility.md` locks the first expected-only generated-code calling-convention surface.
+- `31-grogan-real16-seed.md` defines the narrow real16 Grogan ownership seed.
+- `32` through `37` define the validated x86_64 bootstrap seed boundaries.
+- `38-grogan-x86_64-profile.md` defines the product profile that owns the
+  bounded BIOS-to-x86_64 bootstrap.
 
 Runtime ABI validation is implemented in:
 
@@ -263,11 +286,11 @@ The current non-documentation implementation gate is defined in:
 docs/24-implementation-readiness-status.md
 ```
 
-The first non-documentation implementation class is validation-only Bash
-tooling for headered `.gwo` candidate fixtures. It must not execute payloads,
-make GrBoot
-header-aware, claim `.grw` compiler output, implement Grogan, add hosted-native
-output, or change the `GrOS v0.5` boot banner.
+The first non-documentation implementation class was validation-only Bash
+tooling for headered `.gwo` candidate fixtures. Later bounded bootstrap seed
+classes are recorded in `docs/32-long-mode-transition-contract.md` through
+`docs/37-boot-filesystem-seed.md`; they remain evidence-backed seeds and do not
+claim a complete kernel, allocator, scheduler, filesystem, or general userspace.
 
 The current stage-1 loader remains raw-profile only. Headered execution requires
 a separate explicit loader contract, acceptance path, rejection path, profile

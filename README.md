@@ -24,6 +24,7 @@ The prompt supports line editing with Backspace and built-in commands:
 
 - CPU/firmware: x86 BIOS real mode
 - Runtime profile: `gros.x86.bios.real16.stage2.v0`
+- x86_64 bootstrap profile: `gros.x86.bios.longmode.grogan.v0`
 - Profile registry: [docs/18-profile-registry.md](docs/18-profile-registry.md)
 - Product output: `build/gros-v0.5.gwo`
 - Product form: raw 512-byte boot sector
@@ -62,10 +63,14 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Release readiness handoff](docs/29-release-readiness-handoff.md)
 - [Grogan real16 seed](docs/31-grogan-real16-seed.md)
 - [BIOS to x86_64 long-mode transition seed](docs/32-long-mode-transition-contract.md)
+- [Grogan x86_64 BIOS profile seed](docs/38-grogan-x86_64-profile.md)
+- [Grogan syscall and user boundary seed](docs/39-grogan-syscall-user-boundary.md)
+- [Grogan compiler preview](docs/40-grogan-compiler-preview.md)
+- [GrOS Self-Hosting Alpha roadmap](docs/41-self-hosting-alpha-roadmap.md)
 - [x86_64 exception and interrupt foundation](docs/33-x86_64-exception-interrupt-foundation.md)
 - [physical memory ownership seed](docs/34-physical-memory-ownership.md)
 - [kernel heap seed](docs/35-kernel-heap-seed.md)
-- [cooperative scheduler seed](docs/36-cooperative-scheduler-seed.md)
+- [Grogan scheduler and preemption seed](docs/36-cooperative-scheduler-seed.md)
 - [boot-resident filesystem seed](docs/37-boot-filesystem-seed.md)
 
 ## Stage-2 Loader Target
@@ -94,15 +99,21 @@ make release-ready
 make headered-stage2
 ```
 
-## x86_64 Transition Seed
+## Grogan x86_64 Developer Preview
 
-The separate BIOS transition image proves only the initial x86_64 long-mode
-handoff. It is not the current GrOS runtime profile or a complete kernel.
+The Grogan x86_64 profile now forms a useful bounded Developer Preview: BIOS to
+long mode, owned frames and heap, timer-preemptive task contexts, a read-only
+filesystem shell, a DPL3 GWO1 user payload, two syscalls, and a tiny compiler
+slice that produces the payload consumed by the image builder. It is not a
+general-purpose kernel or compiler.
 
 ```bash
-make longmode-image
-make longmode-image-failures
-make longmode-qemu
+make grogan-x86_64-image
+make grogan-x86_64-image-failures
+make grogan-compiler
+make grogan-syscalls
+make grogan-x86_64-qemu
+make grogan-shell-qemu
 ```
 
 Run the QEMU smoke start:
@@ -155,10 +166,20 @@ make test
 Run the full validation path:
 
 ```bash
-make validate
+make validate-static
+make validate-qemu
+make validate-release
 ```
 
-This runs the project policy guard, generated-code fixture validator, headered `.gwo` candidate fixture validator, raw builder tests, generated boot image checks, committed `dist` artifact checks, and build output parity checks. `make validate` requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for the current boot artifacts, the build source of truth remains `.gwn` raw source and Bash tooling.
+The static lane runs the project policy guard, generated-code fixture validator,
+headered `.gwo` candidate fixture validator, raw builder tests, generated boot
+image checks, committed `dist` artifact checks, and build output parity checks.
+The QEMU lane runs the positive stage-2, minimal-main, malformed-header, and
+long-mode traces. Each lane reports its duration and preserves failures.
+`make validate` remains a compatibility alias for `make validate-static` and
+requires `ndisasm` from the `nasm` package. Disassembly is validation-only; for
+the current boot artifacts, the build source of truth remains `.gwn` raw source
+and Bash tooling.
 
 The runtime ABI, real16 memory model, near-pointer, and stage-2 data fixtures are Bash-only and validate the implemented `int 30h` return contracts, seeded memory boundaries, pointer immediates, and static text/data bytes directly from the stage-2 `.gwo` image.
 

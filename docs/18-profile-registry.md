@@ -25,6 +25,7 @@ reserved/future  named as a direction, not claimed as working
 | Profile | Class | Status | Evidence |
 | --- | --- | --- | --- |
 | `gros.x86.bios.real16.stage2.v0` | GrOS runtime profile | implemented seed | stage-2 `.gwn` source, `.gwo` artifacts, runtime ABI checks, memory model checks, QEMU smoke |
+| `gros.x86.bios.longmode.grogan.v0` | GrOS kernel/bootstrap profile | implemented seed | `kernel/longmode_boot.asm`, `gros-longmode.img`, profile marker/checker, QEMU transition trace |
 
 This profile is:
 
@@ -76,9 +77,10 @@ Grogan kernel implementation
 | --- | --- | --- | --- |
 | `x86.bios.longmode.transition.v0` | machine bootstrap transition | implemented seed | NASM raw image, structural/negative checks, QEMU `LM64` trace |
 
-This is an x86 BIOS transition proof, not a GrOS runtime profile. Its exact
-boot-info ABI and scope boundary are defined in
-`docs/32-long-mode-transition-contract.md`.
+This is the machine transition backing the `gros.x86.bios.longmode.grogan.v0`
+profile seed. Its exact boot-info ABI and transition scope are defined in
+`docs/32-long-mode-transition-contract.md`; the product ownership contract is
+defined in `docs/38-grogan-x86_64-profile.md`.
 
 ## Reserved Hosted Compatibility Profiles
 
@@ -181,21 +183,22 @@ docs/21-grboot-boot-chain-status.md
 docs/22-grabi-contract-status.md
 docs/23-gwo-artifact-status.md
 docs/24-implementation-readiness-status.md
+docs/38-grogan-x86_64-profile.md
 ```
 
 ## Non-Goals
 
 This registry does not add:
 
-- a new boot profile
+- a new complete boot profile
 - UEFI loading
-- an `x86_64` runtime
+- a complete `x86_64` runtime
 - an `aarch64` runtime
 - a hosted-native executable backend
-- `.grw` compiler output
-- a headered `.gwo` loader
-- a profile ID numeric mapping
-- a GrSCall profile query service
+- general `.grw` compiler output beyond the bounded Grogan preview
+- a general headered `.gwo` loader beyond the bounded Grogan GWO1 path
+- a profile ID numeric mapping for the x86_64 seed
+- a new GrSCall profile query service
 - a Grogan kernel implementation
 - a profile version bump
 - a version bump
