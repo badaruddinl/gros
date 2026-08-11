@@ -1,4 +1,4 @@
-.PHONY: build check test policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-seed-qemu longmode-image longmode-image-failures longmode-qemu generated-fixtures generated-fixtures-failures grabi-generated-code grabi-generated-code-failures minimal-main minimal-main-failures minimal-main-qemu headered-stage2-rejection headered-stage2-rejection-failures release-ready validate-release validation-lanes-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate validate-static validate-static-internal validate-qemu validate-qemu-internal stage2 check-stage2 stage2-image-failures headered-stage2 headered-stage2-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
+.PHONY: build check test policy project-policy-failures status-consistency status-consistency-failures self-hosting-contracts self-hosting-contract-failures grogan-seed grogan-seed-failures grogan-seed-qemu longmode-image longmode-image-failures longmode-qemu generated-fixtures generated-fixtures-failures grabi-generated-code grabi-generated-code-failures minimal-main minimal-main-failures minimal-main-qemu headered-stage2-rejection headered-stage2-rejection-failures release-ready validate-release validation-lanes-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures validate validate-static validate-static-internal validate-qemu validate-qemu-internal stage2 check-stage2 stage2-image-failures headered-stage2 headered-stage2-failures runtime-abi runtime-abi-failures memory-model memory-model-failures near-pointers near-pointers-failures stage2-data stage2-data-failures stage2-commands stage2-command-failures stage2-input stage2-input-failures stage2-debugcon stage2-debugcon-failures smoke-stage2-failures smoke-stage2 run run-stage2 clean
 
 BUILD_IMAGE := build/gros-v0.5.gwo
 DIST_IMAGE := dist/gros-v0.5.gwo
@@ -23,6 +23,12 @@ policy:
 
 project-policy-failures:
 	./scripts/test_project_policy_failures.sh
+
+self-hosting-contracts:
+	./scripts/check_self_hosting_contracts.sh
+
+self-hosting-contract-failures:
+	./scripts/test_self_hosting_contract_failures.sh
 
 status-consistency:
 	./scripts/check_status_consistency.sh
@@ -102,7 +108,7 @@ validate: validate-static
 validate-static:
 	./scripts/run_validation_lane.sh static "$(MAKE)" --no-print-directory validate-static-internal
 
-validate-static-internal: policy project-policy-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-x86_64-image grogan-x86_64-image-failures grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-compiler grogan-compiler-failures grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures longmode-image-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures validation-lanes-failures test check stage2
+validate-static-internal: policy project-policy-failures self-hosting-contracts self-hosting-contract-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-x86_64-image grogan-x86_64-image-failures grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-compiler grogan-compiler-failures grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures longmode-image-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures validation-lanes-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)

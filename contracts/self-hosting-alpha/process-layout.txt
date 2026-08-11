@@ -1,0 +1,10 @@
+schema=gros-process-address-space/v1
+page_size=4096
+kernel_base=0x0000000000000000
+kernel_limit=0x0000000000400000
+user_base=0x0000000000400000
+user_limit=0x0000000040000000
+guard_pages=1
+user_code_permission=RX
+user_data_permission=RW-NX
+kernel_permission=RW-NX

@@ -1,0 +1,11 @@
+schema=gros-gwo2/v1
+magic=GWO2
+version=2
+header_size=32
+bytecode_kind=1
+native_reserved_kind=2
+max_sections=16
+instruction_encoding= fixed-opcode-with-explicit-operands
+entry_requires_instruction_boundary=true
+loader_requires_checksum=true
+verifier_requires_stack_effects=true

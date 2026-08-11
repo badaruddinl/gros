@@ -1,0 +1,11 @@
+schema=gros-gfs2/v1
+block_size=512
+magic=GFS2
+version=2
+primary_superblock=0
+recovery_superblock=1
+commit_marker=CMT2
+max_filename_bytes=31
+max_path_bytes=255
+max_file_bytes=8388608
+max_extents_per_inode=8
