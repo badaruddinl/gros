@@ -73,6 +73,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Self-Hosting GWO2 and Grown Alpha contract](docs/45-self-hosting-gwo2-grown-alpha-contract.md)
 - [Self-Hosting Alpha kernel foundation](docs/46-self-hosting-alpha-kernel-foundation.md)
 - [Self-Hosting Alpha storage foundation](docs/47-self-hosting-alpha-storage-foundation.md)
+- [Self-Hosting Alpha GWO2 toolchain](docs/48-self-hosting-alpha-gwo2-toolchain.md)
 - [x86_64 exception and interrupt foundation](docs/33-x86_64-exception-interrupt-foundation.md)
 - [physical memory ownership seed](docs/34-physical-memory-ownership.md)
 - [kernel heap seed](docs/35-kernel-heap-seed.md)

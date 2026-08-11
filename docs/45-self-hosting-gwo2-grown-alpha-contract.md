@@ -6,51 +6,65 @@ this document.
 
 ## GWO2 container
 
-Every field is little-endian. The fixed header is 32 bytes:
+Every field is little-endian. The fixed header is 32 bytes. The Alpha v2
+encoding below is canonical; no field is inferred from a host compiler ABI:
 
 ```txt
-magic              4 bytes: "GWO2"
-version            u16: 2
-header_size        u16: 32
-flags              u32: zero in Alpha
-target_id          u32: gros.x86.bios.longmode.grogan.v1
-kind               u16: 1 bytecode, 2 native-reserved
-section_count      u16: 1..16
-entry_section      u16
-entry_offset       u32
-total_size         u32
-header_checksum    u32
+offset  size  field
+0       4     magic: "GWO2"
+4       2     version: 2
+6       2     target_id: 1 (gros.x86.bios.longmode.grogan.v1)
+8       2     kind: 1 (bytecode; 2 is reserved for native)
+10      2     reserved: zero
+12      4     header_size: 32
+16      4     section_count: 1..16
+20      4     entry_offset: byte offset in the bytecode section
+24      4     code_size: bytecode section size
+28      4     image_checksum: FNV-1a over the section table and section bytes
 ```
 
-Each section descriptor is 24 bytes: kind, permissions, file offset, file
-size, virtual size, and checksum. Section offsets and sizes must be aligned,
-non-overlapping, within `total_size`, and below the image resource limit. The
-loader verifies every checksum and the bytecode verifier runs before a process
-is created.
+The Alpha bytecode section table has 16-byte descriptors:
+
+```txt
+kind      u32: 1 (bytecode)
+offset    u32: file offset of bytes
+size      u32: byte count (must equal code_size for the one-section Alpha)
+checksum  u32: FNV-1a over the section bytes
+```
+
+The table and section must be within the image, non-overlapping, and below the
+1 MiB image limit. The loader verifies both checksums and the bytecode verifier
+runs before a process is created. Alpha v2 currently permits exactly one
+bytecode section; extra section kinds are reserved until the loader has a
+tested permission and relocation model.
 
 ## Alpha bytecode
 
-Bytecode is a deterministic stack machine. The initial instruction families
-are:
+Bytecode is a deterministic stack machine. The first executable encoding is:
 
 ```txt
-const_i64  load_local  store_local  add_i64  sub_i64  mul_i64  div_i64
-eq_i64     lt_i64      jump         jump_if_false
-call       return      load_bytes   store_bytes  syscall  halt
+0x01 const_i32 <u32>
+0x02 load_local <u8>
+0x03 store_local <u8>
+0x04 add_i32       0x05 sub_i32       0x06 mul_i32
+0x07 div_i32       0x08 eq_i32        0x09 lt_i32
+0x0a jump <i16-relative>       0x0b jump_if_zero <i16-relative>
+0x0c import <u8-id> <u8-argc>   0x0d return   0x0e halt
 ```
 
-Each instruction has a fixed encoding and declared stack effect. Jumps target
-instruction boundaries. Locals, call depth, byte arrays, and instruction count
-are bounded and checked before execution. Invalid bytecode is rejected before
-any user memory or syscall side effect occurs.
+Imports are fixed and verifier-checked: id 1 is `print_i32(i32)`, id 2 is
+`exit(i32)`, and id 3 is `newline()`. Each instruction has a declared stack
+effect. Jumps target instruction boundaries. Locals and the operand stack are
+bounded, and invalid bytecode is rejected before any user memory or syscall
+side effect occurs.
 
 ## Grown Alpha source
 
-The self-hostable subset includes modules, typed functions, locals, assignment,
-`if/else`, `while`, integers, booleans, bytes, strings, byte arrays, and the
-console/file standard library. Source diagnostics carry file, line, column,
-and a stable error code. Imports are repository-relative and resolved from a
-canonical module manifest; ambient host paths are not allowed.
+The first executable subset has one typed `fn main`, i32 locals, assignment,
+`if/else`, `while`, integer expressions, and the deterministic console imports
+`print_i32`, `newline`, and `exit`. Source diagnostics carry file, line, and
+column. Modules, bytes/string values, file calls, and multi-function linking
+remain explicit follow-on work; they are not represented as implemented here.
 
 ## Bootstrap stages
 
@@ -67,6 +81,8 @@ self-hosting is not a fixture or a hardcoded payload shortcut.
 
 ## Batch 1.4 gate
 
-Fixtures must accept a valid multi-function bytecode module and reject bad
-magic/version, section overlap, checksum mismatch, invalid entry, stack-effect
-underflow, non-boundary jumps, unknown opcodes, and unresolved imports.
+The host verifier fixtures accept the deterministic single-section image and
+reject bad magic/version, section overlap or size, checksum mismatch, invalid
+entry, stack-effect underflow, non-boundary jumps, unknown opcodes, and
+unresolved imports. Multi-function modules are a later loader milestone, not a
+fixture claim for this first compiler slice.
