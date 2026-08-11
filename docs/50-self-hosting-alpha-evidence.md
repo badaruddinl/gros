@@ -11,8 +11,8 @@ second roadmap.
 The release-candidate audit and local runtime campaign discussed here use:
 
 ```txt
-branch: feature/self-hosting-alpha-hardening (to be fast-forwarded to development)
-commit: HEAD (release candidate; see remote development after publish)
+branch: development
+commit: ebd4915b265c09c324bde8b1064319b96499c898 (baseline before the external-audit follow-up)
 subject: hardening and modularization release candidate
 ```
 
@@ -101,6 +101,12 @@ kernel: ff251bfcec221cc80b9fbc20a1ee097a684f0930dcfb31ef215bc20230af094e
 - `mem_grow` exhaustion returns `-ENOMEM` to the process.
 - A disk whose ATA-reported capacity ends before GFS2, reports `ERR`, or never
   raises `DRQ` is rejected with bounded `ATAFAIL` behavior.
+- The ATA fault lane requires distinct `ATAERR`, `ATATMO`, and `ATARANGE`
+  markers, proving the injected status, timeout, and range branches rather
+  than a shared direct-failure shim.
+- The in-OS compiler consumes the same generated boundary corpus as the host
+  lane, including the void `task_yield()` import; its result flag is checked by
+  ABI mutation tests and its runtime artifact is exercised under QEMU.
 - Host GFS2 fixtures cover remount, mutation rejection, disk-full behavior,
   overwrite/truncate/append, and unlink.
 - Two independent `git archive HEAD` compiler/image builds are byte-equal and
@@ -140,6 +146,8 @@ true when an intermediate operation fails.
 | Literal encoding parity | Host and in-OS 255/256 corpus plus guard mutation test. | P0-D |
 | Resource leak proof | `R<frames>H<handles>P<pid>` is compared per cycle for 100 cycles. | P1-B |
 | ATA fault coverage | Separate ERR, timeout, and out-of-range QEMU images finish bounded and without `ATAOK`. | P1-C |
+| Void import result parity | `task_yield` lowering is void in Rust, Grown, and the kernel VM; mutation and QEMU corpus lanes reject a synthetic `drop`. | P1-D |
+| Shared compiler corpus | One generated fixture corpus drives host accept/reject checks and the in-OS process-spawn compiler lane. | P0-C, P0-D |
 | ABI single source | Full TSV parser, generated NASM include, C/Rust/Grown/kernel parity, and column mutation lane. | P1-D |
 | Clean-checkout reproducibility | Two isolated `git archive HEAD` builds and a poison untracked input produce equal manifests. | P1-E |
 | Kernel maintainability | Thirteen ordered include units cover entry, arch, MM, proc, drivers, FS, runtime, and data with direct-parent byte identity. | P2-A |

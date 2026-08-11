@@ -97,6 +97,8 @@ gwo2_depths:
     times MAX_PAYLOAD_BYTES db 0
 ata_ready:
     db 0
+ata_failure_code:
+    db 0
 gfs_mount_valid:
     db 0
 align 8

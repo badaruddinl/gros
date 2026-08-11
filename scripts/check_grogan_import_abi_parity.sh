@@ -19,8 +19,10 @@ root = pathlib.Path(sys.argv[1])
 contracts = pathlib.Path(os.environ.get("SELF_HOSTING_ABI_CONTRACTS", root / "contracts/self-hosting-alpha"))
 syscall_path = contracts / "syscall-abi-v1.tsv"
 import_path = contracts / "gwo2-import-abi-v1.tsv"
-rust = (root / "tools/grc0.rs").read_text(encoding="utf-8")
-grown = (root / "examples/grown-alpha/grc1.grw").read_text(encoding="utf-8")
+rust_path = pathlib.Path(os.environ.get("SELF_HOSTING_ABI_RUST", root / "tools/grc0.rs"))
+grown_path = pathlib.Path(os.environ.get("SELF_HOSTING_ABI_GROWN", root / "examples/grown-alpha/grc1.grw"))
+rust = rust_path.read_text(encoding="utf-8")
+grown = grown_path.read_text(encoding="utf-8")
 kernel = "\n".join(path.read_text(encoding="utf-8") for path in sorted((root / "kernel").rglob("*.asm")))
 grvm = (root / "tools/grvm.c").read_text(encoding="utf-8")
 
@@ -167,6 +169,24 @@ for name, row in import_by_name.items():
         fail(f"Grown compiler missing import {name}")
     if f'emit8(state, {import_id})' not in grown:
         fail(f"Grown compiler import ID drift: {name}")
+
+# A void import must not be lowered as an expression result.  In particular,
+# task_yield resumes the scheduler without pushing a value; treating it as an
+# i32 makes statement lowering append opcode 19 (drop), which underflows the
+# child VM stack and is invisible to a text-only ABI check.  Inspect the whole
+# special-case body so this contract cannot drift while IDs still match.
+task_yield_branch = re.search(
+    r'if \(name_eq\(call_name, "task_yield"\) == 1\) \{([^}]*)\}',
+    grown,
+    re.S,
+)
+if not task_yield_branch:
+    fail("Grown compiler task_yield lowering branch missing")
+task_yield_body = task_yield_branch.group(1)
+if "emit8(state, 14)" not in task_yield_body:
+    fail("Grown compiler task_yield import ID drift")
+if re.search(r"\bresult\s*=\s*1\b", task_yield_body):
+    fail("Grown compiler task_yield must remain void; result flag drifted to i32")
 
 def macro_name(prefix, name):
     return prefix + re.sub(r"[^A-Za-z0-9]+", "_", name.split("(", 1)[0]).strip("_").upper()

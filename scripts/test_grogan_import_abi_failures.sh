@@ -40,4 +40,12 @@ cp "$ROOT/contracts/self-hosting-alpha/gwo2-import-abi-v1.tsv" "$TMP_DIR/contrac
 sed -i '0,/15\tprocess_spawn/s//15\tprocess_spawn_mutated/' "$TMP_DIR/contracts/gwo2-import-abi-v1.tsv"
 expect_failure import-name
 
-echo 'Grogan import ABI failures: result, selector, argc, name, and mapping mutations are rejected'
+cp "$ROOT/examples/grown-alpha/grc1.grw" "$TMP_DIR/grc1-mutated.grw"
+sed -i 's/if (name_eq(call_name, "task_yield") == 1) { emit8(state, 12); emit8(state, 14); emit8(state, argc); }/if (name_eq(call_name, "task_yield") == 1) { emit8(state, 12); emit8(state, 14); emit8(state, argc); result = 1; }/' "$TMP_DIR/grc1-mutated.grw"
+if SELF_HOSTING_ABI_CONTRACTS="$TMP_DIR/contracts" SELF_HOSTING_ABI_GROWN="$TMP_DIR/grc1-mutated.grw" SELF_HOSTING_ABI_SKIP_GENERATED=1 \
+    "$ROOT/scripts/check_grogan_import_abi_parity.sh" > "$TMP_DIR/stdout" 2> "$TMP_DIR/stderr"; then
+    fail 'task-yield-result mutation survived ABI parity validation'
+fi
+echo 'ok: task-yield-result'
+
+echo 'Grogan import ABI failures: result, selector, argc, name, mapping, and void-result mutations are rejected'

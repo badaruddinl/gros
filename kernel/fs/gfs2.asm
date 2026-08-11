@@ -139,6 +139,60 @@ storage_seed:
     out 0xe9, al
     mov al, 'L'
     out 0xe9, al
+    mov al, [abs ata_failure_code]
+    cmp al, 1
+    je .emit_err
+    cmp al, 2
+    je .emit_timeout
+    cmp al, 3
+    je .emit_range
+    jmp .ata_marker_done
+.emit_err:
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'T'
+    out 0xe9, al
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'E'
+    out 0xe9, al
+    mov al, 'R'
+    out 0xe9, al
+    mov al, 'R'
+    out 0xe9, al
+    jmp .ata_marker_done
+.emit_timeout:
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'T'
+    out 0xe9, al
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'T'
+    out 0xe9, al
+    mov al, 'M'
+    out 0xe9, al
+    mov al, 'O'
+    out 0xe9, al
+    jmp .ata_marker_done
+.emit_range:
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'T'
+    out 0xe9, al
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'R'
+    out 0xe9, al
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'N'
+    out 0xe9, al
+    mov al, 'G'
+    out 0xe9, al
+    mov al, 'E'
+    out 0xe9, al
+.ata_marker_done:
     cli
 .halt: hlt
     jmp .halt

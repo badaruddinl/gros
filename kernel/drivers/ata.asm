@@ -145,10 +145,10 @@ ata_block_read:
     jne .fail
     mov r8, [abs ata_capacity]
     cmp r8, FS_START_LBA
-    jbe .fail
+    jbe .range_fail
     sub r8, FS_START_LBA
     cmp rdi, r8
-    jae .fail
+    jae .range_fail
     add rdi, FS_START_LBA
     push rsi
     call ata_select_lba
@@ -166,6 +166,8 @@ ata_block_read:
     ret
 .pop_fail:
     pop rsi
+.range_fail:
+    mov byte [abs ata_failure_code], 3
 .fail:
     xor eax, eax
     ret

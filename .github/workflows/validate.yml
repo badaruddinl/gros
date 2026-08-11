@@ -1,4 +1,4 @@
-name: GrOS Validation
+name: GrOS Self-Hosting Alpha Release
 
 on:
   push:
@@ -10,23 +10,50 @@ on:
     branches:
       - main
       - development
+  workflow_dispatch:
 
 jobs:
   validate:
-    name: Build and validate GrOS
+    name: Immutable release gate
     runs-on: ubuntu-22.04
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
 
     steps:
-      - name: Checkout
+      - name: Checkout exact commit
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install validation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y make nasm qemu-system-x86
+          sudo apt-get install -y make nasm qemu-system-x86 gcc python3
+          chmod +x scripts/*.sh
 
-      - name: Run release readiness gate
-        run: make release-ready
+      - name: Record immutable environment
+        run: |
+          {
+            printf 'commit='; git rev-parse HEAD
+            printf 'ref='; git symbolic-ref -q --short HEAD || true
+            printf 'runner='; uname -a
+            printf 'nasm='; nasm -v
+            printf 'qemu='; qemu-system-x86_64 --version | head -1
+            printf 'gcc='; gcc --version | head -1
+            printf 'python='; python3 --version
+          } | tee release-environment.txt
+
+      - name: Run complete release gate
+        run: make validate-release 2>&1 | tee validate-release.log
+
+      - name: Upload immutable release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-hosting-alpha-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            release-environment.txt
+            validate-release.log

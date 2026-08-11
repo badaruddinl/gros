@@ -684,7 +684,9 @@ fn parse_call(state: i32, name: i32) -> i32 {
     if (name_eq(call_name, "path_create") == 1) { emit8(state, 12); emit8(state, 11); emit8(state, argc); result = 1; }
     if (name_eq(call_name, "file_unlink") == 1) { emit8(state, 12); emit8(state, 12); emit8(state, argc); result = 1; }
     if (name_eq(call_name, "print_bytes") == 1) { emit8(state, 12); emit8(state, 13); emit8(state, argc); }
-    if (name_eq(call_name, "task_yield") == 1) { emit8(state, 12); emit8(state, 14); emit8(state, argc); result = 1; }
+    // task_yield is a void scheduler boundary.  Keep its result flag clear so
+    // statement lowering does not emit a drop for a value the VM never pushes.
+    if (name_eq(call_name, "task_yield") == 1) { emit8(state, 12); emit8(state, 14); emit8(state, argc); }
     if (name_eq(call_name, "process_spawn") == 1) { emit8(state, 12); emit8(state, 15); emit8(state, argc); result = 1; }
     if (name_eq(call_name, "process_spawn_args") == 1) { emit8(state, 12); emit8(state, 17); emit8(state, argc); result = 1; }
     if (name_eq(call_name, "process_wait") == 1) { emit8(state, 12); emit8(state, 16); emit8(state, argc); result = 1; }
