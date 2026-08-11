@@ -10,7 +10,7 @@
 #include <string.h>
 
 enum token_kind { TOK_EOF, TOK_IDENT, TOK_NUMBER, TOK_STRING, TOK_LP, TOK_RP, TOK_LB, TOK_RB,
-                  TOK_COLON, TOK_SEMI, TOK_EQ, TOK_ASSIGN, TOK_PLUS, TOK_MINUS, TOK_STAR,
+                  TOK_COLON, TOK_SEMI, TOK_COMMA, TOK_EQ, TOK_ASSIGN, TOK_PLUS, TOK_MINUS, TOK_STAR,
                   TOK_SLASH, TOK_LT, TOK_ARROW };
 
 typedef struct { enum token_kind kind; char text[128]; int64_t number; unsigned line, column; } token_t;
@@ -94,6 +94,16 @@ static void lexer_next(lexer_t *lexer) {
     if (c == '"') {
         size_t n = 0;
         while (lexer->offset < lexer->length && lexer->source[lexer->offset] != '"') {
+            if (lexer->source[lexer->offset] == '\\' && lexer->offset + 1 < lexer->length) {
+                char escaped = lexer->source[lexer->offset + 1];
+                if (escaped == 'n') escaped = '\n';
+                else if (escaped == 'r') escaped = '\r';
+                else if (escaped == 't') escaped = '\t';
+                if (n + 1 < sizeof(token.text)) token.text[n++] = escaped;
+                lexer->offset += 2;
+                lexer->column += 2;
+                continue;
+            }
             if (lexer->source[lexer->offset] == '\n') { ++lexer->line; lexer->column = 1; }
             else ++lexer->column;
             if (n + 1 < sizeof(token.text)) token.text[n++] = lexer->source[lexer->offset];
@@ -107,6 +117,7 @@ static void lexer_next(lexer_t *lexer) {
     case '(': token.kind = TOK_LP; break; case ')': token.kind = TOK_RP; break;
     case '{': token.kind = TOK_LB; break; case '}': token.kind = TOK_RB; break;
     case ':': token.kind = TOK_COLON; break; case ';': token.kind = TOK_SEMI; break;
+    case ',': token.kind = TOK_COMMA; break;
     case '+': token.kind = TOK_PLUS; break; case '*': token.kind = TOK_STAR; break;
     case '/': token.kind = TOK_SLASH; break; case '<': token.kind = TOK_LT; break;
     case '=': token.kind = TOK_ASSIGN; if (lexer->offset < lexer->length && lexer->source[lexer->offset] == '=') { ++lexer->offset; ++lexer->column; token.kind = TOK_EQ; } break;
@@ -143,10 +154,19 @@ static int precedence(enum token_kind kind) {
 }
 
 static int parse_expression(parser_t *p, int minimum);
+static int parse_call(parser_t *p, const char *name);
 static int parse_primary(parser_t *p) {
     if (p->lexer.current.kind == TOK_NUMBER) {
         int64_t value = p->lexer.current.number; lexer_next(&p->lexer);
         code_emit(p, 1); code_u32(p, (uint32_t)value); return !p->failed;
+    }
+    if (p->lexer.current.kind == TOK_STRING) {
+        size_t length = strlen(p->lexer.current.text);
+        if (length > 255) { diagnostic(p, "byte string is too long"); return 0; }
+        code_emit(p, 15); code_emit(p, (uint8_t)length);
+        for (size_t i = 0; i < length; ++i) code_emit(p, (uint8_t)p->lexer.current.text[i]);
+        lexer_next(&p->lexer);
+        return !p->failed;
     }
     if (p->lexer.current.kind == TOK_IDENT) {
         char name[64];
@@ -154,12 +174,81 @@ static int parse_primary(parser_t *p) {
         if (length >= sizeof(name)) { diagnostic(p, "identifier is too long"); return 0; }
         memcpy(name, p->lexer.current.text, length + 1);
         lexer_next(&p->lexer);
+        if (p->lexer.current.kind == TOK_LP) return parse_call(p, name);
         int slot = local_find(p, name);
         if (slot < 0) { diagnostic(p, "unknown value '%s'", name); return 0; }
         code_emit(p, 2); code_emit(p, (uint8_t)slot); return !p->failed;
     }
     if (accept(p, TOK_LP)) { int ok = parse_expression(p, 0); expect(p, TOK_RP, "')'"); return ok; }
     diagnostic(p, "expected integer expression"); return 0;
+}
+
+static int parse_call_argument(parser_t *p, unsigned *argc) {
+    if (!parse_expression(p, 0)) return 0;
+    ++*argc;
+    return 1;
+}
+
+static int parse_call(parser_t *p, const char *name) {
+    if (!expect(p, TOK_LP, "'('")) return 0;
+    unsigned argc = 0;
+    if (strcmp(name, "print_str") == 0) {
+        if (p->lexer.current.kind != TOK_STRING) { diagnostic(p, "print_str expects a string literal"); return 0; }
+        size_t length = strlen(p->lexer.current.text);
+        if (length > 255) { diagnostic(p, "byte string is too long"); return 0; }
+        if (!parse_primary(p)) return 0;
+        code_emit(p, 1); code_u32(p, (uint32_t)length);
+        if (!expect(p, TOK_RP, "')'")) return 0;
+        code_emit(p, 12); code_emit(p, 13); code_emit(p, 2);
+        return 0;
+    }
+    if (strcmp(name, "load_byte") == 0) {
+        if (!parse_call_argument(p, &argc) || !expect(p, TOK_COMMA, "','") || !parse_call_argument(p, &argc) || !expect(p, TOK_RP, "')'")) return 0;
+        code_emit(p, 16); return 1;
+    }
+    if (strcmp(name, "store_byte") == 0) {
+        if (!parse_call_argument(p, &argc) || !expect(p, TOK_COMMA, "','") || !parse_call_argument(p, &argc) || !expect(p, TOK_COMMA, "','") || !parse_call_argument(p, &argc) || !expect(p, TOK_RP, "')'")) return 0;
+        code_emit(p, 17); return 0;
+    }
+    if (strcmp(name, "print_bytes") == 0) {
+        if (!parse_call_argument(p, &argc) || !expect(p, TOK_COMMA, "','") || !parse_call_argument(p, &argc) || !expect(p, TOK_RP, "')'")) return 0;
+        code_emit(p, 12); code_emit(p, 13); code_emit(p, 2); return 0;
+    }
+    unsigned expected = 0;
+    uint8_t import_id = 0;
+    if (strcmp(name, "file_open") == 0) { expected = 2; import_id = 5; }
+    else if (strcmp(name, "file_read") == 0) { expected = 3; import_id = 6; }
+    else if (strcmp(name, "file_write") == 0) { expected = 3; import_id = 7; }
+    else if (strcmp(name, "file_close") == 0) { expected = 1; import_id = 8; }
+    else if (strcmp(name, "file_stat") == 0) { expected = 2; import_id = 9; }
+    else if (strcmp(name, "mem_grow") == 0) { expected = 1; import_id = 10; }
+    else if (strcmp(name, "path_create") == 0) { expected = 1; import_id = 11; }
+    else if (strcmp(name, "file_unlink") == 0) { expected = 1; import_id = 12; }
+    else if (strcmp(name, "console_read") == 0) { expected = 2; import_id = 4; }
+    else if (strcmp(name, "task_yield") == 0) {
+        if (!expect(p, TOK_RP, "')'")) return 0;
+        code_emit(p, 12); code_emit(p, 14); code_emit(p, 0);
+        return 1;
+    }
+    else if (strcmp(name, "drop") == 0) {
+        if (!parse_call_argument(p, &argc) || !expect(p, TOK_RP, "')'")) return 0;
+        code_emit(p, 19);
+        return 0;
+    }
+    else { diagnostic(p, "unknown call '%s'", name); return 0; }
+    if (expected == 0) {
+        if (!expect(p, TOK_RP, "')'")) return 0;
+        code_emit(p, 19);
+        return 0;
+    }
+    for (unsigned i = 0; i < expected; ++i) {
+        if (!parse_call_argument(p, &argc)) return 0;
+        if (i + 1 < expected && !expect(p, TOK_COMMA, "','")) return 0;
+    }
+    if (!expect(p, TOK_RP, "')'")) return 0;
+    code_emit(p, 12); code_emit(p, import_id); code_emit(p, (uint8_t)expected);
+    return import_id == 4 || import_id == 5 || import_id == 6 || import_id == 7 ||
+           import_id == 8 || import_id == 9 || import_id == 10 || import_id == 11 || import_id == 12;
 }
 
 static int parse_expression(parser_t *p, int minimum) {
@@ -211,9 +300,14 @@ static int parse_statement(parser_t *p) {
         size_t false_jump = emit_jump(p, 11);
         if (!parse_block(p)) return 0;
         if (p->lexer.current.kind == TOK_IDENT && strcmp(p->lexer.current.text, "else") == 0) {
-            lexer_next(&p->lexer); if (!expect(p, TOK_LB, "'{'")) return 0;
+            lexer_next(&p->lexer);
             size_t end_jump = emit_jump(p, 10); patch_jump(p, false_jump, p->code.size);
-            if (!parse_block(p)) return 0;
+            if (p->lexer.current.kind == TOK_IDENT && strcmp(p->lexer.current.text, "if") == 0) {
+                if (!parse_statement(p)) return 0;
+            } else {
+                if (!expect(p, TOK_LB, "'{'")) return 0;
+                if (!parse_block(p)) return 0;
+            }
             patch_jump(p, end_jump, p->code.size);
         } else patch_jump(p, false_jump, p->code.size);
         return 1;
@@ -235,6 +329,13 @@ static int parse_statement(parser_t *p) {
         if (id != 3) { if (!parse_expression(p, 0)) return 0; argc = 1; }
         if (!expect(p, TOK_RP, "')'") || !expect(p, TOK_SEMI, "';'")) return 0;
         code_emit(p, 12); code_emit(p, (uint8_t)id); code_emit(p, (uint8_t)argc); return 1;
+    }
+    if (p->lexer.current.kind == TOK_LP) {
+        int result = parse_call(p, keyword);
+        if (!result && p->failed) return 0;
+        if (!expect(p, TOK_SEMI, "';'")) return 0;
+        if (result) code_emit(p, 19);
+        return 1;
     }
     if (p->lexer.current.kind == TOK_ASSIGN) {
         int slot = local_find(p, keyword); lexer_next(&p->lexer);

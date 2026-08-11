@@ -7,7 +7,7 @@ STAGE2_DIST_IMAGE := dist/gros-stage2.gwo
 LONGMODE_BUILD_IMAGE := build/gros-longmode.img
 LONGMODE_DIST_IMAGE := dist/gros-longmode.img
 
-.PHONY: grogan-x86_64-image grogan-x86_64-image-failures grogan-x86_64-qemu grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-process-qemu grogan-storage grogan-storage-qemu grogan-compiler grogan-compiler-failures grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures grogan-shell-qemu
+.PHONY: grogan-x86_64-image grogan-x86_64-image-failures grogan-x86_64-qemu grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-process-qemu grogan-storage grogan-storage-qemu grogan-storage-syscall-qemu grogan-compiler grogan-compiler-failures grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures grogan-shell-qemu
 
 build:
 	./scripts/build_boot.sh
@@ -154,7 +154,7 @@ validate-static-internal: policy project-policy-failures self-hosting-contracts 
 validate-qemu:
 	./scripts/run_validation_lane.sh qemu "$(MAKE)" --no-print-directory validate-qemu-internal
 
-validate-qemu-internal: smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection grogan-x86_64-qemu grogan-process-qemu grogan-storage-qemu grogan-shell-qemu
+validate-qemu-internal: smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection grogan-x86_64-qemu grogan-process-qemu grogan-storage-qemu grogan-storage-syscall-qemu grogan-shell-qemu
 
 grogan-x86_64-image:
 	./scripts/build_longmode_image.sh $(LONGMODE_BUILD_IMAGE)
@@ -196,6 +196,9 @@ grogan-storage: grogan-x86_64-image
 
 grogan-storage-qemu: grogan-x86_64-image
 	./scripts/qemu_longmode_image.sh
+
+grogan-storage-syscall-qemu:
+	./scripts/qemu_grogan_storage_syscalls.sh
 
 grogan-compiler:
 	./scripts/check_grogan_compiler.sh

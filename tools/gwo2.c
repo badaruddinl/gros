@@ -145,10 +145,23 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
         uint8_t op = h[code_offset + pc];
         uint32_t length = 1;
         int effect = 0;
-        if (op == 1) { length = 5; effect = 1; }
+            if (op == 1) { length = 5; effect = 1; }
         else if (op == 2) { length = 2; effect = 1; }
         else if (op == 3) { length = 2; effect = -1; }
         else if (op >= 4 && op <= 9) { effect = -1; }
+        else if (op == 15) {
+            if (pc + 2 > code_size) {
+                free(jump_flags); free(jump_targets); free(boundaries);
+                set_error(error, error_size, "invalid GWO2 byte constant boundary");
+                return 0;
+            }
+            length = 2u + h[code_offset + pc + 1];
+            effect = 1;
+        }
+        else if (op == 16) { effect = -1; }
+        else if (op == 17) { effect = -3; }
+        else if (op == 18) { effect = 1; }
+        else if (op == 19) { effect = -1; }
         else if (op == 10) { length = 3; }
         else if (op == 11) { length = 3; effect = -1; }
         else if (op == 12) {
@@ -162,6 +175,13 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
             uint8_t argc = h[code_offset + pc + 2];
             if ((import_id == 1 || import_id == 2) && argc == 1) effect = -1;
             else if (import_id == 3 && argc == 0) effect = 0;
+            else if ((import_id == 4 || import_id == 5) && argc == 2) effect = -1;
+            else if ((import_id == 6 || import_id == 7) && argc == 3) effect = -2;
+            else if ((import_id == 8 || import_id == 11 || import_id == 12) && argc == 1) effect = 0;
+            else if (import_id == 9 && argc == 2) effect = -1;
+            else if (import_id == 10 && argc == 1) effect = 0;
+            else if (import_id == 13 && argc == 2) effect = -2;
+            else if (import_id == 14 && argc == 0) effect = 0;
             else {
                 free(jump_flags); free(jump_targets); free(boundaries);
                 set_error(error, error_size, "unsupported GWO2 import signature");
@@ -171,7 +191,11 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
         else if (op == 13) { effect = -1; }
         else if (op == 14) { effect = 0; }
         else { free(jump_flags); free(jump_targets); free(boundaries); set_error(error, error_size, "unknown GWO2 opcode"); return 0; }
-        if (pc + length > code_size || depth < (effect < 0 ? (unsigned)-effect : 0u)) { free(jump_flags); free(jump_targets); free(boundaries); set_error(error, error_size, "invalid GWO2 instruction boundary or stack effect"); return 0; }
+        if (pc + length > code_size || depth < (effect < 0 ? (unsigned)-effect : 0u)) {
+            char detail[160];
+            snprintf(detail, sizeof(detail), "invalid GWO2 instruction at %u (op=%u depth=%u effect=%d length=%u)", pc, op, depth, effect, length);
+            free(jump_flags); free(jump_targets); free(boundaries); set_error(error, error_size, detail); return 0;
+        }
         depth = (uint32_t)((int)depth + effect);
         if (depth > 1024) {
             free(jump_flags); free(jump_targets); free(boundaries);

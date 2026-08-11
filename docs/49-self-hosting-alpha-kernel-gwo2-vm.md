@@ -25,6 +25,10 @@ print_i32(i32) -> console_write + decimal conversion
 newline()     -> console_write(\n)
 exit(i32)     -> process_exit
 return/halt   -> process_exit
+const_bytes   -> bounded NUL-terminated bytes in the process VM pool
+file_open/read/write/close/stat -> checked GFS2 file syscalls
+path_create/unlink -> checked GFS2 metadata syscalls
+load_byte/store_byte -> validated process-memory byte access
 ```
 
 The VM saves its program counter, operand depth, and step counter in user
@@ -44,5 +48,6 @@ exit markers, and a separate fault-injection run where both ring-3 guard-page
 faults reach `USEROK` without halting the kernel.
 
 The VM bridge is deliberately not claimed as compiler self-hosting yet. File
-syscalls, a persistent ring-3 shell/editor, in-OS `grc1`, and fixed-point
-self-rebuild remain the next roadmap gates.
+imports now have a host/kernel parity fixture and a QEMU storage-smoke proof.
+A persistent ring-3 shell/editor, in-OS `grc1`, and fixed-point self-rebuild
+remain the next roadmap gates.

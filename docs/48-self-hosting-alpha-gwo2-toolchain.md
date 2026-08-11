@@ -20,11 +20,12 @@ scripts/grvm.sh (tools/grvm.c)
 deterministic console output
 ```
 
-`grc0` accepts the Alpha target declaration, one typed `fn main`, i32 locals,
-assignment, integer expressions, `if/else`, `while`, and the three fixed
-console imports. It emits the GWO2 v2 single-bytecode-section image from
-docs/45. `grvm` verifies the image before executing it with bounded locals,
-operand stack, and instruction steps.
+`grc0` accepts the Alpha target declaration, one typed `fn main`, i32/pointer
+locals, assignment, integer expressions, `if/else`, `while`, byte literals,
+byte load/store, memory growth, and the checked console/file imports. It emits
+the GWO2 v2 single-bytecode-section image from docs/45. `grvm` verifies the
+image before executing it with bounded literals, locals, operand stack, VM
+memory, file handles, and instruction steps.
 
 ## Evidence and failure handling
 
@@ -39,6 +40,7 @@ checksummed malformed images and proves rejection of bad container fields,
 overlap/size errors, invalid entries, unknown instructions, stack underflow,
 non-boundary jumps, and unsupported imports.
 
-The hosted path is the reference implementation for the later in-OS GrVM. It
-does not yet claim ring-3 file syscalls, a multi-module linker, or compiler
+The hosted path is the reference implementation for the later in-OS GrVM. The
+storage-smoke fixture proves byte round-trip and unlink through the same import
+signatures. It does not yet claim a multi-module linker or compiler
 self-rebuild; those are the next roadmap gates.

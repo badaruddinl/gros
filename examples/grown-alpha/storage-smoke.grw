@@ -1,0 +1,15 @@
+target "gros.x86.bios.longmode.grogan.v1"
+fn main() -> void {
+    let handle: i32 = path_create("vm-storage-smoke.grw");
+    let buffer: i32 = mem_grow(64);
+    store_byte(buffer, 0, 65);
+    store_byte(buffer, 1, 10);
+    file_write(handle, buffer, 2);
+    file_close(handle);
+    let reader: i32 = file_open("vm-storage-smoke.grw", 0);
+    let output: i32 = mem_grow(64);
+    let count: i32 = file_read(reader, output, 2);
+    print_bytes(output, count);
+    file_close(reader);
+    file_unlink("vm-storage-smoke.grw");
+}

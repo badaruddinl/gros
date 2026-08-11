@@ -1,0 +1,43 @@
+target "gros.x86.bios.longmode.grogan.v1"
+fn main() -> void {
+    let input: i32 = mem_grow(64);
+    let pending: i32 = 0;
+    print_str("GrOS user shell\n");
+    while (1 < 2) {
+        let count: i32 = console_read(input, 64);
+        if (count < 1) {
+            task_yield();
+        } else {
+            let first: i32 = load_byte(input, 0);
+            if (pending == 114) {
+                if (first == 109) {
+                    file_unlink("hello.grw");
+                    print_str("RM OK\n");
+                } else if (first == 101) {
+                    exit(0);
+                }
+                pending = 0;
+            } else if (first == 114) {
+                pending = 114;
+            } else if (first == 108) {
+                print_str("hello.grw\n");
+            } else if (first == 99) {
+                let cat_handle: i32 = file_open("hello.grw", 0);
+                let cat_buffer: i32 = mem_grow(64);
+                let cat_count: i32 = file_read(cat_handle, cat_buffer, 512);
+                print_bytes(cat_buffer, cat_count);
+                file_close(cat_handle);
+            } else if (first == 115) {
+                let save_handle: i32 = path_create("hello.grw");
+                file_write(save_handle, "target \"gros.x86.bios.longmode.grogan.v1\"\nfn main() -> void {\n    print_i32(28);\n}\n", 83);
+                file_close(save_handle);
+                print_str("SAVE OK\n");
+            } else if (first == 101) {
+                let edit_handle: i32 = path_create("hello.grw");
+                file_write(edit_handle, "target \"gros.x86.bios.longmode.grogan.v1\"\nfn main() -> void {\n    print_i32(28);\n}\n", 83);
+                file_close(edit_handle);
+                print_str("SAVE OK\n");
+            }
+        }
+    }
+}

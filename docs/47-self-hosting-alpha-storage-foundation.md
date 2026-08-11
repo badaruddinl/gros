@@ -16,6 +16,11 @@ The first persistent disk path is now connected to the Grogan kernel.
 - Host fixtures implement the fixed inode table, bitmap, root directory,
   contiguous extents, create/overwrite/truncate/append/unlink, remount, and
   corruption rejection. The same on-disk bytes are used by the kernel mount.
+- Kernel GFS2 operations now implement bounded root `create`, `open`, `read`,
+  `write`, `stat`, `close`, and `unlink` paths with user-span checks,
+  inode/bitmap/directory checksums, and inactive-superblock commits.
+- The emergency shell's `save`, `ls`, and `cat` commands use GFS2, and the
+  storage-smoke GWO2 program exercises the ring-3 file imports and unlink path.
 
 ## Evidence
 
@@ -23,13 +28,17 @@ The first persistent disk path is now connected to the Grogan kernel.
 make gfs2-host gfs2-host-failures
 make grogan-storage
 make grogan-storage-qemu
+make grogan-storage-syscall-qemu
 ```
 
-The boot trace contains `ATAOKGFS2OK` before the syscall/user transition.
+The boot trace contains `ATAOKGFS2OK` before the syscall/user transition. The
+shell QEMU lane saves `hello.grw`, boots again, and reads the exact source;
+the storage-smoke lane creates, writes, reads, closes, unlinks, and runs the
+host checker against the resulting image.
 
 ## Still deliberately open
 
-The kernel shell still reads the historical embedded GFS1 seed; GFS2 file
-syscalls, metadata updates from ring 3, and crash-recoverable write ordering are
-the next storage integration batches. The host GFS2 checker is the authority
-for those metadata invariants until the syscall layer is connected.
+The kernel still retains the historical embedded GFS1 seed only as an emergency
+diagnostic fallback. The bounded Alpha profile is one root directory and one
+512-byte regular-file extent per operation; multi-block files, crash-injected
+recovery, and ring-3 editor utilities remain explicit follow-on work.

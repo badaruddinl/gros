@@ -50,21 +50,28 @@ Bytecode is a deterministic stack machine. The first executable encoding is:
 0x07 div_i32       0x08 eq_i32        0x09 lt_i32
 0x0a jump <i16-relative>       0x0b jump_if_zero <i16-relative>
 0x0c import <u8-id> <u8-argc>   0x0d return   0x0e halt
+0x0f const_bytes <u8-len> <bytes>
+0x10 load_byte(pointer,index)   0x11 store_byte(pointer,index,value)
+0x12 duplicate                   0x13 drop
 ```
 
 Imports are fixed and verifier-checked: id 1 is `print_i32(i32)`, id 2 is
-`exit(i32)`, and id 3 is `newline()`. Each instruction has a declared stack
-effect. Jumps target instruction boundaries. Locals and the operand stack are
-bounded, and invalid bytecode is rejected before any user memory or syscall
-side effect occurs.
+`exit(i32)`, and id 3 is `newline()`. IDs 4-13 are the checked runtime ABI:
+`console_read`, `file_open`, `file_read`, `file_write`, `file_close`,
+`file_stat`, `mem_grow`, `path_create`, `file_unlink`, and `print_bytes`.
+`const_bytes` copies a bounded NUL-terminated literal into the runtime's
+owned byte pool; byte load/store operations validate the pointed-to user span.
+Each instruction has a declared stack effect. Jumps target instruction
+boundaries. Locals and the operand stack are bounded, and invalid bytecode is
+rejected before any user memory or syscall side effect occurs.
 
 ## Grown Alpha source
 
-The first executable subset has one typed `fn main`, i32 locals, assignment,
-`if/else`, `while`, integer expressions, and the deterministic console imports
-`print_i32`, `newline`, and `exit`. Source diagnostics carry file, line, and
-column. Modules, bytes/string values, file calls, and multi-function linking
-remain explicit follow-on work; they are not represented as implemented here.
+The first executable subset has one typed `fn main`, i32/pointer locals,
+assignment, `if/else`, `while`, integer expressions, byte strings, byte
+load/store, memory growth, and the console/file standard-library calls listed
+above. Source diagnostics carry file, line, and column. Multi-function
+linking, modules, and richer type checking remain explicit follow-on work.
 
 ## Bootstrap stages
 

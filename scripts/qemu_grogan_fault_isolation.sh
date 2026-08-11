@@ -18,7 +18,7 @@ command -v qemu-system-x86_64 > /dev/null 2>&1 || { echo 'error: qemu-system-x86
 "$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
 OFFSET=$(grep -aob 'VMP2' "$IMAGE" | tail -n 1 | cut -d: -f1)
 [ -n "$OFFSET" ] || { echo 'error: VM entry marker not found' >&2; exit 1; }
-printf '%b' '\x48\x8b\x04\x25\x00\x10\x40\x00' | dd of="$IMAGE" bs=1 seek="$((OFFSET + 4))" conv=notrunc status=none
+printf '%b' '\x48\x8b\x04\x25\x00\x20\x40\x00' | dd of="$IMAGE" bs=1 seek="$((OFFSET + 4))" conv=notrunc status=none
 
 set +e
 timeout 8 qemu-system-x86_64 \

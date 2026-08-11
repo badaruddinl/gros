@@ -13,19 +13,25 @@ section .boot start=0 vstart=0x7c00
 %define PAGE_SIZE 0x1000
 %define USER_BASE 0x400000
 %define USER_CODE 0x400000
-%define USER_GUARD 0x401000
-%define USER_STACK 0x402000
-%define USER_STACK_TOP 0x403000
+%define USER_GUARD 0x402000
+%define USER_STACK 0x403000
+%define USER_STACK_TOP 0x404000
 %define USER_LIMIT 0x40000000
-%define VM_BLOB_OFFSET 0x400
+; Keep the fixed GrVM entry and the verified bytecode in separate user pages.
+; The interpreter has grown beyond the original 0x400-byte inline prefix;
+; sharing a page would let the payload overwrite its native dispatch loop.
+%define VM_BLOB_OFFSET 0x1000
 %define VM_STACK_BASE (USER_STACK + 0x100)
 %define VM_LOCALS_BASE (USER_STACK + 0x600)
 %define VM_BUFFER (USER_STACK + 0x900)
+%define VM_CONST_BASE (VM_BUFFER + 0x80)
+%define VM_CONST_LIMIT (VM_BUFFER + 0x2c0)
+%define VM_CONST_CURSOR (VM_BUFFER + 0x2c0)
 %define VM_PC_SLOT USER_STACK
 %define VM_SP_SLOT (USER_STACK + 8)
 %define VM_STEP_SLOT (USER_STACK + 16)
 %define VM_LIMIT_SLOT (USER_STACK + 24)
-%define VM_CODE_LIMIT (USER_CODE + VM_BLOB_OFFSET + PAGE_SIZE - VM_BLOB_OFFSET)
+%define VM_CODE_LIMIT (USER_CODE + VM_BLOB_OFFSET + PAGE_SIZE)
 %define KERNEL_CR3 0x1000
 %define KERNEL_PDPT 0x2000
 %define KERNEL_PD 0x3000
@@ -304,7 +310,7 @@ process_create:
     mov r13, rsi
     mov r14, rdx
     mov r15, rcx
-    cmp r15, PAGE_SIZE - VM_BLOB_OFFSET
+    cmp r15, PAGE_SIZE
     ja .fail
     xor eax, eax
     mov rdi, r12
@@ -352,6 +358,18 @@ process_create:
     mov rdi, r8
     call zero_page
 
+    ; The native GrVM entry and the verified bytecode have separate pages.
+    ; PROC_PARENT is unused by the Alpha scheduler and stores the payload
+    ; frame so teardown can reclaim it without enlarging the fixed object.
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_PARENT], rax
+    mov r8, rax
+    mov rdi, r8
+    call zero_page
+
     mov rdi, r13
     call frame_alloc_owned
     test rax, rax
@@ -386,15 +404,19 @@ process_create:
     or rax, 7
     mov [rbx + 16], rax
 
-    ; PTE[0] is RX code, PTE[1] is the unmapped guard page, PTE[2] is RW
-    ; user stack.  A missing PTE therefore becomes a recoverable user fault.
+    ; PTE[0] is the native RX entry, PTE[1] is the verified RX bytecode,
+    ; PTE[2] is the unmapped guard page, and PTE[3] is the RW user stack.
+    ; A missing PTE therefore becomes a recoverable user fault.
     mov rbx, [r12 + PROC_PT]
     mov rax, [r12 + PROC_CODE]
     or rax, 5
     mov [rbx], rax
+    mov rax, [r12 + PROC_PARENT]
+    or rax, 5
+    mov [rbx + 8], rax
     mov rax, [r12 + PROC_STACK]
     or rax, 7
-    mov [rbx + 16], rax
+    mov [rbx + 24], rax
 
     ; The executable page contains the fixed ring-3 GrVM entry followed by
     ; verified GWO2 bytecode.  The VM itself is native bootstrap code; the
@@ -404,14 +426,12 @@ process_create:
     mov rsi, user_vm_program
     mov ecx, user_vm_program_end - user_vm_program
     rep movsb
-    mov rdi, [r12 + PROC_CODE]
-    add rdi, VM_BLOB_OFFSET
+    mov rdi, [r12 + PROC_PARENT]
     mov rsi, r14
     mov ecx, r15d
     rep movsb
 
     mov dword [r12 + PROC_PID], r13d
-    mov dword [r12 + PROC_PARENT], 0
     mov dword [r12 + PROC_STATE], PROC_READY
     mov dword [r12 + PROC_EXIT_STATUS], 0
     mov qword [r12 + PROC_RIP], USER_CODE
@@ -497,6 +517,13 @@ process_reap:
     push r14
     mov r12, rdi
     mov r13d, [r12 + PROC_PID]
+    mov rdi, [r12 + PROC_PARENT]
+    test rdi, rdi
+    jz .payload_done
+    mov rsi, r13
+    call frame_free_owned
+    mov qword [r12 + PROC_PARENT], 0
+.payload_done:
     lea rbx, [r12 + PROC_CR3]
     mov r14d, 7
 .frame:
@@ -590,6 +617,9 @@ user_mode_seed:
     mov rdi, process_one
     mov rsi, 1
     call process_create
+    mov rdi, user_helper_image
+    mov esi, user_helper_image_end - user_helper_image
+    call gwo_load_image
     mov rdx, user_payload_kernel
     mov ecx, [abs user_payload_size]
     mov rdi, process_two
@@ -610,52 +640,61 @@ user_mode_seed:
     db 0x48, 0x0f, 0x07       ; SYSRETQ
 
 gwo_load_user:
+    mov rdi, user_gwo_image
+    mov esi, user_gwo_image_end - user_gwo_image
+    jmp gwo_load_image
+
+gwo_load_image:
     ; GWO2 v2 Alpha has a 32-byte header and one 16-byte bytecode section.
     ; Every size, target, checksum, instruction boundary, import signature,
     ; and stack effect is checked before any user address space is created.
-    cmp dword [abs user_gwo_image], 0x324f5747 ; GWO2
+    push r12
+    push r13
+    mov r12, rdi
+    mov r13d, esi
+    cmp dword [r12], 0x324f5747 ; GWO2
     jne .fail
-    cmp word [abs user_gwo_image + 4], 2
+    cmp word [r12 + 4], 2
     jne .fail
-    cmp word [abs user_gwo_image + 6], 1
+    cmp word [r12 + 6], 1
     jne .fail
-    cmp word [abs user_gwo_image + 8], 1
+    cmp word [r12 + 8], 1
     jne .fail
-    cmp word [abs user_gwo_image + 10], 0
+    cmp word [r12 + 10], 0
     jne .fail
-    cmp dword [abs user_gwo_image + 12], 32
+    cmp dword [r12 + 12], 32
     jne .fail
-    cmp dword [abs user_gwo_image + 16], 1
+    cmp dword [r12 + 16], 1
     jne .fail
-    cmp dword [abs user_gwo_image + 20], 0
+    cmp dword [r12 + 20], 0
     jne .fail
-    mov r8d, [abs user_gwo_image + 24]
+    mov r8d, [r12 + 24]
     test r8d, r8d
     jz .fail
-    cmp r8d, PAGE_SIZE - VM_BLOB_OFFSET
+    cmp r8d, PAGE_SIZE
     ja .fail
     mov eax, r8d
     add eax, 48
-    cmp eax, user_gwo_image_end - user_gwo_image
+    cmp eax, r13d
     jne .fail
-    cmp dword [abs user_gwo_image + 32], 1
+    cmp dword [r12 + 32], 1
     jne .fail
-    cmp dword [abs user_gwo_image + 36], 48
+    cmp dword [r12 + 36], 48
     jne .fail
-    cmp dword [abs user_gwo_image + 40], r8d
+    cmp dword [r12 + 40], r8d
     jne .fail
-    mov rdi, user_gwo_image + 32
+    lea rdi, [r12 + 32]
     mov esi, r8d
     add rsi, 16
     call gwo_fnv32
-    cmp eax, [abs user_gwo_image + 28]
+    cmp eax, [r12 + 28]
     jne .fail
-    mov rdi, user_gwo_image + 48
+    lea rdi, [r12 + 48]
     mov esi, r8d
     call gwo_fnv32
-    cmp eax, [abs user_gwo_image + 44]
+    cmp eax, [r12 + 44]
     jne .fail
-    mov rsi, user_gwo_image + 48
+    lea rsi, [r12 + 48]
     mov rdi, user_payload_kernel
     mov ecx, r8d
     rep movsb
@@ -677,6 +716,8 @@ gwo_load_user:
     out 0xe9, al
     mov al, 'K'
     out 0xe9, al
+    pop r13
+    pop r12
     ret
 .fail:
     cli
@@ -733,6 +774,16 @@ gwo2_verify_code:
     cmp eax, 9
     jbe .arithmetic
 .not_arithmetic:
+    cmp eax, 15
+    je .byte_const
+    cmp eax, 16
+    je .byte_load
+    cmp eax, 17
+    je .byte_store
+    cmp eax, 18
+    je .duplicate
+    cmp eax, 19
+    je .drop
     cmp eax, 10
     je .jump
     cmp eax, 11
@@ -766,6 +817,27 @@ gwo2_verify_code:
     mov r10d, 1
     mov r11d, -1
     jmp .finish
+.byte_const:
+    movzx edx, byte [r12 + r8 + 1]
+    lea r10d, [edx + 2]
+    mov r11d, 1
+    jmp .finish
+.byte_load:
+    mov r10d, 1
+    mov r11d, -1
+    jmp .finish
+.byte_store:
+    mov r10d, 1
+    mov r11d, -3
+    jmp .finish
+.duplicate:
+    mov r10d, 1
+    mov r11d, 1
+    jmp .finish
+.drop:
+    mov r10d, 1
+    mov r11d, -1
+    jmp .finish
 .jump:
     mov r10d, 3
     jmp .finish
@@ -782,14 +854,62 @@ gwo2_verify_code:
     cmp edx, 2
     je .import_one
     cmp edx, 3
-    jne .bad
-    test ecx, ecx
-    jnz .bad
-    jmp .finish
+    je .import_zero
+    cmp edx, 4
+    je .import_two_result
+    cmp edx, 5
+    je .import_two_result
+    cmp edx, 6
+    je .import_three_result
+    cmp edx, 7
+    je .import_three_result
+    cmp edx, 8
+    je .import_one_zero
+    cmp edx, 9
+    je .import_two_zero
+    cmp edx, 10
+    je .import_one_zero
+    cmp edx, 11
+    je .import_one_zero
+    cmp edx, 12
+    je .import_one_zero
+    cmp edx, 13
+    je .import_two_void
+    cmp edx, 14
+    je .import_zero
+    jmp .bad
 .import_one:
     cmp ecx, 1
     jne .bad
     mov r11d, -1
+    jmp .finish
+.import_zero:
+    test ecx, ecx
+    jnz .bad
+    jmp .finish
+.import_two_result:
+    cmp ecx, 2
+    jne .bad
+    mov r11d, -1
+    jmp .finish
+.import_three_result:
+    cmp ecx, 3
+    jne .bad
+    mov r11d, -2
+    jmp .finish
+.import_one_zero:
+    cmp ecx, 1
+    jne .bad
+    jmp .finish
+.import_two_zero:
+    cmp ecx, 2
+    jne .bad
+    mov r11d, -1
+    jmp .finish
+.import_two_void:
+    cmp ecx, 2
+    jne .bad
+    mov r11d, -2
     jmp .finish
 .return:
     mov r10d, 1
@@ -802,16 +922,6 @@ gwo2_verify_code:
     add eax, r10d
     jc .bad
     cmp eax, r13d
-    ja .bad
-    test r11d, r11d
-    jns .effect_add
-    mov edx, r11d
-    neg edx
-    cmp r9d, edx
-    jb .bad
-.effect_add:
-    add r9d, r11d
-    cmp r9d, 128
     ja .bad
     cmp byte [r12 + r8], 10
     je .check_jump_bounds
@@ -841,6 +951,16 @@ gwo2_verify_code:
     je .boundary_length2
     cmp eax, 3
     je .boundary_length2
+    cmp eax, 15
+    je .boundary_byte_const
+    cmp eax, 16
+    je .boundary_length
+    cmp eax, 17
+    je .boundary_length
+    cmp eax, 18
+    je .boundary_length
+    cmp eax, 19
+    je .boundary_length
     cmp eax, 10
     je .boundary_jump
     cmp eax, 11
@@ -862,6 +982,10 @@ gwo2_verify_code:
 .boundary_const:
     mov r10d, 5
     jmp .boundary_length
+.boundary_byte_const:
+    movzx r10d, byte [r12 + r8 + 1]
+    add r10d, 2
+    jmp .boundary_length
 .boundary_jump:
     cmp eax, 12
     je .boundary_import
@@ -879,6 +1003,213 @@ gwo2_verify_code:
 .boundary_length:
     add r8d, r10d
     jmp .boundaries
+.cfg_init:
+    ; Re-run the verified instruction map as a small forward data-flow
+    ; analysis.  A linear stack counter is insufficient for if/else and loop
+    ; joins: every reachable instruction receives exactly one operand depth.
+    mov rdi, gwo2_depths
+    mov al, 0xff
+    mov ecx, PAGE_SIZE
+    rep stosb
+    mov byte [gwo2_depths], 0
+.cfg_pass:
+    xor r10d, r10d              ; changed in this pass
+    xor r8d, r8d
+.cfg_scan:
+    cmp r8d, r13d
+    jae .cfg_done_scan
+    movzx eax, byte [gwo2_depths + r8]
+    cmp eax, 0xff
+    je .cfg_next
+    cmp byte [gwo2_boundaries + r8], 1
+    jne .bad
+    mov r9d, eax                ; input depth
+    movzx eax, byte [r12 + r8]
+    mov r14d, 1                 ; instruction length
+    xor r15d, r15d              ; stack effect
+    xor ebx, ebx                ; successor kind: normal/jump/cond/terminal
+    cmp eax, 1
+    je .cfg_const
+    cmp eax, 2
+    je .cfg_load_local
+    cmp eax, 3
+    je .cfg_store_local
+    cmp eax, 4
+    jb .cfg_special
+    cmp eax, 9
+    jbe .cfg_arithmetic
+.cfg_special:
+    cmp eax, 10
+    je .cfg_jump
+    cmp eax, 11
+    je .cfg_jump_zero
+    cmp eax, 12
+    je .cfg_import
+    cmp eax, 13
+    je .cfg_return
+    cmp eax, 14
+    je .cfg_halt
+    cmp eax, 15
+    je .cfg_byte_const
+    cmp eax, 16
+    je .cfg_byte_load
+    cmp eax, 17
+    je .cfg_byte_store
+    cmp eax, 18
+    je .cfg_duplicate
+    cmp eax, 19
+    je .cfg_drop
+    jmp .bad
+.cfg_const:
+    mov r14d, 5
+    mov r15d, 1
+    jmp .cfg_effect
+.cfg_load_local:
+    mov r14d, 2
+    mov r15d, 1
+    jmp .cfg_effect
+.cfg_store_local:
+    mov r14d, 2
+    mov r15d, -1
+    jmp .cfg_effect
+.cfg_arithmetic:
+    mov r15d, -1
+    jmp .cfg_effect
+.cfg_jump:
+    mov r14d, 3
+    mov ebx, 1
+    jmp .cfg_effect
+.cfg_jump_zero:
+    mov r14d, 3
+    mov r15d, -1
+    mov ebx, 2
+    jmp .cfg_effect
+.cfg_return:
+    mov r15d, -1
+    mov ebx, 3
+    jmp .cfg_effect
+.cfg_halt:
+    mov ebx, 3
+    jmp .cfg_effect
+.cfg_byte_const:
+    movzx edx, byte [r12 + r8 + 1]
+    lea r14d, [edx + 2]
+    mov r15d, 1
+    jmp .cfg_effect
+.cfg_byte_load:
+    mov r15d, -1
+    jmp .cfg_effect
+.cfg_byte_store:
+    mov r15d, -3
+    jmp .cfg_effect
+.cfg_duplicate:
+    mov r15d, 1
+    jmp .cfg_effect
+.cfg_drop:
+    mov r15d, -1
+    jmp .cfg_effect
+.cfg_import:
+    mov r14d, 3
+    movzx edx, byte [r12 + r8 + 1]
+    movzx ecx, byte [r12 + r8 + 2]
+    cmp edx, 1
+    je .cfg_import_pop
+    cmp edx, 2
+    je .cfg_import_exit
+    cmp edx, 3
+    je .cfg_import_zero
+    cmp edx, 4
+    je .cfg_import_pop
+    cmp edx, 5
+    je .cfg_import_pop
+    cmp edx, 6
+    je .cfg_import_pop2
+    cmp edx, 7
+    je .cfg_import_pop2
+    cmp edx, 8
+    je .cfg_import_zero
+    cmp edx, 9
+    je .cfg_import_pop
+    cmp edx, 10
+    je .cfg_import_zero
+    cmp edx, 11
+    je .cfg_import_zero
+    cmp edx, 12
+    je .cfg_import_zero
+    cmp edx, 13
+    je .cfg_import_pop2
+    cmp edx, 14
+    je .cfg_import_zero
+    jmp .bad
+.cfg_import_pop:
+    mov r15d, -1
+    jmp .cfg_effect
+.cfg_import_pop2:
+    mov r15d, -2
+    jmp .cfg_effect
+.cfg_import_zero:
+    xor r15d, r15d
+    jmp .cfg_effect
+.cfg_import_exit:
+    mov r15d, -1
+    mov ebx, 3
+.cfg_effect:
+    mov edx, r9d
+    add edx, r15d
+    js .bad
+    cmp edx, 128
+    ja .bad
+    mov r9d, edx                ; output depth
+    ; Merge the fall-through successor for normal and conditional ops.
+    cmp ebx, 1
+    je .cfg_target
+    cmp ebx, 3
+    je .cfg_target
+    mov edx, r8d
+    add edx, r14d
+    jc .bad
+    cmp edx, r13d
+    jae .bad
+    cmp byte [gwo2_boundaries + rdx], 1
+    jne .bad
+    movzx ecx, byte [gwo2_depths + rdx]
+    cmp ecx, 0xff
+    jne .cfg_fall_known
+    mov [gwo2_depths + rdx], r9b
+    mov r10d, 1
+    jmp .cfg_target
+.cfg_fall_known:
+    cmp ecx, r9d
+    jne .bad
+.cfg_target:
+    ; Unconditional and conditional jumps merge their encoded target.
+    cmp ebx, 0
+    je .cfg_next
+    cmp ebx, 3
+    je .cfg_next
+    movsx edx, word [r12 + r8 + 1]
+    lea ecx, [r8 + r14]
+    add ecx, edx
+    js .bad
+    cmp ecx, r13d
+    jae .bad
+    cmp byte [gwo2_boundaries + rcx], 1
+    jne .bad
+    movzx edx, byte [gwo2_depths + rcx]
+    cmp edx, 0xff
+    jne .cfg_target_known
+    mov [gwo2_depths + rcx], r9b
+    mov r10d, 1
+    jmp .cfg_next
+.cfg_target_known:
+    cmp edx, r9d
+    jne .bad
+.cfg_next:
+    inc r8d
+    jmp .cfg_scan
+.cfg_done_scan:
+    test r10d, r10d
+    jnz .cfg_pass
 .ok:
     mov eax, 1
     pop r15
@@ -939,7 +1270,7 @@ syscall_entry:
 .halt: hlt
     jmp .halt
 .read:
-    xor eax, eax
+    call console_read_user
     jmp .return_user
 .write:
     mov al, 'S'
@@ -968,13 +1299,17 @@ syscall_entry:
     mov r9, rax
     mov r8, rax
     sub r8, PAGE_SIZE
+    mov r12, r8
     mov rdi, rbx
     mov rsi, r8
     call process_map_page
     test eax, eax
     jz .mem_fail
+    ; process_map_page legitimately clobbers volatile r9 while allocating.
+    ; Reconstruct the committed break from the preserved mapped-page address.
+    lea r9, [r12 + PAGE_SIZE]
     mov [rbx + PROC_HEAP], r9
-    mov rax, r8
+    mov rax, r12
     jmp .return_user
 .mem_return:
     mov rax, [rbx + PROC_HEAP]
@@ -1013,6 +1348,12 @@ syscall_entry:
     mov byte [abs user_done], 1
     jmp process_exit_current
 .yield:
+    ; A cooperative yield is also a VM scheduling boundary.  Reset the
+    ; per-dispatch instruction budget so an idle shell does not self-terminate
+    ; merely because console_read returned -EAGAIN repeatedly.
+    mov rbx, [abs current_process]
+    mov r8, [rbx + PROC_STACK]
+    mov qword [r8 + 16], 0
     jmp process_yield_current
 .return_user:
     mov rbx, [abs current_process]
@@ -1020,6 +1361,50 @@ syscall_entry:
     mov r11, [rbx + PROC_FLAGS]
     mov rsp, [rbx + PROC_RSP]
     db 0x48, 0x0f, 0x07       ; SYSRETQ
+
+console_read_user:
+    ; RDI=user buffer, RSI=count.  The keyboard IRQ feeds a bounded byte ring;
+    ; reads are non-blocking and return -EAGAIN when it is empty.
+    cmp rsi, 256
+    ja .invalid
+    test rsi, rsi
+    jz .empty
+    call user_span_valid
+    test eax, eax
+    jz .fault
+    mov r8, rdi
+    xor r9d, r9d
+.next:
+    cmp r9, rsi
+    jae .done
+    movzx eax, byte [abs console_input_head]
+    cmp al, [abs console_input_tail]
+    je .again
+    movzx edx, al
+    mov al, [abs console_input_buffer + rdx]
+    mov [r8 + r9], al
+    inc dl
+    and dl, 0xff
+    mov [abs console_input_head], dl
+    inc r9
+    jmp .next
+.again:
+    test r9, r9
+    jnz .done
+    mov eax, -11
+    ret
+.done:
+    mov rax, r9
+    ret
+.empty:
+    xor eax, eax
+    ret
+.invalid:
+    mov eax, -22
+    ret
+.fault:
+    mov eax, -14
+    ret
 
 console_write_user:
     ; RDI=user bytes, RSI=count.  Return bytes written or a negative errno.
@@ -3006,6 +3391,9 @@ gfs_path_create_user:
     test eax, eax
     jz .fault
     call gfs_create_path
+    ; gfs_create_path uses r12-r14 for its directory/inode transaction.
+    ; Reload the process object before publishing the new handle state.
+    mov r12, [abs current_process]
     test eax, eax
     js .return_error
     mov r13d, eax
@@ -3127,6 +3515,25 @@ shell_start:
     call console_write_string
     ret
 
+console_input_push:
+    ; AL=one keyboard byte.  Drop the newest byte only when the bounded ring
+    ; is full; the emergency shell and ring-3 console reader share this queue.
+    push rbx
+    push rdx
+    mov dl, [abs console_input_tail]
+    mov bl, dl
+    inc bl
+    cmp bl, [abs console_input_head]
+    je .done
+    movzx edx, dl
+    mov [abs console_input_buffer + rdx], al
+    inc dl
+    mov [abs console_input_tail], dl
+.done:
+    pop rdx
+    pop rbx
+    ret
+
 keyboard_handle_scancode:
     ; Set-1 make codes for the small command vocabulary. Break codes are
     ; filtered by irq_keyboard_stub before this routine is called.
@@ -3219,6 +3626,7 @@ keyboard_handle_scancode:
     mov [abs shell_len], dl
     movzx edx, dl
     mov byte [rsi + rdx], 0
+    call console_input_push
     call console_write_char
 .done:
     ret
@@ -3226,6 +3634,12 @@ keyboard_handle_scancode:
     cmp byte [abs shell_len], 0
     je .done
     dec byte [abs shell_len]
+    mov dl, [abs console_input_tail]
+    cmp dl, [abs console_input_head]
+    je .visual_backspace
+    dec dl
+    mov [abs console_input_tail], dl
+.visual_backspace:
     movzx edx, byte [abs shell_len]
     mov rsi, shell_buffer
     mov byte [rsi + rdx], 0
@@ -3241,6 +3655,7 @@ keyboard_handle_scancode:
     call console_write_char
     mov al, 10
     call console_write_char
+    call console_input_push
     call shell_execute
     mov byte [abs shell_len], 0
     mov byte [abs shell_buffer], 0
@@ -3411,6 +3826,7 @@ user_vm_program:
     mov rdi, VM_STACK_BASE
     mov ecx, 192
     rep stosq
+    mov qword [abs VM_CONST_CURSOR], VM_CONST_BASE
 .loop:
     inc r14
     cmp r14, 1000000
@@ -3428,6 +3844,16 @@ user_vm_program:
     je .load_local
     cmp eax, 3
     je .store_local
+    cmp eax, 15
+    je .byte_const
+    cmp eax, 16
+    je .byte_load
+    cmp eax, 17
+    je .byte_store
+    cmp eax, 18
+    je .duplicate
+    cmp eax, 19
+    je .drop
     cmp eax, 4
     jb .check_jump
     cmp eax, 9
@@ -3473,6 +3899,83 @@ user_vm_program:
     dec r13
     mov rdx, [abs VM_STACK_BASE + r13 * 8]
     mov [abs VM_LOCALS_BASE + rax * 8], rdx
+    jmp .loop
+.byte_const:
+    movzx eax, byte [r12]
+    inc r12
+    mov r10, r12
+    add r10, rax
+    jc .fail
+    cmp r10, [abs VM_LIMIT_SLOT]
+    ja .fail
+    mov r8, [abs VM_CONST_CURSOR]
+    mov r9, r8
+    add r9, rax
+    inc r9
+    cmp r9, VM_CONST_LIMIT
+    ja .fail
+    cmp r13, 128
+    jae .fail
+    mov rdi, r8
+    mov rsi, r12
+    mov rcx, rax
+    rep movsb
+    mov byte [r8 + rax], 0
+    mov [abs VM_CONST_CURSOR], r9
+    mov [abs VM_STACK_BASE + r13 * 8], r8
+    inc r13
+    mov r12, r10
+    jmp .loop
+.byte_load:
+    cmp r13, 2
+    jb .fail
+    mov rax, [abs VM_STACK_BASE + r13 * 8 - 8]
+    mov rbx, [abs VM_STACK_BASE + r13 * 8 - 16]
+    test rax, rax
+    js .fail
+    add rbx, rax
+    jc .fail
+    mov rdi, rbx
+    mov esi, 1
+    call user_vm_span_valid
+    test eax, eax
+    jz .fail
+    movzx eax, byte [rbx]
+    mov [abs VM_STACK_BASE + r13 * 8 - 16], rax
+    dec r13
+    jmp .loop
+.byte_store:
+    cmp r13, 3
+    jb .fail
+    mov rax, [abs VM_STACK_BASE + r13 * 8 - 8]
+    mov rbx, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rdx, [abs VM_STACK_BASE + r13 * 8 - 24]
+    mov r8b, al
+    test rbx, rbx
+    js .fail
+    add rdx, rbx
+    jc .fail
+    mov rdi, rdx
+    mov esi, 1
+    call user_vm_span_valid
+    test eax, eax
+    jz .fail
+    mov [rdx], r8b
+    sub r13, 3
+    jmp .loop
+.duplicate:
+    cmp r13, 128
+    jae .fail
+    test r13, r13
+    jz .fail
+    mov rax, [abs VM_STACK_BASE + r13 * 8 - 8]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.drop:
+    test r13, r13
+    jz .fail
+    dec r13
     jmp .loop
 .arithmetic:
     cmp r13, 2
@@ -3562,7 +4065,239 @@ user_vm_program:
     je .import_exit
     cmp eax, 3
     je .import_newline
+    cmp eax, 4
+    je .import_console_read
+    cmp eax, 5
+    je .import_file_open
+    cmp eax, 6
+    je .import_file_read
+    cmp eax, 7
+    je .import_file_write
+    cmp eax, 8
+    je .import_file_close
+    cmp eax, 9
+    je .import_file_stat
+    cmp eax, 10
+    je .import_mem_grow
+    cmp eax, 11
+    je .import_path_create
+    cmp eax, 12
+    je .import_file_unlink
+    cmp eax, 13
+    je .import_print_bytes
+    cmp eax, 14
+    je .import_task_yield
     jmp .fail
+.import_console_read:
+    cmp ebx, 2
+    jne .fail
+    cmp r13, 2
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rsi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    sub r13, 2
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 1
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_file_open:
+    cmp ebx, 2
+    jne .fail
+    cmp r13, 2
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rsi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    sub r13, 2
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 3
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_file_read:
+    cmp ebx, 3
+    jne .fail
+    cmp r13, 3
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 24]
+    mov rsi, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rdx, [abs VM_STACK_BASE + r13 * 8 - 8]
+    sub r13, 3
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 4
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_file_write:
+    cmp ebx, 3
+    jne .fail
+    cmp r13, 3
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 24]
+    mov rsi, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rdx, [abs VM_STACK_BASE + r13 * 8 - 8]
+    sub r13, 3
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 5
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_file_close:
+    cmp ebx, 1
+    jne .fail
+    cmp r13, 1
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    dec r13
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 6
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_file_stat:
+    cmp ebx, 2
+    jne .fail
+    cmp r13, 2
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rsi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    sub r13, 2
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 7
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_mem_grow:
+    cmp ebx, 1
+    jne .fail
+    cmp r13, 1
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    dec r13
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 8
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_path_create:
+    cmp ebx, 1
+    jne .fail
+    cmp r13, 1
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    dec r13
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 0x0d
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_file_unlink:
+    cmp ebx, 1
+    jne .fail
+    cmp r13, 1
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    dec r13
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 0x0e
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_print_bytes:
+    cmp ebx, 2
+    jne .fail
+    cmp r13, 2
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rsi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    sub r13, 2
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 2
+    syscall
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    jmp .loop
+.import_task_yield:
+    test ebx, ebx
+    jnz .fail
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 0x0c
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
 .import_print:
     cmp ebx, 1
     jne .fail
@@ -3622,6 +4357,26 @@ user_vm_program:
     cli
     hlt
     jmp .halt_forever
+
+user_vm_span_valid:
+    ; Ring-3 VM memory helpers cannot call the kernel's page-table validator.
+    ; Keep their range proof local and rely on the mapped-page fault boundary
+    ; for the guard hole; a fault terminates only this process.
+    test rsi, rsi
+    jz .vm_span_ok
+    cmp rdi, USER_BASE
+    jb .vm_span_bad
+    mov rax, rdi
+    add rax, rsi
+    jc .vm_span_bad
+    cmp rax, USER_LIMIT
+    ja .vm_span_bad
+.vm_span_ok:
+    mov eax, 1
+    ret
+.vm_span_bad:
+    xor eax, eax
+    ret
 
 vm_print_i32:
     ; RAX=i32 sign-extended.  Render backwards into the user buffer, then
@@ -3864,6 +4619,8 @@ user_payload_size:
 align 8
 gwo2_boundaries:
     times PAGE_SIZE db 0
+gwo2_depths:
+    times PAGE_SIZE db 0
 ata_ready:
     db 0
 gfs_mount_valid:
@@ -3904,6 +4661,13 @@ vga_cursor:
     dq 0
 shell_buffer:
     times 64 db 0
+console_input_head:
+    db 0
+console_input_tail:
+    db 0
+align 16
+console_input_buffer:
+    times 256 db 0
 shell_banner:
     db 13, 10, 'GrOS x86_64', 13, 10, 0
 shell_prompt:
@@ -3951,6 +4715,10 @@ align 16
 user_gwo_image:
     incbin "build/generated/grogan-user.gwo"
 user_gwo_image_end:
+align 16
+user_helper_image:
+    incbin "build/generated/grogan-helper.gwo"
+user_helper_image_end:
 align 16
 fs_image:
     dd 0x31534647 ; GFS1
