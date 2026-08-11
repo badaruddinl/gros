@@ -45,6 +45,13 @@ bounded extents. A root directory entry stores a 31-byte UTF-8 name and an
 inode number. Alpha supports one root directory; nested directories remain a
 reserved extension.
 
+The Alpha fixture uses deterministic table placement: blocks `0` and `1` are
+the superblock pair, block `2` is the allocation bitmap, blocks `3..10` hold
+32 fixed 128-byte inodes, and block `11` is the 512-byte root directory (eight
+64-byte entries). File data starts at block `12`. Metadata checksums are
+FNV-1a 32-bit over the bytes preceding each checksum field; a superblock is
+mountable only when its checksum and `CMT2` commit marker are valid.
+
 ## Write ordering
 
 The writer allocates data and metadata blocks, writes new data, writes the
@@ -69,3 +76,9 @@ Host fixtures must create, read, overwrite, truncate, append, unlink, remount,
 and select the valid recovery superblock. Corrupt magic, sequence, checksum,
 extent bounds, bitmap ownership, and directory names must be rejected without
 modifying the image.
+
+The host implementation and corruption fixtures are exercised by:
+
+```bash
+make gfs2-host gfs2-host-failures
+```

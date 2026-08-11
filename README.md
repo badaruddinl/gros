@@ -71,6 +71,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Self-Hosting syscall ABI v1](docs/43-self-hosting-syscall-abi-v1.md)
 - [Self-Hosting GFS2 and block contract](docs/44-self-hosting-gfs2-block-contract.md)
 - [Self-Hosting GWO2 and Grown Alpha contract](docs/45-self-hosting-gwo2-grown-alpha-contract.md)
+- [Self-Hosting Alpha kernel foundation](docs/46-self-hosting-alpha-kernel-foundation.md)
 - [x86_64 exception and interrupt foundation](docs/33-x86_64-exception-interrupt-foundation.md)
 - [physical memory ownership seed](docs/34-physical-memory-ownership.md)
 - [kernel heap seed](docs/35-kernel-heap-seed.md)
