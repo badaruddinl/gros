@@ -16,7 +16,7 @@ fail() {
 [ "$(wc -c < "$GWO" | tr -d ' ')" = 41 ] || fail "compiler must emit a 41-byte bounded GWO1 artifact"
 [ "$(dd if="$GWO" bs=1 skip=0 count=4 2> /dev/null | od -An -tx1 -v | tr -d ' \n')" = 47574f31 ] || fail "compiler artifact magic must be GWO1"
 [ "$(dd if="$GWO" bs=1 skip=12 count=4 2> /dev/null | od -An -tx1 -v | tr -d ' \n')" = 11000000 ] || fail "compiler artifact payload size must be 17 bytes"
-[ "$(dd if="$GWO" bs=1 skip=20 count=4 2> /dev/null | od -An -tx1 -v | tr -d ' \n')" = 77040000 ] || fail "compiler artifact checksum must match generated payload"
+[ "$(dd if="$GWO" bs=1 skip=20 count=4 2> /dev/null | od -An -tx1 -v | tr -d ' \n')" = 81040000 ] || fail "compiler artifact checksum must match generated payload"
 
 "$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
 GWO_HEX=$(od -An -tx1 -v "$GWO" | tr -d ' \n')

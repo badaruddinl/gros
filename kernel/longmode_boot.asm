@@ -3,6 +3,53 @@
 ; product kernel entry for the bounded x86_64 profile seed.
 bits 16
 section .boot start=0 vstart=0x7c00
+
+; The bootstrap image is intentionally larger than the original preview.  The
+; BIOS loader reads the kernel portion in one bounded transfer; the build then
+; appends the persistent GFS2 volume after that transfer window.  Keeping the
+; sector count here and in the image builder prevents a partially loaded
+; kernel from ever reaching long mode.
+%define KERNEL_LOAD_SECTORS 96
+%define PAGE_SIZE 0x1000
+%define USER_BASE 0x400000
+%define USER_CODE 0x400000
+%define USER_GUARD 0x401000
+%define USER_STACK 0x402000
+%define USER_STACK_TOP 0x403000
+%define USER_LIMIT 0x40000000
+%define KERNEL_CR3 0x1000
+%define KERNEL_PDPT 0x2000
+%define KERNEL_PD 0x3000
+%define KERNEL_USER_PT 0x7000
+%define TSS_SELECTOR 0x38
+%define MAX_FRAMES 768
+
+; Process object layout.  The object is intentionally fixed-size in Alpha so
+; teardown can walk every owned frame without a hidden allocator dependency.
+%define PROC_STATE 0
+%define PROC_PID 4
+%define PROC_PARENT 8
+%define PROC_CR3 16
+%define PROC_PDPT 24
+%define PROC_PD 32
+%define PROC_PT 40
+%define PROC_CODE 48
+%define PROC_STACK 56
+%define PROC_KSTACK 64
+%define PROC_KTOP 72
+%define PROC_CONTEXT 80
+%define PROC_RIP 88
+%define PROC_RSP 96
+%define PROC_FLAGS 104
+%define PROC_EXIT_STATUS 108
+%define PROC_NEXT 112
+%define PROC_HEAP 120
+%define PROC_SIZE 128
+%define PROC_READY 1
+%define PROC_RUNNING 2
+%define PROC_BLOCKED 3
+%define PROC_EXITED 4
+
 start:
     cli
     cld
@@ -14,7 +61,7 @@ start:
     ; Stable bootstrap-info block: boot drive at 0000:5ffe.
     mov [0x5ffe], dl
     mov ah, 0x02
-    mov al, 32
+    mov al, KERNEL_LOAD_SECTORS
     mov ch, 0
     mov cl, 2
     mov dh, 0
@@ -82,14 +129,23 @@ protected_mode:
     mov es, ax
     mov ss, ax
     mov esp, 0x90000
-    ; Zero PML4, PDPT, and PD at 0x1000..0x3fff.
+    ; Zero the bootstrap page-table arena at 0x1000..0x7fff.  The first two
+    ; 2 MiB leaves are supervisor-only identity mappings; the 4 MiB user base
+    ; is a 4 KiB page-table slot that each process owns in its own root.
     xor eax, eax
     mov edi, 0x1000
     mov ecx, 3072
     rep stosd
+    ; 0x5ffc..0x60ff contains the BIOS E820 handoff; keep it intact while
+    ; clearing the separately placed per-process bootstrap PT at 0x7000.
+    mov edi, KERNEL_USER_PT
+    mov ecx, 1024
+    rep stosd
     mov dword [0x1000], 0x2007 ; user-visible table for the bounded window
     mov dword [0x2000], 0x3007
     mov dword [0x3000], 0x0083 ; 2 MiB identity map, present/write/huge
+    mov dword [0x3008], 0x200083 ; supervisor identity map, 2..4 MiB
+    mov dword [0x3010], KERNEL_USER_PT | 0x7 ; per-process user PT slot
     mov eax, 0x1000
     mov cr3, eax
     mov eax, cr4
@@ -114,6 +170,21 @@ grogan_entry:
     mov rsp, 0x90000
     cld
     lidt [abs idt_descriptor]
+    ; Fill the relocatable base fields of the long-mode TSS descriptor before
+    ; loading TR.  NASM keeps the binary flat, so this runtime patch avoids a
+    ; link-time address truncation while retaining a real hardware TSS.
+    mov rax, tss64
+    mov word [abs gdt + 56 + 2], ax
+    shr rax, 16
+    mov byte [abs gdt + 56 + 4], al
+    shr rax, 8
+    mov byte [abs gdt + 56 + 7], al
+    shr rax, 8
+    mov dword [abs gdt + 56 + 8], eax
+    mov dword [abs tss64 + 4], 0x90000
+    mov word [abs tss64 + 102], tss_end - tss64
+    mov ax, TSS_SELECTOR
+    ltr ax
     mov al, 'L'
     out 0xe9, al
     mov al, 'M'
@@ -174,10 +245,14 @@ after_user_mode:
     jmp .halt
 
 paging_seed:
-    ; Extend the identity map with a second 2 MiB PDE and record the mapped
-    ; window. The page-table pages remain owned by the bootstrap profile.
-    mov dword [abs 0x3008], 0x200087 ; user-accessible bounded 2 MiB window
-    mov qword [abs paging_window_end], 0x400000
+    ; Keep the kernel's identity map supervisor-only and expose only a 4 KiB
+    ; user slot.  Process roots copy the first two PDEs and replace PDE[2]
+    ; with an owned page table, so a user mapping can never reach kernel text,
+    ; VGA, or the bootstrap data pages.
+    mov dword [abs 0x3000], 0x0083
+    mov dword [abs 0x3008], 0x200083
+    mov dword [abs 0x3010], KERNEL_USER_PT | 0x7
+    mov qword [abs paging_window_end], USER_BASE
     mov al, 'P'
     out 0xe9, al
     mov al, 'G'
@@ -186,6 +261,222 @@ paging_seed:
     out 0xe9, al
     mov al, '2'
     out 0xe9, al
+    ret
+
+zero_page:
+    ; RDI is an identity-mapped physical page owned by the caller.
+    xor eax, eax
+    mov ecx, 512
+    rep stosq
+    ret
+
+; Create one isolated ring-3 address space from a verified native GWO payload.
+; RDI=process object, RSI=pid, RDX=payload, RCX=payload bytes.  Alpha keeps
+; one code page, one guard page, one stack page, and a dedicated kernel stack;
+; every page-table and data frame is owned by the process id.
+process_create:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi
+    mov r13, rsi
+    mov r14, rdx
+    mov r15, rcx
+    cmp r15, PAGE_SIZE
+    ja .fail
+    xor eax, eax
+    mov rdi, r12
+    mov ecx, PROC_SIZE / 8
+    rep stosq
+
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_CR3], rax
+    mov rdi, rax
+    call zero_page
+
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_PDPT], rax
+    mov rdi, rax
+    call zero_page
+
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_PD], rax
+    mov rdi, rax
+    call zero_page
+
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_PT], rax
+    mov rdi, rax
+    call zero_page
+
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_CODE], rax
+
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_STACK], rax
+
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov [r12 + PROC_KSTACK], rax
+
+    ; Root -> PDPT -> PD.  Kernel identity leaves stay supervisor-only.
+    mov rbx, [r12 + PROC_CR3]
+    mov rax, [r12 + PROC_PDPT]
+    or rax, 7
+    mov [rbx], rax
+    mov rbx, [r12 + PROC_PDPT]
+    mov rax, [r12 + PROC_PD]
+    or rax, 7
+    mov [rbx], rax
+    mov rbx, [r12 + PROC_PD]
+    mov qword [rbx], 0x0083
+    mov qword [rbx + 8], 0x200083
+    mov rax, [r12 + PROC_PT]
+    or rax, 7
+    mov [rbx + 16], rax
+
+    ; PTE[0] is RX code, PTE[1] is the unmapped guard page, PTE[2] is RW
+    ; user stack.  A missing PTE therefore becomes a recoverable user fault.
+    mov rbx, [r12 + PROC_PT]
+    mov rax, [r12 + PROC_CODE]
+    or rax, 5
+    mov [rbx], rax
+    mov rax, [r12 + PROC_STACK]
+    or rax, 7
+    mov [rbx + 16], rax
+
+    mov rdi, [r12 + PROC_CODE]
+    mov rsi, r14
+    mov ecx, r15d
+    rep movsb
+
+    mov dword [r12 + PROC_PID], r13d
+    mov dword [r12 + PROC_PARENT], 0
+    mov dword [r12 + PROC_STATE], PROC_READY
+    mov dword [r12 + PROC_EXIT_STATUS], 0
+    mov qword [r12 + PROC_RIP], USER_CODE
+    mov qword [r12 + PROC_RSP], USER_STACK_TOP
+    mov qword [r12 + PROC_FLAGS], 0x202
+    mov qword [r12 + PROC_NEXT], 0
+    mov qword [r12 + PROC_HEAP], USER_BASE + 4 * PAGE_SIZE
+
+    ; A timer interrupt from ring 3 returns through this prepared full frame.
+    mov r8, [r12 + PROC_KSTACK]
+    lea r9, [r8 + PAGE_SIZE]
+    mov [r12 + PROC_KTOP], r9
+    sub r9, 160
+    mov [r12 + PROC_CONTEXT], r9
+    mov rdi, r9
+    xor eax, eax
+    mov ecx, 20
+    rep stosq
+    mov qword [r9 + 120], USER_CODE
+    mov qword [r9 + 128], 0x33
+    mov qword [r9 + 136], 0x202
+    mov qword [r9 + 144], USER_STACK_TOP
+    mov qword [r9 + 152], 0x2b
+    mov rax, r12
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.fail:
+    cli
+.halt: hlt
+    jmp .halt
+
+process_map_page:
+    ; RDI=process, RSI=page-aligned user virtual address.  The page is
+    ; allocated with the process pid as owner and becomes a writable user PTE.
+    push rbx
+    push r12
+    mov r12, rdi
+    cmp rsi, USER_BASE
+    jb .fail
+    cmp rsi, USER_LIMIT - PAGE_SIZE
+    ja .fail
+    mov rbx, [r12 + PROC_PT]
+    mov rax, rsi
+    sub rax, USER_BASE
+    shr rax, 12
+    cmp rax, 512
+    jae .fail
+    mov r10, rax
+    test qword [rbx + rax * 8], 1
+    jnz .present
+    mov rdi, [r12 + PROC_PID]
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov r8, rax
+    mov rdi, r8
+    call zero_page
+    mov rax, r8
+    or rax, 7
+    mov [rbx + r10 * 8], rax
+.present:
+    mov eax, 1
+    pop r12
+    pop rbx
+    ret
+.fail:
+    xor eax, eax
+    pop r12
+    pop rbx
+    ret
+
+process_reap:
+    ; RDI=exited process.  Reclaim every frame whose owner is the process id.
+    ; The function runs only after the scheduler has selected a different
+    ; context, so freeing the old kernel stack cannot invalidate the caller.
+    push rbx
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+    mov r13d, [r12 + PROC_PID]
+    lea rbx, [r12 + PROC_CR3]
+    mov r14d, 7
+.frame:
+    mov rdi, [rbx]
+    test rdi, rdi
+    jz .next
+    mov rsi, r13
+    call frame_free_owned
+    mov qword [rbx], 0
+.next:
+    add rbx, 8
+    dec r14d
+    jnz .frame
+    mov dword [r12 + PROC_STATE], PROC_EXITED
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
 
 interrupt_controller_seed:
@@ -250,14 +541,34 @@ syscall_seed:
     ret
 
 user_mode_seed:
-    ; Validate and copy the bounded .gwo payload into the user-accessible
-    ; second identity window, then enter it through SYSRET. The user program
-    ; keeps IF clear; asynchronous IRQ delivery remains a later TSS gate.
+    ; Validate the bootstrap executable, construct two independently owned
+    ; address spaces, and enter PID 1 through SYSRET.  PID 2 is already ready
+    ; on the run queue, so a timer or an exit can switch to it without copying
+    ; user memory or reusing a page table.
     cli
     call gwo_load_user
-    mov rcx, 0x200000
-    mov r11, 0x2
-    mov rsp, 0x2f0000
+    mov rdx, user_payload_kernel
+    mov ecx, [abs user_gwo_image + 12]
+    mov rdi, process_one
+    mov rsi, 1
+    call process_create
+    mov rdx, user_payload_kernel
+    mov ecx, [abs user_gwo_image + 12]
+    mov rdi, process_two
+    mov rsi, 2
+    call process_create
+    mov qword [abs process_one + PROC_NEXT], process_two
+    mov qword [abs process_two + PROC_NEXT], process_one
+    mov qword [abs current_process], process_one
+    mov dword [abs process_one + PROC_STATE], PROC_RUNNING
+    mov rax, [abs process_one + PROC_CR3]
+    mov cr3, rax
+    mov rax, [abs process_one + PROC_KTOP]
+    mov [abs tss64 + 4], eax
+    mov dword [abs tss64 + 8], 0
+    mov rcx, USER_CODE
+    mov r11, 0x202
+    mov rsp, USER_STACK_TOP
     db 0x48, 0x0f, 0x07       ; SYSRETQ
 
 gwo_load_user:
@@ -291,7 +602,7 @@ gwo_load_user:
     jne .fail
     mov ecx, [abs user_gwo_image + 12]
     mov rsi, user_gwo_payload
-    mov edi, 0x200000
+    mov edi, user_payload_kernel
     rep movsb
     mov al, 'G'
     out 0xe9, al
@@ -308,21 +619,35 @@ gwo_load_user:
     jmp .halt
 
 syscall_entry:
-    ; SYSCALL leaves RCX/R11/RSP as the user return state. Save them before
-    ; moving to the kernel bootstrap stack; syscall 1 proves return, syscall 2
-    ; exits the bounded user payload into the kernel shell path.
-    mov [abs user_saved_rip], rcx
-    mov [abs user_saved_flags], r11
-    mov [abs user_saved_rsp], rsp
-    mov rsp, 0x90000
-    cmp eax, 1
+    ; SYSCALL does not perform a hardware stack switch.  Save the complete
+    ; user return state in the current process object, then enter its guarded
+    ; kernel stack.  No selector is allowed to touch a caller buffer except
+    ; through user_span_valid/copy_user helpers below.
+    mov rbx, [abs current_process]
+    test rbx, rbx
+    jz .kernel_bad
+    mov [rbx + PROC_RIP], rcx
+    mov [rbx + PROC_FLAGS], r11d
+    mov [rbx + PROC_RSP], rsp
+    mov rsp, [rbx + PROC_KTOP]
+    cmp eax, 1                  ; console_read (non-blocking Alpha seed)
+    je .read
+    cmp eax, 2                  ; console_write
     je .write
-    cmp eax, 2
+    cmp eax, 8                  ; mem_grow
+    je .mem_grow
+    cmp eax, 0x0b               ; process_exit
     je .exit
-    mov al, 'S'
-    out 0xe9, al
-    mov al, '?'
-    out 0xe9, al
+    cmp eax, 0x0c               ; task_yield
+    je .yield
+    mov rax, -38                ; -ENOSYS
+    jmp .return_user
+.kernel_bad:
+    cli
+.halt: hlt
+    jmp .halt
+.read:
+    xor eax, eax
     jmp .return_user
 .write:
     mov al, 'S'
@@ -332,6 +657,38 @@ syscall_entry:
     mov al, '1'
     out 0xe9, al
     mov byte [abs user_syscall_seen], 1
+    call console_write_user
+    jmp .return_user
+.mem_grow:
+    ; Grow by at most one page in the Alpha ABI.  The new page is allocated and
+    ; inserted in the current process's PT before the break is committed; an
+    ; exhaustion error therefore leaves the old break unchanged.
+    mov rbx, [abs current_process]
+    mov rax, [rbx + PROC_HEAP]
+    test rdi, rdi
+    jz .mem_return
+    cmp rdi, PAGE_SIZE
+    ja .mem_fail
+    add rax, PAGE_SIZE
+    jc .mem_fail
+    cmp rax, USER_LIMIT
+    jae .mem_fail
+    mov r9, rax
+    mov r8, rax
+    sub r8, PAGE_SIZE
+    mov rdi, rbx
+    mov rsi, r8
+    call process_map_page
+    test eax, eax
+    jz .mem_fail
+    mov [rbx + PROC_HEAP], r9
+    mov rax, r8
+    jmp .return_user
+.mem_return:
+    mov rax, [rbx + PROC_HEAP]
+    jmp .return_user
+.mem_fail:
+    mov rax, -12                ; -ENOMEM
     jmp .return_user
 .exit:
     mov al, 'S'
@@ -341,16 +698,206 @@ syscall_entry:
     mov al, '2'
     out 0xe9, al
     mov byte [abs user_done], 1
-    mov ax, 0x20                 ; restore the kernel data/stack segment after SYSCALL
+    jmp process_exit_current
+.yield:
+    jmp process_yield_current
+.return_user:
+    mov rbx, [abs current_process]
+    mov rcx, [rbx + PROC_RIP]
+    mov r11, [rbx + PROC_FLAGS]
+    mov rsp, [rbx + PROC_RSP]
+    db 0x48, 0x0f, 0x07       ; SYSRETQ
+
+console_write_user:
+    ; RDI=user bytes, RSI=count.  Return bytes written or a negative errno.
+    test rsi, rsi
+    jz .empty
+    call user_span_valid
+    test eax, eax
+    jz .bad
+    mov r8, rsi
+    xor eax, eax
+.loop:
+    test r8, r8
+    jz .done
+    mov al, [rdi]
+    call console_write_char
+    inc rdi
+    dec r8
+    jmp .loop
+.done:
+    mov rax, rsi
+    ret
+.empty:
+    xor eax, eax
+    ret
+.bad:
+    mov rax, -14                ; -EFAULT
+    ret
+
+user_span_valid:
+    ; Validate every page in [RDI,RDI+RSI).  The current process PT is the
+    ; sole authority; a range check alone would accept the unmapped guard.
+    test rsi, rsi
+    jz .ok
+    cmp rdi, USER_BASE
+    jb .bad
+    mov rax, rdi
+    add rax, rsi
+    jc .bad
+    cmp rax, USER_LIMIT
+    ja .bad
+    mov r8, [abs current_process]
+    mov r8, [r8 + PROC_PT]
+    mov r9, rdi
+    sub r9, USER_BASE
+    shr r9, 12
+    mov r10, rax
+    dec r10
+    sub r10, USER_BASE
+    shr r10, 12
+.page:
+    cmp r9, 512
+    jae .bad
+    test qword [r8 + r9 * 8], 1
+    jz .bad
+    cmp r9, r10
+    jae .ok
+    inc r9
+    jmp .page
+.ok:
+    mov eax, 1
+    ret
+.bad:
+    xor eax, eax
+    ret
+
+process_load_context:
+    ; RDI=next process.  The caller immediately returns through SYSRET, so
+    ; this routine only changes ownership state and the address-space root.
+    mov [abs current_process], rdi
+    mov dword [rdi + PROC_STATE], PROC_RUNNING
+    mov rax, [rdi + PROC_CR3]
+    mov cr3, rax
+    mov rax, [rdi + PROC_KTOP]
+    mov [abs tss64 + 4], eax
+    mov dword [abs tss64 + 8], 0
+    ret
+
+process_next_ready:
+    ; RDI=current process.  Alpha's fixed process table still uses the same
+    ; run-queue rule as the dynamic implementation: scan each owned node once
+    ; and accept only READY/RUNNING states.
+    mov r8, rdi
+    mov rax, [rdi + PROC_NEXT]
+.scan:
+    test rax, rax
+    jz .none
+    cmp dword [rax + PROC_STATE], PROC_READY
+    je .found
+    cmp rax, r8
+    je .none
+    mov rax, [rax + PROC_NEXT]
+    jmp .scan
+.found:
+    ret
+.none:
+    xor eax, eax
+    ret
+
+process_yield_current:
+    mov rbx, [abs current_process]
+    mov rdi, rbx
+    call process_next_ready
+    test rax, rax
+    jz .return
+    mov r12, rax
+    mov dword [rbx + PROC_STATE], PROC_READY
+    mov rdi, r12
+    call process_load_context
+.return:
+    mov rbx, [abs current_process]
+    mov rcx, [rbx + PROC_RIP]
+    mov r11, [rbx + PROC_FLAGS]
+    mov rsp, [rbx + PROC_RSP]
+    db 0x48, 0x0f, 0x07       ; SYSRETQ
+
+process_exit_current:
+    mov rbx, [abs current_process]
+    mov dword [rbx + PROC_STATE], PROC_EXITED
+    mov dword [rbx + PROC_EXIT_STATUS], edi
+    mov rdi, rbx
+    call process_next_ready
+    test rax, rax
+    jz .kernel_shell
+    mov r12, rax
+    mov r13, rbx
+    mov rdi, r12
+    call process_load_context
+    mov rsp, [r12 + PROC_KTOP]
+    mov rdi, r13
+    call process_reap
+    mov rbx, [abs current_process]
+    mov rcx, [rbx + PROC_RIP]
+    mov r11, [rbx + PROC_FLAGS]
+    mov rsp, [rbx + PROC_RSP]
+    db 0x48, 0x0f, 0x07
+.kernel_shell:
+    mov rsp, 0x90000
+    mov rdi, rbx
+    call process_reap
+    mov qword [abs current_process], 0
+    mov eax, KERNEL_CR3
+    mov cr3, rax
+    mov dword [abs tss64 + 4], 0x90000
+    mov dword [abs tss64 + 8], 0
+    mov ax, 0x20
     mov ds, ax
     mov es, ax
     mov ss, ax
     jmp after_user_mode
-.return_user:
-    mov rcx, [abs user_saved_rip]
-    mov r11, [abs user_saved_flags]
-    mov rsp, [abs user_saved_rsp]
-    db 0x48, 0x0f, 0x07       ; SYSRETQ
+
+process_timer_tick:
+    ; RDI=register-save pointer created by irq_timer_stub.  Preserve the
+    ; interrupted frame in the current process, then return the next process
+    ; frame to the same stub.  The stub's pop/iret sequence is therefore
+    ; identical for a fresh process and a preempted one.
+    mov rbx, [abs current_process]
+    test rbx, rbx
+    jz .same
+    mov [rbx + PROC_CONTEXT], rdi
+    mov dword [rbx + PROC_STATE], PROC_READY
+    mov rdi, rbx
+    call process_next_ready
+    test rax, rax
+    jz .same_current
+    mov r12, rax
+    mov rdi, r12
+    call process_load_context
+    mov rax, [r12 + PROC_CONTEXT]
+    ret
+.same_current:
+    mov dword [rbx + PROC_STATE], PROC_RUNNING
+.same:
+    mov rax, rdi
+    ret
+
+process_fault_current:
+    ; User faults are ordinary process exits.  The kernel mappings and the
+    ; filesystem remain live while the next user context is resumed.
+    mov rbx, [abs current_process]
+    mov dword [rbx + PROC_STATE], PROC_EXITED
+    mov dword [rbx + PROC_EXIT_STATUS], -14
+    mov rdi, rbx
+    call process_next_ready
+    test rax, rax
+    jz process_exit_current.kernel_shell
+    mov r12, rax
+    mov r13, rbx
+    mov rdi, r12
+    call process_load_context
+    mov rax, [r12 + PROC_CONTEXT]
+    ret
 
 irq_timer_stub:
     push rax
@@ -379,8 +926,18 @@ irq_timer_stub:
     out 0xe9, al
 .ack:
     mov rdi, rsp
+    ; A ring-3 interrupt frame has CS at +128 (after the 15 saved GPRs).
+    ; Kernel contexts retain the original bootstrap scheduler; user contexts
+    ; use the owned process run queue and a full five-word iret frame.
+    test qword [rsp + 128], 3
+    jnz .user_tick
     call scheduler_tick
     mov rsp, rax
+    jmp .restore
+.user_tick:
+    call process_timer_tick
+    mov rsp, rax
+.restore:
     pop r15
     pop r14
     pop r13
@@ -453,7 +1010,7 @@ physical_memory_seed:
     add rax, 0xfff
     and rax, -0x1000
 .collect:
-    cmp edi, 64
+    cmp edi, MAX_FRAMES
     jae .collected
     mov rdx, rax
     add rdx, 0x1000
@@ -526,6 +1083,7 @@ frame_alloc:
     jmp .find
 .claim:
     mov byte [r8 + rcx], 1
+    mov dword [frame_owner + rcx * 4], 0
     mov rax, [r9 + rcx * 8]
     ret
 .none:
@@ -545,7 +1103,66 @@ frame_free:
     inc ecx
     jmp .find_free
 .release:
+    cmp byte [r8 + rcx], 1
+    jne .not_found
     mov byte [r8 + rcx], 0
+    mov dword [frame_owner + rcx * 4], 0
+    mov eax, 1
+    ret
+.not_found:
+    xor eax, eax
+    ret
+
+; Allocate a frame and attach an explicit owner id.  RDI is the owner id and
+; the returned RAX is the physical frame address.  The plain frame_alloc API
+; remains available to the kernel bootstrap, but all process-owned frames use
+; this path so cross-process frees and double frees are rejected.
+frame_alloc_owned:
+    push rdi
+    call frame_alloc
+    test rax, rax
+    jz .none
+    mov r8, rax
+    xor ecx, ecx
+    mov edx, [abs phys_frame_count]
+.find:
+    cmp ecx, edx
+    jae .none
+    cmp [frame_pool + rcx * 8], r8
+    je .store
+    inc ecx
+    jmp .find
+.store:
+    mov edx, [rsp]
+    mov [frame_owner + rcx * 4], edx
+    mov rax, r8
+    pop rdi
+    ret
+.none:
+    xor eax, eax
+    pop rdi
+    ret
+
+; RDI=physical frame, RSI=owner id.  A frame is released only when both the
+; allocation bit and owner match.  This is the ownership boundary used by
+; address-space teardown and user-fault recovery.
+frame_free_owned:
+    xor ecx, ecx
+    mov edx, [abs phys_frame_count]
+.find:
+    cmp ecx, edx
+    jae .not_found
+    cmp [frame_pool + rcx * 8], rdi
+    je .check
+    inc ecx
+    jmp .find
+.check:
+    cmp byte [frame_used + rcx], 1
+    jne .not_found
+    cmp [frame_owner + rcx * 4], esi
+    jne .not_found
+    mov byte [frame_used + rcx], 0
+    mov dword [frame_owner + rcx * 4], 0
     mov eax, 1
     ret
 .not_found:
@@ -1199,6 +1816,59 @@ isr_invalid_opcode:
 .halt: hlt
     jmp .halt
 
+isr_page_fault:
+    ; Error-code exception frame: [error, RIP, CS, RFLAGS, RSP, SS] for ring
+    ; 3.  A kernel fault remains fail-stop; a user fault is handed to the
+    ; process teardown path and never executes the kernel halt path.
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+    test qword [rsp + 136], 3
+    jz .kernel
+    mov al, 'P'
+    out 0xe9, al
+    mov al, 'F'
+    out 0xe9, al
+    mov rdi, rsp
+    call process_fault_current
+    mov rsp, rax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    iretq
+.kernel:
+    mov al, 'K'
+    out 0xe9, al
+    mov al, 'F'
+    out 0xe9, al
+    cli
+.halt: hlt
+    jmp .halt
+
 isr_default:
     ; Deliberately fail-stop: unknown vectors use the same explicit frame policy.
     jmp isr_invalid_opcode
@@ -1212,6 +1882,16 @@ gdt:
     dq 0x00af92000000ffff ; 64-bit data
     dq 0x00cff2000000ffff ; DPL3 data, SYSRET SS = 2bh
     dq 0x00affa000000ffff ; DPL3 64-bit code, SYSRET CS = 33h
+    ; 64-bit available TSS (selector 38h).  The descriptor is deliberately
+    ; adjacent to the user descriptors so STAR/SYSRET selectors stay stable.
+    dw tss_end - tss64 - 1
+    dw 0
+    db 0
+    db 0x89
+    db (tss_end - tss64 - 1) >> 16
+    db 0
+    dd 0
+    dd 0
 gdt_descriptor:
     dw gdt_end - gdt - 1
     dd gdt
@@ -1223,6 +1903,8 @@ idt:
 %rep 256
 %if idt_vector = 6
     dw isr_invalid_opcode
+%elif idt_vector = 14
+    dw isr_page_fault
 %elif idt_vector = 32
     dw irq_timer_stub
 %elif idt_vector = 33
@@ -1242,6 +1924,10 @@ idt_end:
 idt_descriptor:
     dw idt_end - idt - 1
     dq idt
+align 16
+tss64:
+    times 104 db 0
+tss_end:
 align 8
 phys_first_free:
     dq 0
@@ -1249,9 +1935,11 @@ phys_frame_count:
     dd 0
 align 8
 frame_pool:
-    times 64 dq 0
+    times MAX_FRAMES dq 0
 frame_used:
-    times 64 db 0
+    times MAX_FRAMES db 0
+frame_owner:
+    times MAX_FRAMES dd 0
 paging_window_end:
     dq 0
 heap_base:
@@ -1297,6 +1985,16 @@ user_saved_flags:
     dq 0
 user_saved_rsp:
     dq 0
+align 16
+process_one:
+    times PROC_SIZE db 0
+process_two:
+    times PROC_SIZE db 0
+current_process:
+    dq 0
+align 4096
+user_payload_kernel:
+    times PAGE_SIZE db 0
 shell_len:
     db 0
 shell_done:
@@ -1349,4 +2047,4 @@ fs_entry:
     dq fs_payload
 fs_payload:
     db 'GRFS'
-times 512*32-($-$$) db 0
+times 512*KERNEL_LOAD_SECTORS-($-$$) db 0

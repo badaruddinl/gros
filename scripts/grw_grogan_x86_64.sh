@@ -33,9 +33,11 @@ EXPECTED="target\"$PROFILE\"fnmain()->void{grogan::write();grogan::exit();}"
 [ "$NORMALIZED" = "$EXPECTED" ] ||
     fail "unsupported source; expected target $PROFILE with grogan::write() and grogan::exit()"
 
-# The phase-8 stdlib seed lowers two stable calls into the phase-7 syscall ABI:
-# write (selector 1), then exit (selector 2), followed by a bounded wait loop.
-printf '\xb8\x01\x00\x00\x00\x0f\x05\xb8\x02\x00\x00\x00\x0f\x05\xf4\xeb\xfd' > "$PAYLOAD"
+# The Alpha syscall ABI lowers write (selector 2), then process_exit
+# (selector 0x0b), followed by a bounded wait loop.  The payload is still a
+# native bootstrap artifact; GWO2 bytecode is introduced by the toolchain
+# workstream and is never silently substituted for this ABI.
+printf '\xb8\x02\x00\x00\x00\x0f\x05\xb8\x0b\x00\x00\x00\x0f\x05\xf4\xeb\xfd' > "$PAYLOAD"
 PAYLOAD_SIZE=$(wc -c < "$PAYLOAD" | tr -d ' ')
 [ "$PAYLOAD_SIZE" -le 128 ] || fail "generated payload exceeds GWO bounded size"
 CHECKSUM=$(od -An -tu1 -v "$PAYLOAD" | awk '{ for (i = 1; i <= NF; i++) sum += $i } END { print sum + 0 }')

@@ -2,9 +2,12 @@
 set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 FILE=${1:-"$ROOT/build/gros-longmode.img"}
+KERNEL_BYTES=49664
+FS_START_LBA=128
 fail() { echo "error: $1" >&2; exit 1; }
 [ -f "$FILE" ] || fail "file not found: $FILE"
-[ "$(wc -c < "$FILE" | tr -d ' ')" = 16896 ] || fail "long-mode image must be 16896 bytes"
+[ "$(wc -c < "$FILE" | tr -d ' ')" -ge "$KERNEL_BYTES" ] || fail "long-mode image must contain a $KERNEL_BYTES-byte kernel"
+[ "$(( $(wc -c < "$FILE" | tr -d ' ') % 512 ))" = 0 ] || fail "long-mode disk image must be a 512-byte multiple"
 [ "$(dd if="$FILE" bs=1 skip=510 count=2 status=none | od -An -tx1 | tr -d ' \n')" = 55aa ] || fail "missing boot signature"
 HEX=$(od -An -tx1 -v "$FILE" | tr -d ' \n')
 require_hex() {
@@ -49,4 +52,5 @@ require_hex f3a4 "missing filesystem read copy"
 require_hex 47524653 "missing filesystem payload"
 require_hex_count 47465331 2 "missing GFS1 filesystem image data"
 require_hex_count 47524653 2 "missing filesystem payload data"
+[ "$(dd if="$FILE" bs=1 skip="$((FS_START_LBA * 512))" count=4 status=none | od -An -tc | tr -d ' \n')" = GFS2 ] || fail "missing GFS2 disk superblock"
 echo "Grogan x86_64 image: BIOS bootstrap, boot-info ABI, IDT, paging, frame pool, heap, scheduler, and filesystem seed ok"
