@@ -14,10 +14,10 @@ fail() {
     exit 1
 }
 
-"$ROOT/scripts/grw_grogan_x86_64.sh" \
-    "$ROOT/examples/grogan/syscall-smoke.grw" "$GWO_ONE" > /dev/null
-"$ROOT/scripts/grw_grogan_x86_64.sh" \
-    "$ROOT/examples/grogan/syscall-smoke.grw" "$GWO_TWO" > /dev/null
+"$ROOT/scripts/grc0.sh" \
+    "$ROOT/examples/grown-alpha/hello.grw" "$GWO_ONE"
+"$ROOT/scripts/grc0.sh" \
+    "$ROOT/examples/grown-alpha/hello.grw" "$GWO_TWO"
 cmp -s "$GWO_ONE" "$GWO_TWO" || fail "compiler artifact is not reproducible"
 "$ROOT/scripts/build_longmode_image.sh" "$IMAGE_ONE" > /dev/null
 "$ROOT/scripts/build_longmode_image.sh" "$IMAGE_TWO" > /dev/null

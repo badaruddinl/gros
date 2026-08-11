@@ -5,20 +5,20 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 IMAGE="$TMP_DIR/fault.img"
-FAULT_GWO="$TMP_DIR/fault.gwo"
 LOG="$TMP_DIR/debug.log"
 OUT="$TMP_DIR/qemu.out"
 
 command -v qemu-system-x86_64 > /dev/null 2>&1 || { echo 'error: qemu-system-x86_64 is required' >&2; exit 1; }
 
-# GWO1 native payload: read the deliberately unmapped guard page at 0x401000.
-# Both independently loaded processes take the fault; the kernel reaps each
-# process and reaches the normal shell path instead of fail-stopping.
-printf '%b' '\x47\x57\x4f\x31\x01\x00\x00\x00\x18\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x4c\x01\x00\x00\x48\x8b\x04\x25\x00\x10\x40\x00' > "$FAULT_GWO"
+# This is a fault-injection fixture, not a production executable.  The image
+# normally copies the fixed GrVM entry after the VMP2 marker.  Replacing its
+# first instruction with a read from the deliberately unmapped guard page
+# proves that both independent ring-3 processes are terminated without
+# converting a user fault into a kernel halt.
 "$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
-OFFSET=$(grep -aob 'GWO1' "$IMAGE" | tail -n 1 | cut -d: -f1)
-[ -n "$OFFSET" ] || { echo 'error: embedded GWO1 payload not found' >&2; exit 1; }
-dd if="$FAULT_GWO" of="$IMAGE" bs=1 seek="$OFFSET" conv=notrunc status=none
+OFFSET=$(grep -aob 'VMP2' "$IMAGE" | tail -n 1 | cut -d: -f1)
+[ -n "$OFFSET" ] || { echo 'error: VM entry marker not found' >&2; exit 1; }
+printf '%b' '\x48\x8b\x04\x25\x00\x10\x40\x00' | dd of="$IMAGE" bs=1 seek="$((OFFSET + 4))" conv=notrunc status=none
 
 set +e
 timeout 8 qemu-system-x86_64 \

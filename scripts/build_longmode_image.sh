@@ -2,15 +2,15 @@
 set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT=${1:-"$ROOT/build/gros-longmode.img"}
-KERNEL_BYTES=49664
+KERNEL_BYTES=59904
 FS_START_LBA=128
 FS_BLOCKS=128
 command -v nasm > /dev/null 2>&1 || { echo 'error: nasm is required' >&2; exit 1; }
 mkdir -p "$(dirname -- "$OUT")"
 mkdir -p "$ROOT/build/generated"
-"$ROOT/scripts/grw_grogan_x86_64.sh" \
-    "$ROOT/examples/grogan/syscall-smoke.grw" \
-    "$ROOT/build/generated/grogan-user.gwo" > /dev/null
+"$ROOT/scripts/grc0.sh" \
+    "$ROOT/examples/grown-alpha/hello.grw" \
+    "$ROOT/build/generated/grogan-user.gwo"
 cd "$ROOT"
 nasm -f bin "$ROOT/kernel/longmode_boot.asm" -o "$OUT"
 [ "$(wc -c < "$OUT" | tr -d ' ')" = "$KERNEL_BYTES" ] || { echo "error: long-mode kernel must be $KERNEL_BYTES bytes" >&2; exit 1; }

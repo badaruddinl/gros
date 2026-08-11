@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 FILE=${1:-"$ROOT/build/gros-longmode.img"}
-KERNEL_BYTES=49664
+KERNEL_BYTES=59904
 FS_START_LBA=128
 fail() { echo "error: $1" >&2; exit 1; }
 [ -f "$FILE" ] || fail "file not found: $FILE"
@@ -30,6 +30,7 @@ require_hex 0f30 "missing EFER write"
 require_hex 0083 "missing 2MiB identity mapping"
 require_hex b050e6e9b047e6e9b04de6e9b032e6e9 "missing second paging-window marker"
 require_hex 0f011c25 "missing IDT load"
+require_hex b047e6e9b057e6e9b04fe6e9b032e6e9b04fe6e9b04be6e9 "missing verified GWO2 loader marker"
 require_hex b04ce6e9b04de6e9b036e6e9b034e6e9b049e6e9b044e6e9b054e6e9b047e6e9b052e6e9b04fe6e9b036e6e9b034e6e9 "missing Grogan x86_64 profile marker"
 require_hex 0f0b "missing controlled invalid-opcode probe"
 require_hex 8e00 "missing present kernel-only IDT gate"

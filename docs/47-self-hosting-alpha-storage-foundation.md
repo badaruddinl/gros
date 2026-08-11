@@ -29,7 +29,7 @@ The boot trace contains `ATAOKGFS2OK` before the syscall/user transition.
 
 ## Still deliberately open
 
-The kernel shell still reads the historical embedded GFS1 seed; file syscalls,
-metadata updates from ring 3, and crash-recoverable write ordering are the next
-storage integration batches. The host GFS2 checker is the authority for those
-metadata invariants until the syscall layer is connected.
+The kernel shell still reads the historical embedded GFS1 seed; GFS2 file
+syscalls, metadata updates from ring 3, and crash-recoverable write ordering are
+the next storage integration batches. The host GFS2 checker is the authority
+for those metadata invariants until the syscall layer is connected.

@@ -36,7 +36,9 @@ and fault vector.
 
 ## Still deliberately open
 
-The bootstrap executable is still the transitional GWO1 native payload. ATA,
-the in-kernel GFS2 mount, dynamic process spawning/wait handles, and the GWO2
-bytecode VM remain later roadmap batches. The kernel-resident emergency shell
-also remains until ring-3 userland is integrated.
+The kernel now loads and verifies the deterministic GWO2 bytecode container and
+each ring-3 process runs the same bounded GrVM entry before issuing checked
+console syscalls. Dynamic process spawning/wait handles, ring-3 file syscalls,
+and compiler self-rebuild remain later roadmap batches. The kernel-resident
+shell is still an emergency/recovery console while the persistent userland is
+being integrated.

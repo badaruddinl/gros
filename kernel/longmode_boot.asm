@@ -9,7 +9,7 @@ section .boot start=0 vstart=0x7c00
 ; appends the persistent GFS2 volume after that transfer window.  Keeping the
 ; sector count here and in the image builder prevents a partially loaded
 ; kernel from ever reaching long mode.
-%define KERNEL_LOAD_SECTORS 96
+%define KERNEL_LOAD_SECTORS 116
 %define PAGE_SIZE 0x1000
 %define USER_BASE 0x400000
 %define USER_CODE 0x400000
@@ -17,6 +17,15 @@ section .boot start=0 vstart=0x7c00
 %define USER_STACK 0x402000
 %define USER_STACK_TOP 0x403000
 %define USER_LIMIT 0x40000000
+%define VM_BLOB_OFFSET 0x400
+%define VM_STACK_BASE (USER_STACK + 0x100)
+%define VM_LOCALS_BASE (USER_STACK + 0x600)
+%define VM_BUFFER (USER_STACK + 0x900)
+%define VM_PC_SLOT USER_STACK
+%define VM_SP_SLOT (USER_STACK + 8)
+%define VM_STEP_SLOT (USER_STACK + 16)
+%define VM_LIMIT_SLOT (USER_STACK + 24)
+%define VM_CODE_LIMIT (USER_CODE + VM_BLOB_OFFSET + PAGE_SIZE - VM_BLOB_OFFSET)
 %define KERNEL_CR3 0x1000
 %define KERNEL_PDPT 0x2000
 %define KERNEL_PD 0x3000
@@ -291,7 +300,7 @@ process_create:
     mov r13, rsi
     mov r14, rdx
     mov r15, rcx
-    cmp r15, PAGE_SIZE
+    cmp r15, PAGE_SIZE - VM_BLOB_OFFSET
     ja .fail
     xor eax, eax
     mov rdi, r12
@@ -335,12 +344,21 @@ process_create:
     test rax, rax
     jz .fail
     mov [r12 + PROC_CODE], rax
+    mov r8, rax
+    mov rdi, r8
+    call zero_page
 
     mov rdi, r13
     call frame_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_STACK], rax
+    mov r8, rax
+    mov rdi, r8
+    call zero_page
+    mov rdx, USER_CODE + VM_BLOB_OFFSET
+    add rdx, r15
+    mov [r8 + 24], rdx
 
     mov rdi, r13
     call frame_alloc_owned
@@ -374,7 +392,16 @@ process_create:
     or rax, 7
     mov [rbx + 16], rax
 
+    ; The executable page contains the fixed ring-3 GrVM entry followed by
+    ; verified GWO2 bytecode.  The VM itself is native bootstrap code; the
+    ; program it interprets is always the checked artifact supplied by the
+    ; loader, never a source-specific shortcut.
     mov rdi, [r12 + PROC_CODE]
+    mov rsi, user_vm_program
+    mov ecx, user_vm_program_end - user_vm_program
+    rep movsb
+    mov rdi, [r12 + PROC_CODE]
+    add rdi, VM_BLOB_OFFSET
     mov rsi, r14
     mov ecx, r15d
     rep movsb
@@ -548,19 +575,19 @@ syscall_seed:
     ret
 
 user_mode_seed:
-    ; Validate the bootstrap executable, construct two independently owned
+    ; Validate the GWO2 bytecode image, construct two independently owned
     ; address spaces, and enter PID 1 through SYSRET.  PID 2 is already ready
     ; on the run queue, so a timer or an exit can switch to it without copying
     ; user memory or reusing a page table.
     cli
     call gwo_load_user
     mov rdx, user_payload_kernel
-    mov ecx, [abs user_gwo_image + 12]
+    mov ecx, [abs user_payload_size]
     mov rdi, process_one
     mov rsi, 1
     call process_create
     mov rdx, user_payload_kernel
-    mov ecx, [abs user_gwo_image + 12]
+    mov ecx, [abs user_payload_size]
     mov rdi, process_two
     mov rsi, 2
     call process_create
@@ -579,51 +606,290 @@ user_mode_seed:
     db 0x48, 0x0f, 0x07       ; SYSRETQ
 
 gwo_load_user:
-    cmp dword [abs user_gwo_image], 0x314f5747 ; GWO1
+    ; GWO2 v2 Alpha has a 32-byte header and one 16-byte bytecode section.
+    ; Every size, target, checksum, instruction boundary, import signature,
+    ; and stack effect is checked before any user address space is created.
+    cmp dword [abs user_gwo_image], 0x324f5747 ; GWO2
     jne .fail
-    cmp dword [abs user_gwo_image + 4], 1
+    cmp word [abs user_gwo_image + 4], 2
     jne .fail
-    cmp dword [abs user_gwo_image + 8], 24
+    cmp word [abs user_gwo_image + 6], 1
     jne .fail
-    mov ecx, [abs user_gwo_image + 12]
-    cmp ecx, 128
-    ja .fail
-    test ecx, ecx
+    cmp word [abs user_gwo_image + 8], 1
+    jne .fail
+    cmp word [abs user_gwo_image + 10], 0
+    jne .fail
+    cmp dword [abs user_gwo_image + 12], 32
+    jne .fail
+    cmp dword [abs user_gwo_image + 16], 1
+    jne .fail
+    cmp dword [abs user_gwo_image + 20], 0
+    jne .fail
+    mov r8d, [abs user_gwo_image + 24]
+    test r8d, r8d
     jz .fail
-    cmp dword [abs user_gwo_image + 16], 0
+    cmp r8d, PAGE_SIZE - VM_BLOB_OFFSET
+    ja .fail
+    mov eax, r8d
+    add eax, 48
+    cmp eax, user_gwo_image_end - user_gwo_image
     jne .fail
-    mov r8d, [abs user_gwo_image + 20]
-    xor ebx, ebx
-    mov rsi, user_gwo_payload
-    mov edx, ecx
-.sum:
-    test edx, edx
-    jz .sum_done
-    movzx eax, byte [rsi]
-    add ebx, eax
-    inc rsi
-    dec edx
-    jmp .sum
-.sum_done:
-    cmp ebx, r8d
+    cmp dword [abs user_gwo_image + 32], 1
     jne .fail
-    mov ecx, [abs user_gwo_image + 12]
-    mov rsi, user_gwo_payload
-    mov edi, user_payload_kernel
+    cmp dword [abs user_gwo_image + 36], 48
+    jne .fail
+    cmp dword [abs user_gwo_image + 40], r8d
+    jne .fail
+    mov rdi, user_gwo_image + 32
+    mov esi, r8d
+    add rsi, 16
+    call gwo_fnv32
+    cmp eax, [abs user_gwo_image + 28]
+    jne .fail
+    mov rdi, user_gwo_image + 48
+    mov esi, r8d
+    call gwo_fnv32
+    cmp eax, [abs user_gwo_image + 44]
+    jne .fail
+    mov rsi, user_gwo_image + 48
+    mov rdi, user_payload_kernel
+    mov ecx, r8d
     rep movsb
+    mov [abs user_payload_size], r8d
+    mov rdi, user_payload_kernel
+    mov esi, r8d
+    call gwo2_verify_code
+    test eax, eax
+    jz .fail
     mov al, 'G'
     out 0xe9, al
     mov al, 'W'
     out 0xe9, al
     mov al, 'O'
     out 0xe9, al
-    mov al, '1'
+    mov al, '2'
+    out 0xe9, al
+    mov al, 'O'
+    out 0xe9, al
+    mov al, 'K'
     out 0xe9, al
     ret
 .fail:
     cli
 .halt: hlt
     jmp .halt
+
+gwo_fnv32:
+    mov eax, 2166136261
+.next:
+    test rsi, rsi
+    jz .done
+    movzx edx, byte [rdi]
+    xor eax, edx
+    imul eax, 16777619
+    inc rdi
+    dec rsi
+    jmp .next
+.done:
+    ret
+
+gwo2_verify_code:
+    ; RDI=bytecode, ESI=bytes.  The verifier uses a bounded instruction map
+    ; for both entry and jump-target boundaries, so malformed control flow is
+    ; rejected before ring 3 receives a page.
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi
+    mov r13d, esi
+    mov rdi, gwo2_boundaries
+    xor eax, eax
+    mov ecx, PAGE_SIZE
+    rep stosb
+    xor r8d, r8d
+    xor r9d, r9d
+.decode:
+    cmp r8d, r13d
+    jae .decode_done
+    mov byte [gwo2_boundaries + r8], 1
+    movzx eax, byte [r12 + r8]
+    xor r10d, r10d
+    xor r11d, r11d
+    cmp eax, 1
+    je .const
+    cmp eax, 2
+    je .local_load
+    cmp eax, 3
+    je .local_store
+    cmp eax, 4
+    jb .not_arithmetic
+    cmp eax, 9
+    jbe .arithmetic
+.not_arithmetic:
+    cmp eax, 10
+    je .jump
+    cmp eax, 11
+    je .jump_zero
+    cmp eax, 12
+    je .import
+    cmp eax, 13
+    je .return
+    cmp eax, 14
+    je .halt
+    jmp .bad
+.const:
+    mov r10d, 5
+    mov r11d, 1
+    jmp .finish
+.local_load:
+    mov r10d, 2
+    movzx edx, byte [r12 + r8 + 1]
+    cmp edx, 64
+    jae .bad
+    mov r11d, 1
+    jmp .finish
+.local_store:
+    mov r10d, 2
+    movzx edx, byte [r12 + r8 + 1]
+    cmp edx, 64
+    jae .bad
+    mov r11d, -1
+    jmp .finish
+.arithmetic:
+    mov r10d, 1
+    mov r11d, -1
+    jmp .finish
+.jump:
+    mov r10d, 3
+    jmp .finish
+.jump_zero:
+    mov r10d, 3
+    mov r11d, -1
+    jmp .finish
+.import:
+    mov r10d, 3
+    movzx edx, byte [r12 + r8 + 1]
+    movzx ecx, byte [r12 + r8 + 2]
+    cmp edx, 1
+    je .import_one
+    cmp edx, 2
+    je .import_one
+    cmp edx, 3
+    jne .bad
+    test ecx, ecx
+    jnz .bad
+    jmp .finish
+.import_one:
+    cmp ecx, 1
+    jne .bad
+    mov r11d, -1
+    jmp .finish
+.return:
+    mov r10d, 1
+    mov r11d, -1
+    jmp .finish
+.halt:
+    mov r10d, 1
+.finish:
+    mov eax, r8d
+    add eax, r10d
+    jc .bad
+    cmp eax, r13d
+    ja .bad
+    test r11d, r11d
+    jns .effect_add
+    mov edx, r11d
+    neg edx
+    cmp r9d, edx
+    jb .bad
+.effect_add:
+    add r9d, r11d
+    cmp r9d, 128
+    ja .bad
+    cmp byte [r12 + r8], 10
+    je .check_jump_bounds
+    cmp byte [r12 + r8], 11
+    jne .advance
+.check_jump_bounds:
+    movsx edx, word [r12 + r8 + 1]
+    lea rcx, [r8 + r10]
+    add ecx, edx
+    js .bad
+    cmp ecx, r13d
+    jae .bad
+.advance:
+    add r8d, r10d
+    jmp .decode
+.decode_done:
+    ; Re-decode only to validate that every jump lands on a marked boundary.
+    xor r8d, r8d
+.boundaries:
+    cmp r8d, r13d
+    jae .ok
+    movzx eax, byte [r12 + r8]
+    mov r10d, 1
+    cmp eax, 1
+    je .boundary_const
+    cmp eax, 2
+    je .boundary_length2
+    cmp eax, 3
+    je .boundary_length2
+    cmp eax, 10
+    je .boundary_jump
+    cmp eax, 11
+    je .boundary_jump
+    cmp eax, 12
+    je .boundary_jump
+    cmp eax, 13
+    je .boundary_length
+    cmp eax, 14
+    je .boundary_length
+    cmp eax, 4
+    jb .bad
+    cmp eax, 9
+    ja .bad
+    jmp .boundary_length
+.boundary_length2:
+    mov r10d, 2
+    jmp .boundary_length
+.boundary_const:
+    mov r10d, 5
+    jmp .boundary_length
+.boundary_jump:
+    cmp eax, 12
+    je .boundary_import
+    mov r10d, 3
+    movsx edx, word [r12 + r8 + 1]
+    lea rcx, [r8 + r10]
+    add ecx, edx
+    js .bad
+    cmp ecx, r13d
+    jae .bad
+    cmp byte [gwo2_boundaries + rcx], 1
+    jne .bad
+.boundary_import:
+    mov r10d, 3
+.boundary_length:
+    add r8d, r10d
+    jmp .boundaries
+.ok:
+    mov eax, 1
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.bad:
+    xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
 
 syscall_entry:
     ; SYSCALL does not perform a hardware stack switch.  Save the complete
@@ -2103,6 +2369,275 @@ console_write_char:
     pop rbx
     ret
 
+; Ring-3 GrVM entry.  The kernel copies this fixed interpreter into each
+; process code page and places the verified GWO2 bytecode at VM_BLOB_OFFSET.
+; VM state is held in the user stack page so SYSCALL can freely clobber caller
+; registers while the state is reloaded after each console import.
+user_vm_program_marker:
+    db 'V', 'M', 'P', '2'
+user_vm_program:
+    xor r13d, r13d
+    xor r14d, r14d
+    mov r12, USER_CODE + VM_BLOB_OFFSET
+    xor eax, eax
+    mov rdi, VM_STACK_BASE
+    mov ecx, 192
+    rep stosq
+.loop:
+    inc r14
+    cmp r14, 1000000
+    jae .fail
+    cmp r12, [abs VM_LIMIT_SLOT]
+    jae .fail
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    movzx eax, byte [r12]
+    inc r12
+    cmp eax, 1
+    je .const
+    cmp eax, 2
+    je .load_local
+    cmp eax, 3
+    je .store_local
+    cmp eax, 4
+    jb .check_jump
+    cmp eax, 9
+    jbe .arithmetic
+.check_jump:
+    cmp eax, 10
+    je .jump
+    cmp eax, 11
+    je .jump_zero
+    cmp eax, 12
+    je .import
+    cmp eax, 13
+    je .return
+    cmp eax, 14
+    je .halt
+    jmp .fail
+.const:
+    cmp r13, 128
+    jae .fail
+    movsxd rax, dword [r12]
+    add r12, 4
+    mov [VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.load_local:
+    movzx eax, byte [r12]
+    inc r12
+    cmp eax, 64
+    jae .fail
+    cmp r13, 128
+    jae .fail
+    mov rax, [abs VM_LOCALS_BASE + rax * 8]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.store_local:
+    cmp r13, 1
+    jb .fail
+    movzx eax, byte [r12]
+    inc r12
+    cmp eax, 64
+    jae .fail
+    dec r13
+    mov rdx, [abs VM_STACK_BASE + r13 * 8]
+    mov [abs VM_LOCALS_BASE + rax * 8], rdx
+    jmp .loop
+.arithmetic:
+    cmp r13, 2
+    jb .fail
+    dec r13
+    mov rax, [abs VM_STACK_BASE + r13 * 8]
+    dec r13
+    mov rbx, [abs VM_STACK_BASE + r13 * 8]
+    cmp byte [r12 - 1], 4
+    je .add
+    cmp byte [r12 - 1], 5
+    je .sub
+    cmp byte [r12 - 1], 6
+    je .mul
+    cmp byte [r12 - 1], 7
+    je .div
+    cmp byte [r12 - 1], 8
+    je .eq
+    cmp byte [r12 - 1], 9
+    je .lt
+    jmp .fail
+.add:
+    add rbx, rax
+    mov rax, rbx
+    jmp .binary_push
+.sub:
+    sub rbx, rax
+    mov rax, rbx
+    jmp .binary_push
+.mul:
+    imul rbx, rax
+    mov rax, rbx
+    jmp .binary_push
+.div:
+    test rax, rax
+    jz .fail
+    mov rcx, rax
+    mov rax, rbx
+    cqo
+    idiv rcx
+    jmp .binary_push
+.eq:
+    cmp rbx, rax
+    sete al
+    movzx eax, al
+    jmp .binary_push
+.lt:
+    cmp rbx, rax
+    setl al
+    movzx eax, al
+.binary_push:
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.jump:
+    movsx rax, word [r12]
+    add r12, 2
+    add r12, rax
+    cmp r12, USER_CODE + VM_BLOB_OFFSET
+    jb .fail
+    cmp r12, [abs VM_LIMIT_SLOT]
+    jae .fail
+    jmp .loop
+.jump_zero:
+    cmp r13, 1
+    jb .fail
+    dec r13
+    mov rax, [abs VM_STACK_BASE + r13 * 8]
+    movsx rbx, word [r12]
+    add r12, 2
+    test rax, rax
+    jnz .loop
+    add r12, rbx
+    cmp r12, USER_CODE + VM_BLOB_OFFSET
+    jb .fail
+    cmp r12, [abs VM_LIMIT_SLOT]
+    jae .fail
+    jmp .loop
+.import:
+    movzx eax, byte [r12]
+    inc r12
+    movzx ebx, byte [r12]
+    inc r12
+    cmp eax, 1
+    je .import_print
+    cmp eax, 2
+    je .import_exit
+    cmp eax, 3
+    je .import_newline
+    jmp .fail
+.import_print:
+    cmp ebx, 1
+    jne .fail
+    cmp r13, 1
+    jb .fail
+    dec r13
+    mov rax, [abs VM_STACK_BASE + r13 * 8]
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    call vm_print_i32
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    jmp .loop
+.import_newline:
+    test ebx, ebx
+    jnz .fail
+    mov byte [abs VM_BUFFER], 10
+    mov eax, 2
+    mov edi, VM_BUFFER
+    mov esi, 1
+    syscall
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    jmp .loop
+.import_exit:
+    cmp ebx, 1
+    jne .fail
+    cmp r13, 1
+    jb .fail
+    dec r13
+    mov edi, [abs VM_STACK_BASE + r13 * 8]
+    mov eax, 0x0b
+    syscall
+    jmp .fail
+.return:
+    xor edi, edi
+    test r13, r13
+    jz .return_syscall
+    dec r13
+    mov edi, [abs VM_STACK_BASE + r13 * 8]
+.return_syscall:
+    mov eax, 0x0b
+    syscall
+    jmp .fail
+.halt:
+    xor edi, edi
+    mov eax, 0x0b
+    syscall
+.fail:
+    mov edi, 1
+    mov eax, 0x0b
+    syscall
+.halt_forever:
+    cli
+    hlt
+    jmp .halt_forever
+
+vm_print_i32:
+    ; RAX=i32 sign-extended.  Render backwards into the user buffer, then
+    ; use the checked console_write syscall; no kernel-side formatting exists.
+    mov rbx, rax
+    xor r8d, r8d
+    test rbx, rbx
+    jns .positive
+    neg rbx
+    mov r8d, 1
+.positive:
+    lea rdi, [abs VM_BUFFER + 32]
+    xor ecx, ecx
+    test rbx, rbx
+    jnz .digits
+    dec rdi
+    mov byte [rdi], '0'
+    mov ecx, 1
+    jmp .sign
+.digits:
+    xor edx, edx
+    mov rax, rbx
+    mov r9, 10
+    div r9
+    mov rbx, rax
+    add dl, '0'
+    dec rdi
+    mov [rdi], dl
+    inc ecx
+    test rbx, rbx
+    jnz .digits
+.sign:
+    test r8d, r8d
+    jz .write
+    dec rdi
+    mov byte [rdi], '-'
+    inc ecx
+.write:
+    mov esi, ecx
+    mov eax, 2
+    syscall
+    ret
+user_vm_program_end:
+
 isr_invalid_opcode:
     ; CPU frame for a no-error-code exception is [RIP, CS, RFLAGS] at entry.
     ; The seed preserves the scratch register before its fail-stop report.
@@ -2296,6 +2831,11 @@ process_two:
     times PROC_SIZE db 0
 current_process:
     dq 0
+user_payload_size:
+    dd 0
+align 8
+gwo2_boundaries:
+    times PAGE_SIZE db 0
 ata_ready:
     db 0
 gfs_mount_valid:
@@ -2356,7 +2896,7 @@ cmd_reboot:
 align 16
 user_gwo_image:
     incbin "build/generated/grogan-user.gwo"
-user_gwo_payload equ user_gwo_image + 24
+user_gwo_image_end:
 align 16
 fs_image:
     dd 0x31534647 ; GFS1

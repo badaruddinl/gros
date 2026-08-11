@@ -23,5 +23,6 @@ require_hex b050e6e9b046e6e9 "missing recoverable user page-fault marker"
 require_hex 48897b50 "missing timer context ownership handoff"
 require_hex 498b442450 "missing next process context resume"
 require_hex 46524d31 "missing frame ownership seed"
+require_hex b047e6e9b057e6e9b04fe6e9b032e6e9b04fe6e9b04be6e9 "missing kernel GWO2 verification marker"
 
 echo "Grogan processes: TSS, owned CR3/PT roots, user-span validation, timer contexts, and recoverable faults ok"

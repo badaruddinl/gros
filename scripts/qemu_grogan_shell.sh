@@ -67,7 +67,8 @@ require_text() {
 }
 
 require_text 'LM64IDTGRO64PGM2PMEMF1F2HEAPT1T2FSOK' 'bootstrap'
-require_text 'SCFGGWO1SC1SC2USEROK' 'syscall/GWO user boundary'
+require_text 'SCFGGWO2OK' 'syscall/GWO2 user boundary'
+require_text '28' 'GWO2 VM output'
 require_text 'IRQ' 'timer IRQ'
 require_text 'P1' 'preemptive task-one context'
 require_text 'P2' 'preemptive task-two context'
