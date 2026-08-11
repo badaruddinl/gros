@@ -12,14 +12,19 @@ The release-candidate audit and local runtime campaign discussed here use:
 
 ```txt
 branch: development
-commit: ebd4915b265c09c324bde8b1064319b96499c898 (baseline before the external-audit follow-up)
-subject: hardening and modularization release candidate
+commit: 99f46f591b5a9fed779e3bf4093dd43bf736e032
+subject: close external release audit blockers
 ```
 
-The independent feedback audited committed source, contracts, and test
-harnesses. It did not itself execute QEMU for 100 cycles. A script's presence
-is static evidence; a recorded successful run is runtime evidence; neither may
-silently stand in for the other.
+The independent feedback audited the previous committed source, contracts, and
+test harnesses. Its five release blockers were fixed in this commit: the
+compiled `task_yield` artifact is now spawned and checked, the mutation lane
+restores a clean contract and checks the specific void-result diagnostic, ATA
+fault injection reaches the post-probe/read status path without overwriting
+the failure code, and `grogan-clean-checkout` is a dependency of
+`validate-release`. A script's presence is static evidence; a recorded
+successful run is runtime evidence; neither may silently stand in for the
+other.
 
 ## Hosted fixed-point proof
 
@@ -64,7 +69,7 @@ boot begins.
 
 ## Recorded local release execution
 
-The implementation session recorded a successful run of:
+The implementation session recorded successful runs on the exact commit above:
 
 ```bash
 CYCLES=100 make grogan-resource-leaks-qemu
@@ -75,11 +80,14 @@ make grogan-clean-checkout
 make validate-release
 ```
 
-The targeted hardening runs, full static lane, full QEMU lane, clean-checkout
-rebuild, and the combined `validate-release` gate all passed on the candidate
-commit. The combined gate reported 100 clean-boot reliability cycles and the
-two-clean-boot fixed point. It must be rerun after the final merge to
-`development`; this ledger never treats a script's presence as runtime proof.
+The full static lane passed in 311 seconds, the full QEMU lane in 445 seconds,
+and the aggregate `validate-release` target passed in 1,823 seconds. That
+aggregate included the static lane, QEMU lane (448 seconds in the aggregate),
+100 clean-boot reliability cycles, and two isolated clean-checkout builds.
+The standalone reliability run also passed 100 cycles in 1,045 seconds. The
+two clean QEMU boots reproduced the fixed-point hash
+`fb040561c29ab0ef1f3c69972f5117202d11ae7c3d421c4a15b3a9b18e30dc56`.
+These are recorded runtime results, not inferred from script presence.
 
 The pre-modular parent image/kernel baseline recorded by
 `scripts/check_grogan_longmode_modularity.sh` is:
@@ -146,16 +154,16 @@ true when an intermediate operation fails.
 | Literal encoding parity | Host and in-OS 255/256 corpus plus guard mutation test. | P0-D |
 | Resource leak proof | `R<frames>H<handles>P<pid>` is compared per cycle for 100 cycles. | P1-B |
 | ATA fault coverage | Separate ERR, timeout, and out-of-range QEMU images finish bounded and without `ATAOK`. | P1-C |
-| Void import result parity | `task_yield` lowering is void in Rust, Grown, and the kernel VM; mutation and QEMU corpus lanes reject a synthetic `drop`. | P1-D |
+| Void import result parity | `task_yield` lowering is void in Rust, Grown, and the kernel VM; isolated mutation and QEMU lanes reject a synthetic `drop`, then spawn the compiled artifact and require `YIELDOK`. | P1-D |
 | Shared compiler corpus | One generated fixture corpus drives host accept/reject checks and the in-OS process-spawn compiler lane. | P0-C, P0-D |
 | ABI single source | Full TSV parser, generated NASM include, C/Rust/Grown/kernel parity, and column mutation lane. | P1-D |
 | Clean-checkout reproducibility | Two isolated `git archive HEAD` builds and a poison untracked input produce equal manifests. | P1-E |
 | Kernel maintainability | Thirteen ordered include units cover entry, arch, MM, proc, drivers, FS, runtime, and data with direct-parent byte identity. | P2-A |
 
-The remaining release action is to rerun the complete static/QEMU/release gates
-from the merged `development` commit and attach the external chatgpt.com audit
-feedback. Native code generation and general-purpose hardware support remain
-deliberately outside this Alpha release.
+The remaining release action is the fresh external chatgpt.com audit of this
+commit and its GitHub Actions check/artifact. Native code generation and
+general-purpose hardware support remain deliberately outside this Alpha
+release.
 
 ## Deliberate Alpha limits
 

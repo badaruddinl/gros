@@ -525,7 +525,7 @@ The first concrete implementation milestone is C1, not the compiler. A real
 compiler cannot safely self-host until GrOS can allocate memory, validate user
 pointers, isolate faults, load a process, and reclaim its resources.
 
-## Current implementation checkpoint (`development` at `e7bb96e`)
+## Current implementation checkpoint (`development` at `99f46f5`)
 
 The following roadmap work is now implemented and covered by executable gates:
 
@@ -550,12 +550,13 @@ the next output produced by that Grown compiler; it does not incorrectly
 compare the Rust bootstrap seed with the canonical Grown output. The C host
 verifier/VM is retained only as a reference oracle. `make validate-self-host`
 is the short gate for both hosted and in-OS proofs. The current
-`validate-release` target runs the static/QEMU lanes and the 100-cycle
-functional campaign, but the post-commit audit below is the authoritative
-boundary for a formal Self-Hosting Alpha 1 claim. Crash-journal recovery and
-multi-directory GFS2 remain deliberately outside Alpha scope.
+`validate-release` target runs the static/QEMU lanes, the 100-cycle functional
+campaign, and the two-archive clean-checkout reproducibility gate. The
+post-commit external audit remains the authoritative boundary for a formal
+Self-Hosting Alpha 1 claim. Crash-journal recovery and multi-directory GFS2
+remain deliberately outside Alpha scope.
 
-## Post-`e7bb96e` audit boundary
+## Post-`99f46f5` audit boundary
 
 An external audit of committed source, contracts, and validation harnesses
 classifies GrOS as a credible self-hosting research OS and a Self-Hosting Alpha
@@ -571,8 +572,8 @@ release score:
 | Project seriousness | 9.3/10 | An in-OS development environment now exists. |
 | Self-hosting proof | 9.2/10 | `grc2 == grc3` is reproduced on two clean boots. |
 | Validation engineering | 9.0/10 | OOM, corruption, pointer boundary, module, ATA-range, reproducibility, and reliability fixtures exist. |
-| Compiler maturity | 6.5/10 | One-level modules work, but identifier and literal bounds are not yet parity-safe. |
-| Kernel reliability | 6.8/10 | Frame cleanup improved, but failed child creation may poison the reusable slot. |
+| Compiler maturity | 6.5/10 | One-level modules and bounded identifier/literal/task_yield parity are closed for the Alpha subset; native code generation remains deferred. |
+| Kernel reliability | 6.8/10 | Failed child creation, per-cycle frame/handle ownership, and ATA error branches are exercised by release gates. |
 | Userland usefulness | 6.5/10 | Shell, editor, compile/run, listing, file read/write, and removal are usable. |
 | Maintainability | 4.5/10 | `kernel/longmode_boot.asm` is 5,933 lines and owns too many subsystems. |
 | Hardware portability | 2.5/10 | QEMU BIOS x86_64 remains the intentional Alpha target. |
@@ -584,12 +585,12 @@ release score:
 | --- | --- | --- |
 | Syscall selector drift (`0x09/0x0a` versus `0x0f/0x10`) | Contract and implementation now use `0x0f/0x10`. | closed |
 | `process_create` allocation failure | `qemu_grogan_process_create_failures.sh` injects all 74 owned-frame edges, checks `PCA/PCF/PCS`, and retries each child slot. | closed |
-| OOM and recoverable faults | QEMU covers `mem_grow -> -ENOMEM`, corrupt GWO2, and cross-page `-EFAULT`. | useful coverage; not exhaustive process-create fault injection |
+| OOM and recoverable faults | QEMU covers `mem_grow -> -ENOMEM`, corrupt GWO2, cross-page `-EFAULT`, and all 74 owned `process_create` allocation edges. | closed for the Alpha fault boundary |
 | 100-cycle campaign | `qemu_grogan_resource_leaks.sh` records `R<frames>H<handles>P<pid>` for every spawn/wait/reap cycle. | closed; per-cycle frame/handle baseline is measured |
 | Multi-module compiler | One-level root-file imports compile on host and inside GrOS. | complete for the Alpha module boundary |
 | Compiler identifier bounds | Host and in-OS corpus covers 31/32/63/64; mutation lane proves removal of the Grown guard is caught. | closed at `IDENT_MAX=31` |
 | String literal bounds | Host and in-OS corpus covers 255/256; mutation lane proves removal of the Grown guard is caught. | closed at `STRING_MAX=255` |
-| ATA failure campaign | Three QEMU images force capacity range, device `ERR`, and bounded timeout branches. | closed |
+| ATA failure campaign | Three QEMU images force capacity range, post-probe/read device `ERR`, and bounded timeout branches with distinct markers. | closed |
 | Reproducible distribution | `check_grogan_clean_checkout.sh` builds two archives and ignores a poison untracked input. | closed |
 | ABI source of truth | Full TSV parser, generated NASM constants, Rust/Grown/C dispatch checks, and mutation lane. | closed |
 | Kernel source structure | `kernel/longmode_boot.asm` is an ordered include driver over 13 subsystem units; the direct-parent image comparison is byte-identical. | closed for Alpha |
