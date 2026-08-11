@@ -38,6 +38,7 @@ require_line syscall-abi-v1.tsv $'0x13\tfile_list\tbytes-or-errno'
 require_file gwo2-import-abi-v1.tsv
 [ "$(wc -l < "$CONTRACTS/gwo2-import-abi-v1.tsv" | tr -d ' ')" = 20 ] || fail 'GWO2 import ABI must contain header plus 19 imports'
 require_line gwo2-import-abi-v1.tsv $'import_id\tname\targc\tresult\tsyscall_selector'
+require_line gwo2-import-abi-v1.tsv $'14\ttask_yield\t0\tvoid\t12'
 require_line gwo2-import-abi-v1.tsv $'16\tprocess_wait\t1\ti32\t16'
 
 require_file gfs2-layout.txt
@@ -54,5 +55,15 @@ require_line gwo2-layout.txt 'header_size=32'
 require_line gwo2-layout.txt 'bytecode_kind=1'
 require_line gwo2-layout.txt 'loader_requires_checksum=true'
 require_line gwo2-layout.txt 'verifier_requires_stack_effects=true'
+require_line gwo2-layout.txt 'runtime_imports=1:print_i32,2:exit,3:newline,4:console_read,5:file_open,6:file_read,7:file_write,8:file_close,9:file_stat,10:mem_grow,11:path_create,12:file_unlink,13:print_bytes,14:task_yield,15:process_spawn,16:process_wait,17:process_spawn_args,18:process_args,19:file_list'
+
+require_root_line() {
+    local file=$1
+    local line=$2
+    grep -Fqx "$line" < <(tr -d '\r' < "$ROOT/$file") || \
+        fail "$file missing exact line: $line"
+}
+
+require_root_line docs/45-self-hosting-gwo2-grown-alpha-contract.md 'value. IDs 15 and 16 extend the Alpha process ABI with `process_spawn(image, size)`'
 
 echo 'self-hosting contracts: process, syscall, GFS2, and GWO2 definitions ok'

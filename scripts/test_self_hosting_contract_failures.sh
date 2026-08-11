@@ -24,4 +24,20 @@ grep -F 'loader_requires_checksum=true' "$TMP_DIR/out" "$TMP_DIR/err" > /dev/nul
     exit 1
 }
 
+cp -R "$ROOT/contracts/self-hosting-alpha" "$TMP_DIR/contracts-task-yield"
+sed -i 's/^14[[:space:]]task_yield[[:space:]]0[[:space:]]void[[:space:]]12$/14\ttask_poll\t0\tvoid\t12/' \
+    "$TMP_DIR/contracts-task-yield/gwo2-import-abi-v1.tsv"
+
+if CONTRACTS="$TMP_DIR/contracts-task-yield" "$VALIDATOR" > "$TMP_DIR/out-task-yield" 2> "$TMP_DIR/err-task-yield"; then
+    echo 'error: task_yield import contract mutation was accepted' >&2
+    exit 1
+fi
+
+grep -F 'gwo2-import-abi-v1.tsv missing exact line: 14' "$TMP_DIR/err-task-yield" > /dev/null || {
+    cat "$TMP_DIR/out-task-yield" >&2
+    cat "$TMP_DIR/err-task-yield" >&2
+    echo 'error: task_yield mutation was not rejected by the exact-row gate' >&2
+    exit 1
+}
+
 echo 'self-hosting contract failures: malformed GWO2 contract rejected'

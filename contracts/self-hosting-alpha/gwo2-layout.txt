@@ -15,5 +15,5 @@ entry_requires_instruction_boundary=true
 loader_requires_checksum=true
 verifier_requires_stack_effects=true
 bytecode_opcodes=const_i32,locals,integer_ops,jumps,imports,return,halt,const_bytes,byte_load,byte_store,duplicate,drop
-runtime_imports=1:print_i32,2:exit,3:newline,4:console_read,5:file_open,6:file_read,7:file_write,8:file_close,9:file_stat,10:mem_grow,11:path_create,12:file_unlink,13:print_bytes,15:process_spawn,16:process_wait,17:process_spawn_args,18:process_args,19:file_list
+runtime_imports=1:print_i32,2:exit,3:newline,4:console_read,5:file_open,6:file_read,7:file_write,8:file_close,9:file_stat,10:mem_grow,11:path_create,12:file_unlink,13:print_bytes,14:task_yield,15:process_spawn,16:process_wait,17:process_spawn_args,18:process_args,19:file_list
 literal_limit=255-bytes-per-const_bytes
