@@ -32,6 +32,7 @@ STATUS=$?
 set -e
 [ "$STATUS" = 0 ] || { cat "$MONITOR_LOG" >&2; echo "error: qemu status $STATUS" >&2; exit 1; }
 grep -F 'LM64IDTGRO64PGM2PMEMF1F2HEAPT1T2FSOK' "$LOG" > /dev/null || { echo 'error: Grogan x86_64 bootstrap marker missing' >&2; exit 1; }
+grep -F 'ATAOKGFS2OK' "$LOG" > /dev/null || { echo 'error: ATA/GFS2 mount proof missing' >&2; exit 1; }
 grep -F 'SCFGGWO1' "$LOG" > /dev/null || { echo 'error: syscall/GWO user-boundary proof missing' >&2; exit 1; }
 grep -F 'SC1' "$LOG" > /dev/null || { echo 'error: console_write syscall proof missing' >&2; exit 1; }
 grep -F 'SC2' "$LOG" > /dev/null || { echo 'error: process_exit syscall proof missing' >&2; exit 1; }

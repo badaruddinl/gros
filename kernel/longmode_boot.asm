@@ -23,6 +23,12 @@ section .boot start=0 vstart=0x7c00
 %define KERNEL_USER_PT 0x7000
 %define TSS_SELECTOR 0x38
 %define MAX_FRAMES 768
+%define FS_START_LBA 128
+%define ATA_PRIMARY_DATA 0x1f0
+%define ATA_PRIMARY_SECTOR_COUNT 0x1f2
+%define ATA_PRIMARY_LBA0 0x1f3
+%define ATA_PRIMARY_DRIVE 0x1f6
+%define ATA_PRIMARY_STATUS 0x1f7
 
 ; Process object layout.  The object is intentionally fixed-size in Alpha so
 ; teardown can walk every owned frame without a hidden allocator dependency.
@@ -215,6 +221,7 @@ grogan_entry:
     call heap_seed
     call scheduler_seed
     call fs_seed
+    call storage_seed
     call syscall_seed
     call user_mode_seed
 after_user_mode:
@@ -1514,6 +1521,303 @@ fs_seed:
 .halt: hlt
     jmp .halt
 
+ata_wait_drq:
+    ; Poll BSY/ERR/DRQ with a finite budget.  A device error or timeout is a
+    ; normal block-layer failure, never an infinite interrupt-disabled loop.
+    mov dx, ATA_PRIMARY_STATUS
+    mov ecx, 0x100000
+.poll:
+    in al, dx
+    test al, 0x80
+    jnz .again
+    test al, 1
+    jnz .fail
+    test al, 8
+    jnz .ready
+.again:
+    dec ecx
+    jnz .poll
+.fail:
+    xor eax, eax
+    ret
+.ready:
+    mov eax, 1
+    ret
+
+ata_wait_idle:
+    mov dx, ATA_PRIMARY_STATUS
+    mov ecx, 0x100000
+.poll:
+    in al, dx
+    test al, 0x80
+    jnz .again
+    test al, 1
+    jnz .fail
+    mov eax, 1
+    ret
+.again:
+    dec ecx
+    jnz .poll
+.fail:
+    xor eax, eax
+    ret
+
+ata_select_lba:
+    ; RDI=LBA28 sector.  The command-specific caller writes 20h/30h after
+    ; this register setup.
+    mov r8, rdi
+    mov dx, ATA_PRIMARY_DRIVE
+    mov al, 0xe0
+    mov rcx, r8
+    shr rcx, 24
+    and cl, 0x0f
+    or al, cl
+    out dx, al
+    mov dx, ATA_PRIMARY_SECTOR_COUNT
+    mov al, 1
+    out dx, al
+    mov dx, ATA_PRIMARY_LBA0
+    mov rax, r8
+    out dx, al
+    inc dx
+    shr rax, 8
+    out dx, al
+    inc dx
+    shr rax, 8
+    out dx, al
+    ret
+
+ata_probe:
+    cli
+    mov dx, ATA_PRIMARY_DRIVE
+    mov al, 0xa0
+    out dx, al
+    xor al, al
+    mov dx, ATA_PRIMARY_SECTOR_COUNT
+    out dx, al
+    inc dx
+    out dx, al
+    inc dx
+    out dx, al
+    inc dx
+    out dx, al
+    mov dx, ATA_PRIMARY_STATUS
+    mov al, 0xec
+    out dx, al
+    in al, dx
+    test al, al
+    jz .fail
+    call ata_wait_drq
+    test eax, eax
+    jz .fail
+    mov dx, ATA_PRIMARY_DATA
+    mov rdi, ata_identify_buffer
+    mov ecx, 256
+    rep insw
+    movzx eax, word [abs ata_identify_buffer + 120]
+    movzx edx, word [abs ata_identify_buffer + 122]
+    shl rdx, 16
+    or rax, rdx
+    test rax, rax
+    jz .fail
+    mov [abs ata_capacity], rax
+    mov byte [abs ata_ready], 1
+    mov eax, 1
+    ret
+.fail:
+    mov byte [abs ata_ready], 0
+    xor eax, eax
+    ret
+
+ata_block_read:
+    ; RDI=relative GFS2 block, RSI=512-byte kernel destination.
+    cmp byte [abs ata_ready], 1
+    jne .fail
+    mov r8, [abs ata_capacity]
+    cmp r8, FS_START_LBA
+    jbe .fail
+    sub r8, FS_START_LBA
+    cmp rdi, r8
+    jae .fail
+    add rdi, FS_START_LBA
+    push rsi
+    call ata_select_lba
+    mov dx, ATA_PRIMARY_STATUS
+    mov al, 0x20
+    out dx, al
+    call ata_wait_drq
+    test eax, eax
+    jz .pop_fail
+    mov dx, ATA_PRIMARY_DATA
+    pop rdi
+    mov ecx, 256
+    rep insw
+    mov eax, 1
+    ret
+.pop_fail:
+    pop rsi
+.fail:
+    xor eax, eax
+    ret
+
+ata_block_write:
+    ; RDI=relative GFS2 block, RSI=512-byte kernel source.
+    cmp byte [abs ata_ready], 1
+    jne .fail
+    mov r8, [abs ata_capacity]
+    cmp r8, FS_START_LBA
+    jbe .fail
+    sub r8, FS_START_LBA
+    cmp rdi, r8
+    jae .fail
+    add rdi, FS_START_LBA
+    push rsi
+    call ata_select_lba
+    mov dx, ATA_PRIMARY_STATUS
+    mov al, 0x30
+    out dx, al
+    call ata_wait_drq
+    test eax, eax
+    jz .pop_fail
+    mov dx, ATA_PRIMARY_DATA
+    pop rsi
+    mov ecx, 256
+    rep outsw
+    mov dx, ATA_PRIMARY_STATUS
+    mov al, 0xe7
+    out dx, al
+    call ata_wait_idle
+    ret
+.pop_fail:
+    pop rsi
+.fail:
+    xor eax, eax
+    ret
+
+gfs_checksum:
+    ; RDI=superblock bytes.  The host and kernel use the same FNV-1a-32
+    ; checksum over the first 52 bytes.
+    mov eax, 2166136261
+    mov ecx, 52
+.sum:
+    movzx edx, byte [rdi]
+    xor eax, edx
+    imul eax, 16777619
+    inc rdi
+    dec ecx
+    jnz .sum
+    ret
+
+gfs_validate_super:
+    cmp dword [rdi], 0x32534647 ; GFS2
+    jne .bad
+    cmp word [rdi + 4], 2
+    jne .bad
+    cmp word [rdi + 6], 512
+    jne .bad
+    cmp dword [rdi + 56], 0x324d5443 ; CMT2
+    jne .bad
+    push rdi
+    call gfs_checksum
+    pop rdi
+    cmp eax, [rdi + 52]
+    jne .bad
+    mov rax, [rdi + 16]
+    test rax, rax
+    jz .bad
+    mov r8, [abs ata_capacity]
+    cmp rax, r8
+    ja .bad
+    cmp dword [rdi + 32], 1
+    jne .bad
+    cmp dword [rdi + 44], 32
+    jne .bad
+    cmp dword [rdi + 48], 1
+    jne .bad
+    mov eax, 1
+    ret
+.bad:
+    xor eax, eax
+    ret
+
+gfs_mount:
+    xor edi, edi
+    mov rsi, gfs_super_buffer
+    call ata_block_read
+    test eax, eax
+    jz .bad
+    mov rdi, gfs_super_buffer
+    call gfs_validate_super
+    mov ebx, eax
+    xor edi, edi
+    mov rsi, gfs_recovery_buffer
+    mov edi, 1
+    call ata_block_read
+    test eax, eax
+    jz .choose_primary
+    mov rdi, gfs_recovery_buffer
+    call gfs_validate_super
+    test eax, eax
+    jz .choose_primary
+    cmp ebx, 1
+    jne .choose_recovery
+    mov rax, [abs gfs_recovery_buffer + 8]
+    cmp rax, [abs gfs_super_buffer + 8]
+    jbe .choose_primary
+.choose_recovery:
+    mov rsi, gfs_recovery_buffer
+    mov rdi, gfs_super_buffer
+    mov ecx, 64
+    rep movsq
+.choose_primary:
+    mov rdi, gfs_super_buffer
+    call gfs_validate_super
+    test eax, eax
+    jz .bad
+    mov rax, [abs gfs_super_buffer + 16]
+    mov [abs gfs_total_blocks], rax
+    mov byte [abs gfs_mount_valid], 1
+    mov eax, 1
+    ret
+.bad:
+    xor eax, eax
+    ret
+
+storage_seed:
+    call ata_probe
+    test eax, eax
+    jz .fail
+    call gfs_mount
+    test eax, eax
+    jz .fail
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'T'
+    out 0xe9, al
+    mov al, 'A'
+    out 0xe9, al
+    mov al, 'O'
+    out 0xe9, al
+    mov al, 'K'
+    out 0xe9, al
+    mov al, 'G'
+    out 0xe9, al
+    mov al, 'F'
+    out 0xe9, al
+    mov al, 'S'
+    out 0xe9, al
+    mov al, '2'
+    out 0xe9, al
+    mov al, 'O'
+    out 0xe9, al
+    mov al, 'K'
+    out 0xe9, al
+    ret
+.fail:
+    cli
+.halt: hlt
+    jmp .halt
+
 shell_start:
     mov rsi, shell_banner
     call console_write_string
@@ -1992,6 +2296,22 @@ process_two:
     times PROC_SIZE db 0
 current_process:
     dq 0
+ata_ready:
+    db 0
+gfs_mount_valid:
+    db 0
+align 8
+ata_capacity:
+    dq 0
+gfs_total_blocks:
+    dq 0
+align 512
+ata_identify_buffer:
+    times 512 db 0
+gfs_super_buffer:
+    times 512 db 0
+gfs_recovery_buffer:
+    times 512 db 0
 align 4096
 user_payload_kernel:
     times PAGE_SIZE db 0
