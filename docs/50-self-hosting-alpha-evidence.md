@@ -8,12 +8,12 @@ second roadmap.
 
 ## Source identity
 
-The post-implementation audit and local runtime campaign discussed here use:
+The release-candidate audit and local runtime campaign discussed here use:
 
 ```txt
-branch: development
-commit: e7bb96e85e00631a6c53fdaf6fe339df07a9f585
-subject: feat: close self-hosting alpha release gates
+branch: feature/self-hosting-alpha-hardening
+commit: 93e5f13 (release candidate; to be fast-forwarded to development)
+subject: refactor: split ATA wait path byte-identically
 ```
 
 The independent feedback audited committed source, contracts, and test
@@ -67,18 +67,24 @@ boot begins.
 The implementation session recorded a successful run of:
 
 ```bash
-CYCLES=100 \
-BOOT_WAIT=1 \
-COMPILE_WAIT=4 \
-SEND_DELAY=.005 \
-QEMU_TIMEOUT=100 \
-make validate-release
+CYCLES=100 make grogan-resource-leaks-qemu
+ATTEMPTS=96 make grogan-process-create-failures-qemu
+make grogan-compiler-bounds-qemu grogan-ata-failures-qemu
+make validate-static
+make grogan-clean-checkout
 ```
 
-The run reported the static lane, complete QEMU lane, reproducibility gate,
-and 100 clean-boot editor/compile/run/reboot cycles as successful. This proves
-the functional behavior checked by the scripts at `e7bb96e`. It does not prove
-an invariant the scripts do not measure.
+The targeted hardening runs and the full static lane passed on the candidate
+commit. The QEMU release lane must be rerun after the final merge to
+`development`; this ledger never treats a script's presence as runtime proof.
+
+The pre-modular parent image/kernel baseline recorded by
+`scripts/check_grogan_longmode_modularity.sh` is:
+
+```txt
+image : 27db3326c0a7492e54ab82d108a440d38b39525106729212866d378d28cb48d9
+kernel: ff251bfcec221cc80b9fbc20a1ee097a684f0930dcfb31ef215bc20230af094e
+```
 
 ## Proven current capabilities
 
@@ -90,12 +96,19 @@ an invariant the scripts do not measure.
   kernel stop.
 - A boundary-spanning user buffer returns `-EFAULT` and leaves the kernel live.
 - `mem_grow` exhaustion returns `-ENOMEM` to the process.
-- A disk whose ATA-reported capacity ends before GFS2 is rejected with bounded
-  `ATAFAIL` behavior.
+- A disk whose ATA-reported capacity ends before GFS2, reports `ERR`, or never
+  raises `DRQ` is rejected with bounded `ATAFAIL` behavior.
 - Host GFS2 fixtures cover remount, mutation rejection, disk-full behavior,
   overwrite/truncate/append, and unlink.
-- Two compiler/image builds from the same checkout are byte-equal and produce
-  equal SHA-256 manifests.
+- Two independent `git archive HEAD` compiler/image builds are byte-equal and
+  ignore a poison untracked source in the caller worktree.
+- Every injected `process_create` allocation edge returns the child object to
+  the reusable state; the next spawn succeeds in the same boot.
+- Every resource campaign snapshot records frame/handle counts and owner PID;
+  all 100 spawn/wait/reap cycles return to the same baseline.
+- The kernel is an ordered include driver over entry, process, memory, driver,
+  filesystem, runtime, architecture, and data units; the modular output is
+  byte-identical to the monolithic parent.
 
 Together these paths form a small computing environment rather than an
 isolated kernel demonstration:
@@ -114,24 +127,24 @@ The next proof question is no longer whether this workflow can happen; it is
 whether every ownership, ABI, encoding, storage, and device invariant remains
 true when an intermediate operation fails.
 
-## Open proof obligations found by the audit
+## Closed proof obligations found by the audit
 
-| Obligation | Current gap | Roadmap work |
+| Obligation | Evidence | Roadmap work |
 | --- | --- | --- |
-| Reusable child after OOM | Partial frame cleanup does not restore a canonical `PROC_EXITED` child object. | P0-A, P1-A |
-| `process_wait` result | Kernel returns exit status; TSV/Markdown say PID. | P0-B |
-| Identifier safety/parity | `grc1` can overrun a 32-byte name buffer; `grc0` accepts up to 63 bytes. | P0-C |
-| Literal encoding parity | `grc1` can wrap a 256-byte string length into one GWO2 byte. | P0-D |
-| Resource leak proof | The 100-cycle gate checks function and final GFS2 state, not frames/handles before and after each cycle. | P1-B |
-| ATA fault coverage | Out-of-range is covered; forced device `ERR` and poll timeout are not. | P1-C |
-| ABI single source | Selected rows are checked while syscall and import constants remain duplicated. | P1-D |
-| Clean-checkout reproducibility | Both builds currently share one checkout and can see the same local tree. | P1-E |
-| Kernel maintainability | `kernel/longmode_boot.asm` is a 5,933-line subsystem monolith. | P2-A |
+| Reusable child after OOM | `qemu_grogan_process_create_failures.sh` covers all 74 owned-frame edges and verifies `PCA/PCF/PCS`, retry, and exit status. | P0-A, P1-A |
+| `process_wait` result | TSV, Markdown, Grown contract, Rust/Grown lowering, and `WAITOK` zero/nonzero fixture agree on signed exit status. | P0-B |
+| Identifier safety/parity | Host and in-OS 31/32/63/64 corpus plus guard mutation test. | P0-C |
+| Literal encoding parity | Host and in-OS 255/256 corpus plus guard mutation test. | P0-D |
+| Resource leak proof | `R<frames>H<handles>P<pid>` is compared per cycle for 100 cycles. | P1-B |
+| ATA fault coverage | Separate ERR, timeout, and out-of-range QEMU images finish bounded and without `ATAOK`. | P1-C |
+| ABI single source | Full TSV parser, generated NASM include, C/Rust/Grown/kernel parity, and column mutation lane. | P1-D |
+| Clean-checkout reproducibility | Two isolated `git archive HEAD` builds and a poison untracked input produce equal manifests. | P1-E |
+| Kernel maintainability | Thirteen ordered include units cover entry, arch, MM, proc, drivers, FS, runtime, and data with direct-parent byte identity. | P2-A |
 
-Therefore `OOM process rollback complete`, `ATA failure campaign complete`,
-`clean-checkout reproducible`, and `100 cycles with zero leaks` are not valid
-claims yet. The narrower statements above are valid and remain regression
-requirements while the missing obligations are implemented.
+The remaining release action is to rerun the complete static/QEMU/release gates
+from the merged `development` commit and attach the external chatgpt.com audit
+feedback. Native code generation and general-purpose hardware support remain
+deliberately outside this Alpha release.
 
 ## Deliberate Alpha limits
 

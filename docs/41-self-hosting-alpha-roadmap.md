@@ -592,7 +592,7 @@ release score:
 | ATA failure campaign | Three QEMU images force capacity range, device `ERR`, and bounded timeout branches. | closed |
 | Reproducible distribution | `check_grogan_clean_checkout.sh` builds two archives and ignores a poison untracked input. | closed |
 | ABI source of truth | Full TSV parser, generated NASM constants, Rust/Grown/C dispatch checks, and mutation lane. | closed |
-| Kernel source structure | One NASM flat-binary source still contains boot, MM, processes, interrupts, syscalls, ATA, GFS2, verifier, and GrVM. | source-only modularization open |
+| Kernel source structure | `kernel/longmode_boot.asm` is an ordered include driver over 13 subsystem units; the direct-parent image comparison is byte-identical. | closed for Alpha |
 | Native Grown backend | GWO2 bytecode self-hosting is real and sufficient for Alpha. | deliberately deferred until Alpha is locked |
 
 The corrected Phase 10 rule is: a gate name or script default is not enough.
@@ -802,22 +802,22 @@ documented toolchain, not on local files.
 
 This is source modularization, not a rewrite and not a move to Rust or C.
 
-- [ ] **P2-A01 Baseline:** record the pre-refactor kernel/image SHA-256 and the
+- [x] **P2-A01 Baseline:** record the pre-refactor kernel/image SHA-256 and the
   exact build command from a fixed commit.
-- [ ] **P2-A02 Include root:** make `kernel/longmode_boot.asm` an ordered include
+- [x] **P2-A02 Include root:** make `kernel/longmode_boot.asm` an ordered include
   driver while preserving all constants, symbol order, sections, padding, and
   binary layout.
-- [ ] **P2-A03 Entry/arch:** move boot entry, long-mode transition, GDT, IDT,
+- [x] **P2-A03 Entry/arch:** move boot entry, long-mode transition, GDT, IDT,
   interrupt, and syscall entry into `kernel/entry.asm` and
   `kernel/arch/x86_64/` one contiguous block at a time.
-- [ ] **P2-A04 Memory:** move frame, paging, and heap code into `kernel/mm/`.
-- [ ] **P2-A05 Processes:** move process and scheduler code into `kernel/proc/`.
-- [ ] **P2-A06 Drivers:** move ATA and console/keyboard code into
+- [x] **P2-A04 Memory:** move frame, paging, and heap code into `kernel/mm/`.
+- [x] **P2-A05 Processes:** move process and scheduler code into `kernel/proc/`.
+- [x] **P2-A06 Drivers:** move ATA and console/keyboard code into
   `kernel/drivers/`.
-- [ ] **P2-A07 Filesystem:** move GFS2 code into `kernel/fs/gfs2.asm`.
-- [ ] **P2-A08 Runtime:** move the GWO2 loader/verifier and native GrVM bootstrap
+- [x] **P2-A07 Filesystem:** move GFS2 code into `kernel/fs/gfs2.asm`.
+- [x] **P2-A08 Runtime:** move the GWO2 loader/verifier and native GrVM bootstrap
   into `kernel/runtime/`.
-- [ ] **P2-A09 Per-move identity:** after every move, require the assembled
+- [x] **P2-A09 Per-move identity:** after every move, require the assembled
   kernel and complete image to be byte-identical to the recorded baseline.
 - [ ] **P2-A10 Final gates:** run static, QEMU, fixed-point, fault, and release
   validation after the last include split.

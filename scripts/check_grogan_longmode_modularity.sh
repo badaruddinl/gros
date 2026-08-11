@@ -24,6 +24,8 @@ dd if="$TMP_DIR/current.img" bs=1 count="$KERNEL_BYTES" status=none > "$TMP_DIR/
 cmp -s "$TMP_DIR/parent.kernel" "$TMP_DIR/current.kernel" || fail 'modular kernel bytes differ from the monolithic parent'
 cmp -s "$TMP_DIR/parent.img" "$TMP_DIR/current.img" || fail 'modular image bytes differ from the monolithic parent'
 
-grep -F '%include "kernel/longmode_boot_ata_wait.inc"' "$ROOT/kernel/longmode_boot.asm" > /dev/null || \
+grep -F '%include "kernel/drivers/ata.asm"' "$ROOT/kernel/longmode_boot.asm" > /dev/null || \
+    fail 'ATA driver is not included from the kernel driver tree'
+grep -F '%include "kernel/longmode_boot_ata_wait.inc"' "$ROOT/kernel/drivers/ata.asm" > /dev/null || \
     fail 'ATA wait implementation is not included from its subsystem file'
 echo 'Grogan NASM modularity: ordered ATA include is byte-identical to the monolithic parent kernel and image'
