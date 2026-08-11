@@ -53,6 +53,8 @@ Bytecode is a deterministic stack machine. The first executable encoding is:
 0x0f const_bytes <u8-len> <bytes>
 0x10 load_byte(pointer,index)   0x11 store_byte(pointer,index,value)
 0x12 duplicate                   0x13 drop
+0x14 call <u16-target> <u8-argc> <u8-result>
+0x15 return_void
 ```
 
 Imports are fixed and verifier-checked: id 1 is `print_i32(i32)`, id 2 is
@@ -67,11 +69,14 @@ rejected before any user memory or syscall side effect occurs.
 
 ## Grown Alpha source
 
-The first executable subset has one typed `fn main`, i32/pointer locals,
-assignment, `if/else`, `while`, integer expressions, byte strings, byte
-load/store, memory growth, and the console/file standard-library calls listed
-above. Source diagnostics carry file, line, and column. Multi-function
-linking, modules, and richer type checking remain explicit follow-on work.
+The first executable subset has typed functions with i32-compatible parameters
+and results, i32/pointer locals, assignment, `if/else`, `while`, integer and
+boolean expressions, byte strings, byte load/store, memory growth, and the
+console/file standard-library calls listed above. Function calls use absolute
+bytecode offsets and a bounded call depth; local slots are statically bounded
+per artifact. Source diagnostics carry file, line, and column. Modules,
+arrays-as-a-language-type, and richer structural type checking remain explicit
+follow-on work.
 
 ## Bootstrap stages
 

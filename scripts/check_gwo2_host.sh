@@ -9,6 +9,7 @@ GRCD="$TMP_DIR/grc0"
 GRVM="$TMP_DIR/grvm"
 SOURCE="$ROOT/examples/grown-alpha/hello.grw"
 STORAGE_SOURCE="$ROOT/examples/grown-alpha/storage-smoke.grw"
+FUNCTION_SOURCE="$ROOT/examples/grown-alpha/functions.grw"
 
 command -v "$CC" > /dev/null 2>&1 || { echo "error: $CC is required" >&2; exit 1; }
 "$CC" -std=c11 -O2 -Wall -Wextra -Werror "$ROOT/tools/gwo2.c" "$ROOT/tools/grc0.c" -o "$GRCD"
@@ -17,6 +18,12 @@ command -v "$CC" > /dev/null 2>&1 || { echo "error: $CC is required" >&2; exit 1
 "$GRCD" "$SOURCE" "$TMP_DIR/hello-b.gwo"
 cmp -s "$TMP_DIR/hello-a.gwo" "$TMP_DIR/hello-b.gwo"
 [ "$("$GRVM" "$TMP_DIR/hello-a.gwo")" = 28 ]
+
+"$GRCD" "$FUNCTION_SOURCE" "$TMP_DIR/functions.gwo"
+[ "$("$GRVM" "$TMP_DIR/functions.gwo")" = 28 ] || {
+    echo 'error: GWO2 function calls did not round-trip on the host VM' >&2
+    exit 1
+}
 
 "$GRCD" "$STORAGE_SOURCE" "$TMP_DIR/storage.gwo"
 [ "$(cd "$TMP_DIR" && "$GRVM" storage.gwo)" = A ] || {

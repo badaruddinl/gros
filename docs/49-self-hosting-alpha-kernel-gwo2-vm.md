@@ -48,6 +48,7 @@ exit markers, and a separate fault-injection run where both ring-3 guard-page
 faults reach `USEROK` without halting the kernel.
 
 The VM bridge is deliberately not claimed as compiler self-hosting yet. File
-imports now have a host/kernel parity fixture and a QEMU storage-smoke proof.
-A persistent ring-3 shell/editor, in-OS `grc1`, and fixed-point self-rebuild
-remain the next roadmap gates.
+imports and function calls now have host/kernel parity fixtures, with QEMU
+coverage for persistent storage and ring-3 call/return. A persistent ring-3
+editor, in-OS `grc1`, and fixed-point self-rebuild remain the next roadmap
+gates.

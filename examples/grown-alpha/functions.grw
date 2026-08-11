@@ -1,0 +1,15 @@
+target "gros.x86.bios.longmode.grogan.v1"
+
+fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+fn announce(value: i32) -> void {
+    print_i32(value);
+    newline();
+}
+
+fn main() -> void {
+    let answer: i32 = add(12, 16);
+    announce(answer);
+}

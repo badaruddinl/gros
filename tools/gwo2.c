@@ -129,100 +129,140 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
     }
     if (entry >= code_size) { set_error(error, error_size, "GWO2 entry outside bytecode"); return 0; }
     uint8_t *boundaries = (uint8_t *)calloc(1, code_size);
-    if (!boundaries) { set_error(error, error_size, "cannot allocate GWO2 verifier map"); return 0; }
-    uint8_t *jump_flags = (uint8_t *)calloc(1, code_size);
-    int32_t *jump_targets = (int32_t *)malloc((size_t)code_size * sizeof(*jump_targets));
-    if (!jump_flags || !jump_targets) {
-        free(jump_flags);
-        free(jump_targets);
-        free(boundaries);
-        set_error(error, error_size, "cannot allocate GWO2 control-flow map");
+    uint8_t *flow_kind = (uint8_t *)calloc(1, code_size);
+    int32_t *flow_targets = (int32_t *)malloc((size_t)code_size * sizeof(*flow_targets));
+    uint8_t *flow_argc = (uint8_t *)calloc(1, code_size);
+    uint8_t *flow_result = (uint8_t *)calloc(1, code_size);
+    if (!boundaries || !flow_kind || !flow_targets || !flow_argc || !flow_result) {
+        free(flow_result); free(flow_argc); free(flow_targets); free(flow_kind); free(boundaries);
+        set_error(error, error_size, "cannot allocate GWO2 verifier map");
         return 0;
     }
-    uint32_t pc = 0, depth = 0, max_depth = 0;
+#define VERIFY_FREE() do { free(flow_result); free(flow_argc); free(flow_targets); free(flow_kind); free(boundaries); } while (0)
+    uint32_t pc = 0;
     while (pc < code_size) {
         boundaries[pc] = 1;
         uint8_t op = h[code_offset + pc];
         uint32_t length = 1;
-        int effect = 0;
-            if (op == 1) { length = 5; effect = 1; }
-        else if (op == 2) { length = 2; effect = 1; }
-        else if (op == 3) { length = 2; effect = -1; }
-        else if (op >= 4 && op <= 9) { effect = -1; }
-        else if (op == 15) {
-            if (pc + 2 > code_size) {
-                free(jump_flags); free(jump_targets); free(boundaries);
-                set_error(error, error_size, "invalid GWO2 byte constant boundary");
-                return 0;
-            }
-            length = 2u + h[code_offset + pc + 1];
-            effect = 1;
-        }
-        else if (op == 16) { effect = -1; }
-        else if (op == 17) { effect = -3; }
-        else if (op == 18) { effect = 1; }
-        else if (op == 19) { effect = -1; }
-        else if (op == 10) { length = 3; }
-        else if (op == 11) { length = 3; effect = -1; }
-        else if (op == 12) {
-            length = 3;
-            if (pc + length > code_size) {
-                free(jump_flags); free(jump_targets); free(boundaries);
-                set_error(error, error_size, "invalid GWO2 import boundary");
-                return 0;
-            }
-            uint8_t import_id = h[code_offset + pc + 1];
-            uint8_t argc = h[code_offset + pc + 2];
-            if ((import_id == 1 || import_id == 2) && argc == 1) effect = -1;
-            else if (import_id == 3 && argc == 0) effect = 0;
-            else if ((import_id == 4 || import_id == 5) && argc == 2) effect = -1;
-            else if ((import_id == 6 || import_id == 7) && argc == 3) effect = -2;
-            else if ((import_id == 8 || import_id == 11 || import_id == 12) && argc == 1) effect = 0;
-            else if (import_id == 9 && argc == 2) effect = -1;
-            else if (import_id == 10 && argc == 1) effect = 0;
-            else if (import_id == 13 && argc == 2) effect = -2;
-            else if (import_id == 14 && argc == 0) effect = 0;
-            else {
-                free(jump_flags); free(jump_targets); free(boundaries);
-                set_error(error, error_size, "unsupported GWO2 import signature");
-                return 0;
-            }
-        }
-        else if (op == 13) { effect = -1; }
-        else if (op == 14) { effect = 0; }
-        else { free(jump_flags); free(jump_targets); free(boundaries); set_error(error, error_size, "unknown GWO2 opcode"); return 0; }
-        if (pc + length > code_size || depth < (effect < 0 ? (unsigned)-effect : 0u)) {
-            char detail[160];
-            snprintf(detail, sizeof(detail), "invalid GWO2 instruction at %u (op=%u depth=%u effect=%d length=%u)", pc, op, depth, effect, length);
-            free(jump_flags); free(jump_targets); free(boundaries); set_error(error, error_size, detail); return 0;
-        }
-        depth = (uint32_t)((int)depth + effect);
-        if (depth > 1024) {
-            free(jump_flags); free(jump_targets); free(boundaries);
-            set_error(error, error_size, "GWO2 operand stack exceeds Alpha limit");
-            return 0;
-        }
-        if (depth > max_depth) max_depth = depth;
+        if (op == 1) length = 5;
+        else if (op == 2 || op == 3) length = 2;
+        else if (op >= 4 && op <= 9) length = 1;
+        else if (op == 10 || op == 11) length = 3;
+        else if (op == 12) length = 3;
+        else if (op == 13 || op == 14 || op == 15 || op == 16 || op == 17 || op == 18 || op == 19 || op == 21) {
+            if (op == 15) {
+                if (pc + 2 > code_size) { VERIFY_FREE(); set_error(error, error_size, "invalid GWO2 byte constant boundary"); return 0; }
+                length = 2u + h[code_offset + pc + 1];
+            } else if (op == 16 || op == 17 || op == 18 || op == 19) length = 1;
+        } else if (op == 20) length = 5;
+        else { VERIFY_FREE(); set_error(error, error_size, "unknown GWO2 opcode"); return 0; }
+        if (pc + length > code_size) { VERIFY_FREE(); set_error(error, error_size, "GWO2 instruction exceeds bytecode"); return 0; }
         if (op == 10 || op == 11) {
             int16_t delta = (int16_t)get16(h + code_offset + pc + 1);
             int64_t target = (int64_t)pc + length + delta;
-            if (target < 0 || target >= code_size) { free(jump_flags); free(jump_targets); free(boundaries); set_error(error, error_size, "GWO2 jump outside bytecode"); return 0; }
-            jump_flags[pc] = 1;
-            jump_targets[pc] = (int32_t)target;
+            if (target < 0 || target >= code_size) { VERIFY_FREE(); set_error(error, error_size, "GWO2 jump outside bytecode"); return 0; }
+            flow_kind[pc] = 1;
+            flow_targets[pc] = (int32_t)target;
+        } else if (op == 20) {
+            uint16_t target = get16(h + code_offset + pc + 1);
+            uint8_t argc = h[code_offset + pc + 3];
+            uint8_t result = h[code_offset + pc + 4];
+            if (target >= code_size || argc > 64 || result > 1) { VERIFY_FREE(); set_error(error, error_size, "invalid GWO2 call target or signature"); return 0; }
+            flow_kind[pc] = 2;
+            flow_targets[pc] = target;
+            flow_argc[pc] = argc;
+            flow_result[pc] = result;
+        } else if (op == 12) {
+            uint8_t import_id = h[code_offset + pc + 1];
+            uint8_t argc = h[code_offset + pc + 2];
+            int valid = ((import_id == 1 || import_id == 2) && argc == 1) ||
+                        (import_id == 3 && argc == 0) ||
+                        ((import_id == 4 || import_id == 5) && argc == 2) ||
+                        ((import_id == 6 || import_id == 7) && argc == 3) ||
+                        ((import_id == 8 || import_id == 11 || import_id == 12) && argc == 1) ||
+                        (import_id == 9 && argc == 2) || (import_id == 10 && argc == 1) ||
+                        (import_id == 13 && argc == 2) || (import_id == 14 && argc == 0);
+            if (!valid) { VERIFY_FREE(); set_error(error, error_size, "unsupported GWO2 import signature"); return 0; }
         }
         pc += length;
     }
-    if (!boundary_contains(boundaries, code_size, entry)) { free(jump_flags); free(jump_targets); free(boundaries); set_error(error, error_size, "GWO2 entry is not an instruction boundary"); return 0; }
+    if (!boundary_contains(boundaries, code_size, entry)) { VERIFY_FREE(); set_error(error, error_size, "GWO2 entry is not an instruction boundary"); return 0; }
     for (uint32_t offset = 0; offset < code_size; ++offset) {
-        if (jump_flags[offset] && !boundary_contains(boundaries, code_size, (uint32_t)jump_targets[offset])) {
-            free(jump_flags); free(jump_targets); free(boundaries);
-            set_error(error, error_size, "GWO2 jump is not an instruction boundary");
-            return 0;
+        if (flow_kind[offset] && !boundary_contains(boundaries, code_size, (uint32_t)flow_targets[offset])) {
+            VERIFY_FREE(); set_error(error, error_size, "GWO2 control-flow target is not an instruction boundary"); return 0;
         }
     }
-    free(jump_flags);
-    free(jump_targets);
-    free(boundaries);
+
+    uint8_t *depths = (uint8_t *)malloc(code_size);
+    if (!depths) { VERIFY_FREE(); set_error(error, error_size, "cannot allocate GWO2 stack map"); return 0; }
+    memset(depths, 0xff, code_size);
+    depths[entry] = 0;
+    int changed = 1;
+    while (changed) {
+        changed = 0;
+        for (pc = 0; pc < code_size; ) {
+            if (depths[pc] == 0xff) {
+                uint8_t op = h[code_offset + pc];
+                if (op == 1) pc += 5;
+                else if (op == 2 || op == 3) pc += 2;
+                else if (op == 10 || op == 11 || op == 12) pc += 3;
+                else if (op == 15) pc += 2u + h[code_offset + pc + 1];
+                else if (op == 20) pc += 5;
+                else pc += 1;
+                continue;
+            }
+            uint8_t op = h[code_offset + pc];
+            uint32_t length = op == 1 ? 5 : (op == 2 || op == 3 ? 2 :
+                              (op == 10 || op == 11 || op == 12 ? 3 :
+                              (op == 15 ? 2u + h[code_offset + pc + 1] : (op == 20 ? 5 : 1))));
+            int effect = 0;
+            unsigned need = 0;
+            if (op == 1 || op == 2 || op == 15 || op == 18) effect = 1;
+            else if (op == 3 || op == 19 || op == 13) { effect = -1; need = 1; }
+            else if (op >= 4 && op <= 9) { effect = -1; need = 2; }
+            else if (op == 11) { effect = -1; need = 1; }
+            else if (op == 16) { effect = -1; need = 2; }
+            else if (op == 17) { effect = -3; need = 3; }
+            else if (op == 12) {
+                uint8_t id = h[code_offset + pc + 1], argc = h[code_offset + pc + 2];
+                need = argc;
+                if (id == 1 || id == 2 || id == 3) effect = -(int)argc;
+                else if (id >= 4 && id <= 12) effect = 1 - (int)argc;
+                else if (id == 13) effect = -(int)argc;
+                else if (id == 14) effect = 1 - (int)argc;
+            } else if (op == 20) {
+                uint8_t argc = flow_argc[pc];
+                need = argc;
+                effect = (int)flow_result[pc] - (int)argc;
+            }
+            if (depths[pc] < need || (int)depths[pc] + effect < 0 || depths[pc] + effect > 128) {
+                VERIFY_FREE(); free(depths); set_error(error, error_size, "GWO2 control-flow stack effect mismatch"); return 0;
+            }
+            uint8_t out = (uint8_t)((int)depths[pc] + effect);
+            if (op == 20) {
+                uint32_t target = (uint32_t)flow_targets[pc];
+                uint8_t argc = flow_argc[pc];
+                if (depths[target] == 0xff) { depths[target] = argc; changed = 1; }
+                else if (depths[target] != argc) { VERIFY_FREE(); free(depths); set_error(error, error_size, "GWO2 call target stack signature mismatch"); return 0; }
+            }
+            int terminal = op == 10 || op == 13 || op == 14 || op == 21;
+            if (!terminal && op != 11) {
+                uint32_t next = pc + length;
+                if (next >= code_size || !boundaries[next]) { VERIFY_FREE(); free(depths); set_error(error, error_size, "GWO2 fall-through is not an instruction boundary"); return 0; }
+                if (depths[next] == 0xff) { depths[next] = out; changed = 1; }
+                else if (depths[next] != out) { VERIFY_FREE(); free(depths); set_error(error, error_size, "GWO2 join stack depth mismatch"); return 0; }
+            }
+            if (op == 10 || op == 11) {
+                uint32_t target = (uint32_t)flow_targets[pc];
+                if (depths[target] == 0xff) { depths[target] = out; changed = 1; }
+                else if (depths[target] != out) { VERIFY_FREE(); free(depths); set_error(error, error_size, "GWO2 jump stack depth mismatch"); return 0; }
+            }
+            pc += length;
+        }
+    }
+    free(depths);
+    VERIFY_FREE();
+#undef VERIFY_FREE
     return 1;
 }
 

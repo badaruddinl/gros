@@ -25,6 +25,9 @@ section .boot start=0 vstart=0x7c00
 %define VM_BLOB_OFFSET 0x1000
 %define VM_STACK_BASE (USER_STACK + 0x100)
 %define VM_LOCALS_BASE (USER_STACK + 0x600)
+%define VM_FRAME_BASE (USER_STACK + 0x800)
+%define VM_FRAME_STRIDE 24
+%define VM_FRAME_LIMIT (USER_STACK + 0x900)
 %define VM_BUFFER (USER_STACK + 0x900)
 %define VM_CONST_BASE (VM_BUFFER + 0x80)
 %define VM_CONST_LIMIT (VM_BUFFER + 0x2c0)
@@ -33,6 +36,8 @@ section .boot start=0 vstart=0x7c00
 %define VM_SP_SLOT (USER_STACK + 8)
 %define VM_STEP_SLOT (USER_STACK + 16)
 %define VM_LIMIT_SLOT (USER_STACK + 24)
+%define VM_FP_SLOT (USER_STACK + 32)
+%define VM_ENTRY_SLOT (USER_STACK + 40)
 %define VM_CODE_LIMIT (USER_CODE + VM_BLOB_OFFSET + MAX_PAYLOAD_BYTES)
 %define KERNEL_CR3 0x1000
 %define KERNEL_PDPT 0x2000
@@ -73,6 +78,7 @@ section .boot start=0 vstart=0x7c00
 %define PROC_INODE 144
 %define PROC_FILE_SIZE 152
 %define PROC_PAYLOAD_PAGES 160
+%define PROC_ENTRY 168
 %define PROC_SIZE 176
 %define PROC_READY 1
 %define PROC_RUNNING 2
@@ -369,6 +375,8 @@ process_create:
     add eax, PAGE_SIZE - 1
     shr eax, 12
     mov [r12 + PROC_PAYLOAD_PAGES], eax
+    mov eax, [abs user_payload_entry]
+    mov [r12 + PROC_ENTRY], eax
     xor r11d, r11d
 .payload_page:
     cmp r11d, [r12 + PROC_PAYLOAD_PAGES]
@@ -414,6 +422,8 @@ process_create:
     mov rdx, USER_CODE + VM_BLOB_OFFSET
     add rdx, r15
     mov [r8 + 24], rdx
+    mov eax, [r12 + PROC_ENTRY]
+    mov [r8 + 40], eax
 
     mov rdi, r13
     call frame_alloc_owned
@@ -711,11 +721,13 @@ gwo_load_image:
     jne .fail
     cmp dword [r12 + 16], 1
     jne .fail
-    cmp dword [r12 + 20], 0
-    jne .fail
+    mov eax, [r12 + 20]
     mov r8d, [r12 + 24]
     test r8d, r8d
     jz .fail
+    cmp eax, r8d
+    jae .fail
+    mov [abs user_payload_entry], eax
     cmp r8d, MAX_PAYLOAD_BYTES
     ja .fail
     mov eax, r8d
@@ -746,6 +758,7 @@ gwo_load_image:
     mov [abs user_payload_size], r8d
     mov rdi, user_payload_kernel
     mov esi, r8d
+    mov edx, [abs user_payload_entry]
     call gwo2_verify_code
     test eax, eax
     jz .fail
@@ -839,6 +852,10 @@ gwo2_verify_code:
     je .return
     cmp eax, 14
     je .halt
+    cmp eax, 20
+    je .call
+    cmp eax, 21
+    je .return_void
     jmp .bad
 .const:
     mov r10d, 5
@@ -962,6 +979,19 @@ gwo2_verify_code:
     jmp .finish
 .halt:
     mov r10d, 1
+.return_void:
+    mov r10d, 1
+    jmp .finish
+.call:
+    mov r10d, 5
+    movzx edx, byte [r12 + r8 + 3]
+    movzx ecx, byte [r12 + r8 + 4]
+    cmp edx, 64
+    ja .bad
+    cmp ecx, 1
+    ja .bad
+    mov r11d, ecx
+    sub r11d, edx
 .finish:
     mov eax, r8d
     add eax, r10d
@@ -1016,6 +1046,10 @@ gwo2_verify_code:
     je .boundary_length
     cmp eax, 14
     je .boundary_length
+    cmp eax, 20
+    je .boundary_call
+    cmp eax, 21
+    je .boundary_length
     cmp eax, 4
     jb .bad
     cmp eax, 9
@@ -1030,6 +1064,14 @@ gwo2_verify_code:
 .boundary_byte_const:
     movzx r10d, byte [r12 + r8 + 1]
     add r10d, 2
+    jmp .boundary_length
+.boundary_call:
+    mov r10d, 5
+    movzx ecx, word [r12 + r8 + 1]
+    cmp ecx, r13d
+    jae .bad
+    cmp byte [gwo2_boundaries + rcx], 1
+    jne .bad
     jmp .boundary_length
 .boundary_jump:
     cmp eax, 12
@@ -1056,7 +1098,10 @@ gwo2_verify_code:
     mov al, 0xff
     mov ecx, MAX_PAYLOAD_BYTES
     rep stosb
-    mov byte [gwo2_depths], 0
+    mov edx, [abs user_payload_entry]
+    cmp edx, r13d
+    jae .bad
+    mov byte [gwo2_depths + rdx], 0
 .cfg_pass:
     xor r10d, r10d              ; changed in this pass
     xor r8d, r8d
@@ -1094,6 +1139,10 @@ gwo2_verify_code:
     je .cfg_return
     cmp eax, 14
     je .cfg_halt
+    cmp eax, 20
+    je .cfg_call
+    cmp eax, 21
+    je .cfg_return_void
     cmp eax, 15
     je .cfg_byte_const
     cmp eax, 16
@@ -1135,6 +1184,22 @@ gwo2_verify_code:
     jmp .cfg_effect
 .cfg_halt:
     mov ebx, 3
+    jmp .cfg_effect
+.cfg_return_void:
+    xor r15d, r15d
+    mov ebx, 3
+    jmp .cfg_effect
+.cfg_call:
+    mov r14d, 5
+    movzx edx, byte [r12 + r8 + 3]
+    movzx ecx, byte [r12 + r8 + 4]
+    cmp edx, 64
+    ja .bad
+    cmp ecx, 1
+    ja .bad
+    mov r15d, ecx
+    sub r15d, edx
+    mov ebx, 4
     jmp .cfg_effect
 .cfg_byte_const:
     movzx edx, byte [r12 + r8 + 1]
@@ -1184,7 +1249,7 @@ gwo2_verify_code:
     cmp edx, 13
     je .cfg_import_pop2
     cmp edx, 14
-    je .cfg_import_zero
+    je .cfg_import_one_result
     jmp .bad
 .cfg_import_pop:
     mov r15d, -1
@@ -1194,6 +1259,9 @@ gwo2_verify_code:
     jmp .cfg_effect
 .cfg_import_zero:
     xor r15d, r15d
+    jmp .cfg_effect
+.cfg_import_one_result:
+    mov r15d, 1
     jmp .cfg_effect
 .cfg_import_exit:
     mov r15d, -1
@@ -1232,6 +1300,8 @@ gwo2_verify_code:
     je .cfg_next
     cmp ebx, 3
     je .cfg_next
+    cmp ebx, 4
+    je .cfg_call_target
     movsx edx, word [r12 + r8 + 1]
     lea ecx, [r8 + r14]
     add ecx, edx
@@ -1248,6 +1318,22 @@ gwo2_verify_code:
     jmp .cfg_next
 .cfg_target_known:
     cmp edx, r9d
+    jne .bad
+.cfg_call_target:
+    movzx ecx, word [r12 + r8 + 1]
+    cmp ecx, r13d
+    jae .bad
+    cmp byte [gwo2_boundaries + rcx], 1
+    jne .bad
+    movzx edx, byte [r12 + r8 + 3]
+    movzx eax, byte [gwo2_depths + rcx]
+    cmp eax, 0xff
+    jne .cfg_call_known
+    mov [gwo2_depths + rcx], dl
+    mov r10d, 1
+    jmp .cfg_next
+.cfg_call_known:
+    cmp eax, edx
     jne .bad
 .cfg_next:
     inc r8d
@@ -1559,6 +1645,8 @@ process_yield_current:
     mov rdi, r12
     call process_load_context
 .return:
+    mov al, 'R'
+    out 0xe9, al
     mov rbx, [abs current_process]
     mov rcx, [rbx + PROC_RIP]
     mov r11, [rbx + PROC_FLAGS]
@@ -3956,11 +4044,13 @@ user_vm_program:
     xor r13d, r13d
     xor r14d, r14d
     mov r12, USER_CODE + VM_BLOB_OFFSET
+    add r12, [abs VM_ENTRY_SLOT]
     xor eax, eax
     mov rdi, VM_STACK_BASE
     mov ecx, 192
     rep stosq
     mov qword [abs VM_CONST_CURSOR], VM_CONST_BASE
+    mov qword [abs VM_FP_SLOT], 0
 .loop:
     inc r14
     cmp r14, 1000000
@@ -4003,6 +4093,10 @@ user_vm_program:
     je .return
     cmp eax, 14
     je .halt
+    cmp eax, 20
+    je .call
+    cmp eax, 21
+    je .return_void
     jmp .fail
 .const:
     cmp r13, 128
@@ -4432,6 +4526,37 @@ user_vm_program:
     mov [abs VM_STACK_BASE + r13 * 8], rax
     inc r13
     jmp .loop
+.call:
+    movzx eax, word [r12]
+    add r12, 2
+    movzx ebx, byte [r12]
+    inc r12
+    movzx ecx, byte [r12]
+    inc r12
+    cmp ebx, 64
+    ja .fail
+    cmp ecx, 1
+    ja .fail
+    cmp r13, rbx
+    jb .fail
+    mov r15, [abs VM_FP_SLOT]
+    cmp r15, 15
+    jae .fail
+    mov rdx, r13
+    sub rdx, rbx
+    mov r8, r15
+    imul r8, VM_FRAME_STRIDE
+    add r8, VM_FRAME_BASE
+    mov [r8], r12
+    mov [r8 + 8], rdx
+    mov [r8 + 16], rcx
+    inc r15
+    mov [abs VM_FP_SLOT], r15
+    mov r12, USER_CODE + VM_BLOB_OFFSET
+    add r12, rax
+    cmp r12, [abs VM_LIMIT_SLOT]
+    jae .fail
+    jmp .loop
 .import_print:
     cmp ebx, 1
     jne .fail
@@ -4470,15 +4595,44 @@ user_vm_program:
     syscall
     jmp .fail
 .return:
-    xor edi, edi
-    test r13, r13
-    jz .return_syscall
+    cmp r13, 1
+    jb .fail
     dec r13
-    mov edi, [abs VM_STACK_BASE + r13 * 8]
-.return_syscall:
+    mov rax, [abs VM_STACK_BASE + r13 * 8]
+    mov r15, [abs VM_FP_SLOT]
+    test r15, r15
+    jz .return_main
+    dec r15
+    mov [abs VM_FP_SLOT], r15
+    mov r8, r15
+    imul r8, VM_FRAME_STRIDE
+    add r8, VM_FRAME_BASE
+    mov rdx, [r8 + 8]
+    mov r12, [r8]
+    mov rcx, [r8 + 16]
+    mov r13, rdx
+    test rcx, rcx
+    jz .loop
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.return_main:
+    mov edi, eax
     mov eax, 0x0b
     syscall
     jmp .fail
+.return_void:
+    mov r15, [abs VM_FP_SLOT]
+    test r15, r15
+    jz .halt
+    dec r15
+    mov [abs VM_FP_SLOT], r15
+    mov r8, r15
+    imul r8, VM_FRAME_STRIDE
+    add r8, VM_FRAME_BASE
+    mov r13, [r8 + 8]
+    mov r12, [r8]
+    jmp .loop
 .halt:
     xor edi, edi
     mov eax, 0x0b
@@ -4749,6 +4903,8 @@ process_two:
 current_process:
     dq 0
 user_payload_size:
+    dd 0
+user_payload_entry:
     dd 0
 align 8
 gwo2_boundaries:

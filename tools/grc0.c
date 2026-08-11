@@ -17,7 +17,31 @@ typedef struct { enum token_kind kind; char text[128]; int64_t number; unsigned 
 typedef struct { const char *path; const char *source; size_t length, offset; unsigned line, column; token_t current; } lexer_t;
 typedef struct { uint8_t *bytes; size_t size, capacity; } code_t;
 typedef struct { char name[64]; unsigned slot; } local_t;
-typedef struct { lexer_t lexer; code_t code; local_t locals[64]; unsigned local_count; int return_i32; int failed; } parser_t;
+typedef struct {
+    char name[64];
+    unsigned offset;
+    unsigned params;
+    int return_i32;
+} function_t;
+typedef struct {
+    size_t position;
+    char name[64];
+    unsigned argc;
+} call_patch_t;
+typedef struct {
+    lexer_t lexer;
+    code_t code;
+    local_t locals[64];
+    unsigned local_count;
+    unsigned next_slot;
+    function_t functions[64];
+    unsigned function_count;
+    call_patch_t calls[256];
+    unsigned call_count;
+    function_t *current_function;
+    int return_i32;
+    int failed;
+} parser_t;
 
 static void diagnostic(parser_t *p, const char *format, ...) {
     if (p->failed) return;
@@ -142,8 +166,29 @@ static int expect_ident(parser_t *p, char *name, size_t size) {
     return 1;
 }
 static int local_find(parser_t *p, const char *name) {
-    for (unsigned i = 0; i < p->local_count; ++i) if (strcmp(p->locals[i].name, name) == 0) return (int)p->locals[i].slot;
+    for (unsigned i = 0; i < 64; ++i)
+        if (p->locals[i].name[0] != '\0' && strcmp(p->locals[i].name, name) == 0) return (int)p->locals[i].slot;
     return -1;
+}
+
+static function_t *function_find(parser_t *p, const char *name) {
+    for (unsigned i = 0; i < p->function_count; ++i)
+        if (strcmp(p->functions[i].name, name) == 0) return &p->functions[i];
+    return NULL;
+}
+
+static int add_function(parser_t *p, const char *name, unsigned params, int return_i32) {
+    if (function_find(p, name)) { diagnostic(p, "duplicate function '%s'", name); return 0; }
+    if (p->function_count >= sizeof(p->functions) / sizeof(p->functions[0])) {
+        diagnostic(p, "too many functions");
+        return 0;
+    }
+    function_t *function = &p->functions[p->function_count++];
+    snprintf(function->name, sizeof(function->name), "%s", name);
+    function->offset = 0;
+    function->params = params;
+    function->return_i32 = return_i32;
+    return 1;
 }
 
 static int precedence(enum token_kind kind) {
@@ -174,6 +219,10 @@ static int parse_primary(parser_t *p) {
         if (length >= sizeof(name)) { diagnostic(p, "identifier is too long"); return 0; }
         memcpy(name, p->lexer.current.text, length + 1);
         lexer_next(&p->lexer);
+        if (strcmp(name, "true") == 0 || strcmp(name, "false") == 0) {
+            code_emit(p, 1); code_u32(p, strcmp(name, "true") == 0 ? 1u : 0u);
+            return !p->failed;
+        }
         if (p->lexer.current.kind == TOK_LP) return parse_call(p, name);
         int slot = local_find(p, name);
         if (slot < 0) { diagnostic(p, "unknown value '%s'", name); return 0; }
@@ -213,6 +262,23 @@ static int parse_call(parser_t *p, const char *name) {
     if (strcmp(name, "print_bytes") == 0) {
         if (!parse_call_argument(p, &argc) || !expect(p, TOK_COMMA, "','") || !parse_call_argument(p, &argc) || !expect(p, TOK_RP, "')'")) return 0;
         code_emit(p, 12); code_emit(p, 13); code_emit(p, 2); return 0;
+    }
+    function_t *function = function_find(p, name);
+    if (function) {
+        unsigned expected = function->params;
+        for (unsigned i = 0; i < expected; ++i) {
+            if (!parse_call_argument(p, &argc)) return 0;
+            if (i + 1 < expected && !expect(p, TOK_COMMA, "','")) return 0;
+        }
+        if (!expect(p, TOK_RP, "')'")) return 0;
+        if (p->call_count >= sizeof(p->calls) / sizeof(p->calls[0])) { diagnostic(p, "too many call sites"); return 0; }
+        size_t position = p->code.size;
+        code_emit(p, 20); code_emit(p, 0); code_emit(p, 0); code_emit(p, (uint8_t)expected); code_emit(p, (uint8_t)function->return_i32);
+        call_patch_t *patch = &p->calls[p->call_count++];
+        patch->position = position;
+        patch->argc = expected;
+        snprintf(patch->name, sizeof(patch->name), "%s", name);
+        return function->return_i32;
     }
     unsigned expected = 0;
     uint8_t import_id = 0;
@@ -275,12 +341,15 @@ static int parse_statement(parser_t *p) {
     lexer_next(&p->lexer);
     if (strcmp(keyword, "let") == 0) {
         char name[64], type[32];
-        if (!expect_ident(p, name, sizeof(name)) || !expect(p, TOK_COLON, "':'") || !expect_ident(p, type, sizeof(type)) || strcmp(type, "i32") != 0 || !expect(p, TOK_ASSIGN, "'='")) {
-            if (!p->failed) diagnostic(p, "only i32 locals are supported");
+        if (!expect_ident(p, name, sizeof(name)) || !expect(p, TOK_COLON, "':'") || !expect_ident(p, type, sizeof(type)) ||
+            (strcmp(type, "i32") != 0 && strcmp(type, "bool") != 0 && strcmp(type, "ptr") != 0 && strcmp(type, "bytes") != 0) ||
+            !expect(p, TOK_ASSIGN, "'='")) {
+            if (!p->failed) diagnostic(p, "unsupported local type '%s'", type);
             return 0;
         }
-        if (local_find(p, name) >= 0 || p->local_count >= 64) { diagnostic(p, "duplicate or excessive local '%s'", name); return 0; }
-        unsigned slot = p->local_count++;
+        if (local_find(p, name) >= 0 || p->local_count >= 64 || p->next_slot >= 64) { diagnostic(p, "duplicate or excessive local '%s'", name); return 0; }
+        unsigned slot = p->next_slot++;
+        ++p->local_count;
         memcpy(p->locals[slot].name, name, strlen(name) + 1);
         p->locals[slot].slot = slot;
         if (!parse_expression(p, 0) || !expect(p, TOK_SEMI, "';'")) return 0;
@@ -289,7 +358,8 @@ static int parse_statement(parser_t *p) {
     if (strcmp(keyword, "return") == 0) {
         if (accept(p, TOK_SEMI)) {
             if (p->return_i32) diagnostic(p, "i32 function must return a value");
-            code_emit(p, 14); return !p->failed;
+            code_emit(p, p->current_function && strcmp(p->current_function->name, "main") != 0 ? 21 : 14);
+            return !p->failed;
         }
         if (!parse_expression(p, 0) || !expect(p, TOK_SEMI, "';'")) return 0;
         if (!p->return_i32) { diagnostic(p, "void function cannot return a value"); return 0; }
@@ -362,35 +432,147 @@ static char *read_source(const char *path, size_t *length) {
     fclose(file); source[size] = '\0'; *length = (size_t)size; return source;
 }
 
+static int skip_function_body(parser_t *scan) {
+    if (!expect(scan, TOK_LB, "'{'") ) return 0;
+    unsigned depth = 1;
+    while (!scan->failed && scan->lexer.current.kind != TOK_EOF && depth != 0) {
+        if (accept(scan, TOK_LB)) ++depth;
+        else if (accept(scan, TOK_RB)) --depth;
+        else lexer_next(&scan->lexer);
+    }
+    if (depth != 0) { diagnostic(scan, "unterminated function body"); return 0; }
+    return 1;
+}
+
+static int scan_declarations(const char *path, const char *source, size_t length,
+                             function_t *functions, unsigned *count) {
+    parser_t scan = {0};
+    scan.lexer.path = path;
+    scan.lexer.source = source;
+    scan.lexer.length = length;
+    scan.lexer.line = 1;
+    scan.lexer.column = 1;
+    lexer_next(&scan.lexer);
+    if (scan.lexer.current.kind != TOK_IDENT || strcmp(scan.lexer.current.text, "target") != 0) {
+        diagnostic(&scan, "expected target declaration");
+        return 0;
+    }
+    lexer_next(&scan.lexer);
+    if (scan.lexer.current.kind != TOK_STRING || strcmp(scan.lexer.current.text, "gros.x86.bios.longmode.grogan.v1") != 0) {
+        diagnostic(&scan, "unsupported target");
+        return 0;
+    }
+    lexer_next(&scan.lexer);
+    while (!scan.failed && scan.lexer.current.kind != TOK_EOF) {
+        char keyword[16], name[64], type[32];
+        if (!expect_ident(&scan, keyword, sizeof(keyword)) || strcmp(keyword, "fn") != 0) {
+            diagnostic(&scan, "expected fn declaration");
+            return 0;
+        }
+        if (!expect_ident(&scan, name, sizeof(name)) || !expect(&scan, TOK_LP, "'('") ) return 0;
+        unsigned params = 0;
+        if (scan.lexer.current.kind != TOK_RP) {
+            for (;;) {
+                char parameter[64];
+                if (!expect_ident(&scan, parameter, sizeof(parameter)) || !expect(&scan, TOK_COLON, "':'") ||
+                    !expect_ident(&scan, type, sizeof(type))) return 0;
+                if (strcmp(type, "i32") != 0 && strcmp(type, "bool") != 0 && strcmp(type, "ptr") != 0 && strcmp(type, "bytes") != 0) {
+                    diagnostic(&scan, "unsupported parameter type '%s'", type);
+                    return 0;
+                }
+                ++params;
+                if (!accept(&scan, TOK_COMMA)) break;
+            }
+        }
+        if (!expect(&scan, TOK_RP, "')'") || !expect(&scan, TOK_ARROW, "'->'") || !expect_ident(&scan, type, sizeof(type))) return 0;
+        int return_i32 = strcmp(type, "i32") == 0;
+        if (!return_i32 && strcmp(type, "void") != 0) { diagnostic(&scan, "unsupported return type '%s'", type); return 0; }
+        if (!add_function(&scan, name, params, return_i32) || !skip_function_body(&scan)) return 0;
+    }
+    memcpy(functions, scan.functions, scan.function_count * sizeof(function_t));
+    *count = scan.function_count;
+    return !scan.failed;
+}
+
+static int is_terminal_opcode(const code_t *code) {
+    if (code->size == 0) return 0;
+    uint8_t op = code->bytes[code->size - 1];
+    return op == 13 || op == 14 || op == 21;
+}
+
 static int compile(const char *source_path, const char *output_path) {
     size_t length = 0; char *source = read_source(source_path, &length);
     if (!source) { fprintf(stderr, "error: cannot read source %s\n", source_path); return 1; }
-    parser_t parser = {0}; parser.lexer.path = source_path; parser.lexer.source = source; parser.lexer.length = length; parser.lexer.line = 1; parser.lexer.column = 1; lexer_next(&parser.lexer);
+    parser_t parser = {0};
+    parser.lexer.path = source_path;
+    parser.lexer.source = source;
+    parser.lexer.length = length;
+    parser.lexer.line = 1;
+    parser.lexer.column = 1;
+    if (!scan_declarations(source_path, source, length, parser.functions, &parser.function_count)) {
+        free(source);
+        return 1;
+    }
+    /* Reinitialize the lexer and consume the target declaration deterministically. */
+    parser.lexer.offset = 0; parser.lexer.line = 1; parser.lexer.column = 1; lexer_next(&parser.lexer);
     if (parser.lexer.current.kind != TOK_IDENT || strcmp(parser.lexer.current.text, "target") != 0) diagnostic(&parser, "expected target declaration");
     else {
         lexer_next(&parser.lexer);
-        if (parser.lexer.current.kind != TOK_STRING) {
-            diagnostic(&parser, "expected target string");
-        } else {
-            if (strcmp(parser.lexer.current.text, "gros.x86.bios.longmode.grogan.v1") != 0)
-                diagnostic(&parser, "unsupported target '%s'", parser.lexer.current.text);
-            lexer_next(&parser.lexer);
+        if (parser.lexer.current.kind != TOK_STRING) diagnostic(&parser, "expected target string");
+        else lexer_next(&parser.lexer);
+    }
+    while (!parser.failed && parser.lexer.current.kind != TOK_EOF) {
+        char keyword[16], name[64], type[32];
+        if (!expect_ident(&parser, keyword, sizeof(keyword)) || strcmp(keyword, "fn") != 0) { diagnostic(&parser, "expected fn declaration"); break; }
+        if (!expect_ident(&parser, name, sizeof(name)) || !expect(&parser, TOK_LP, "'('") ) break;
+        function_t *function = function_find(&parser, name);
+        if (!function) { diagnostic(&parser, "unknown function declaration '%s'", name); break; }
+        parser.current_function = function;
+        parser.return_i32 = function->return_i32;
+        parser.local_count = 0;
+        memset(parser.locals, 0, sizeof(parser.locals));
+        char parameters[64][64];
+        unsigned parameter_count = 0;
+        if (parser.lexer.current.kind != TOK_RP) {
+            for (;;) {
+                if (parameter_count >= 64 || !expect_ident(&parser, parameters[parameter_count], sizeof(parameters[parameter_count])) ||
+                    !expect(&parser, TOK_COLON, "':'") || !expect_ident(&parser, type, sizeof(type))) break;
+                ++parameter_count;
+                if (!accept(&parser, TOK_COMMA)) break;
+            }
+        }
+        if (parser.failed || !expect(&parser, TOK_RP, "')'") || !expect(&parser, TOK_ARROW, "'->'") || !expect_ident(&parser, type, sizeof(type)) ||
+            !expect(&parser, TOK_LB, "'{'") ) break;
+        if (parameter_count != function->params) { diagnostic(&parser, "function parameter count changed during parse"); break; }
+        function->offset = (unsigned)parser.code.size;
+        for (unsigned i = parameter_count; i-- > 0;) {
+            if (local_find(&parser, parameters[i]) >= 0 || parser.local_count >= 64 || parser.next_slot >= 64) { diagnostic(&parser, "duplicate or excessive parameter '%s'", parameters[i]); break; }
+            unsigned slot = parser.next_slot++;
+            ++parser.local_count;
+            snprintf(parser.locals[slot].name, sizeof(parser.locals[slot].name), "%s", parameters[i]);
+            parser.locals[slot].slot = slot;
+            code_emit(&parser, 3); code_emit(&parser, (uint8_t)slot);
+        }
+        if (parser.failed || !parse_block(&parser)) break;
+        if (!is_terminal_opcode(&parser.code)) {
+            if (parser.return_i32) { code_emit(&parser, 1); code_u32(&parser, 0); code_emit(&parser, 13); }
+            else code_emit(&parser, 21);
         }
     }
-    char function[64], type[32];
-    if (!parser.failed && (!expect_ident(&parser, function, sizeof(function)) || strcmp(function, "fn") != 0)) diagnostic(&parser, "expected fn declaration");
-    if (!parser.failed && (!expect_ident(&parser, function, sizeof(function)) || strcmp(function, "main") != 0)) diagnostic(&parser, "only fn main is currently self-hosting");
-    if (!parser.failed && (!expect(&parser, TOK_LP, "'('") || !expect(&parser, TOK_RP, "')'") || !expect(&parser, TOK_ARROW, "'->'") || !expect_ident(&parser, type, sizeof(type)))) parser.failed = 1;
-    if (!parser.failed) { parser.return_i32 = strcmp(type, "i32") == 0; if (!parser.return_i32 && strcmp(type, "void") != 0) diagnostic(&parser, "unsupported return type '%s'", type); }
-    if (!parser.failed && expect(&parser, TOK_LB, "'{'") && parse_block(&parser)) {
-        if (parser.lexer.current.kind != TOK_EOF) diagnostic(&parser, "trailing tokens after main");
-        if (!parser.failed && (parser.code.size == 0 || (parser.code.bytes[parser.code.size - 1] != 13 && parser.code.bytes[parser.code.size - 1] != 14))) {
-            if (parser.return_i32) { code_emit(&parser, 1); code_u32(&parser, 0); code_emit(&parser, 13); }
-            else code_emit(&parser, 14);
-        }
+    function_t *main_function = function_find(&parser, "main");
+    if (!main_function && !parser.failed) diagnostic(&parser, "missing fn main");
+    for (unsigned i = 0; !parser.failed && i < parser.call_count; ++i) {
+        function_t *function = function_find(&parser, parser.calls[i].name);
+        if (!function || function->offset > UINT16_MAX) { diagnostic(&parser, "call target '%s' is outside Alpha range", parser.calls[i].name); break; }
+        if (function->params != parser.calls[i].argc) { diagnostic(&parser, "wrong argument count for '%s'", parser.calls[i].name); break; }
+        parser.code.bytes[parser.calls[i].position + 1] = (uint8_t)function->offset;
+        parser.code.bytes[parser.calls[i].position + 2] = (uint8_t)(function->offset >> 8);
     }
     int result = 1;
-    if (!parser.failed) { char error[160]; result = gwo2_emit_bytecode(output_path, parser.code.bytes, (uint32_t)parser.code.size, 0, error, sizeof(error)) ? 0 : (fprintf(stderr, "error: %s\n", error), 1); }
+    if (!parser.failed) {
+        char error[160];
+        result = gwo2_emit_bytecode(output_path, parser.code.bytes, (uint32_t)parser.code.size, main_function->offset, error, sizeof(error)) ? 0 : (fprintf(stderr, "error: %s\n", error), 1);
+    }
     free(parser.code.bytes); free(source); return result;
 }
 

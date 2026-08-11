@@ -10,7 +10,14 @@
 static uint16_t get16(const uint8_t *p) { return (uint16_t)p[0] | (uint16_t)p[1] << 8; }
 static int fail(const char *message) { fprintf(stderr, "error: %s\n", message); return 1; }
 
-enum { VM_MEMORY_SIZE = 1 << 20, VM_MAX_HANDLES = 16 };
+enum { VM_MEMORY_SIZE = 1 << 20, VM_MAX_HANDLES = 16, VM_MAX_FRAMES = 64 };
+
+typedef struct {
+    uint32_t return_pc;
+    uint32_t base;
+    uint8_t result;
+    int64_t locals[64];
+} vm_frame_t;
 
 static int memory_span(uint64_t pointer, uint64_t size) {
     return pointer < VM_MEMORY_SIZE && size <= VM_MEMORY_SIZE - pointer;
@@ -27,11 +34,12 @@ static int read_string(const uint8_t *memory, uint64_t pointer, char *out, size_
 
 static int run(const gwo2_image_t *image, uint64_t limit) {
     int64_t stack[1024];
-    int64_t locals[64] = {0};
+    vm_frame_t frames[VM_MAX_FRAMES] = {0};
     uint8_t memory[VM_MEMORY_SIZE] = {0};
     FILE *handles[VM_MAX_HANDLES] = {0};
     uint64_t heap = 0x1000;
     uint32_t sp = 0;
+    uint32_t fp = 0;
     uint32_t pc = image->entry_offset;
     uint64_t steps = 0;
     while (pc < image->code_size && steps++ < limit) {
@@ -45,12 +53,12 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             break;
         case 2: { /* load_local */
             if (pc >= image->code_size || image->code[pc] >= 64 || sp >= 1024) return fail("GWO2 VM local fault");
-            stack[sp++] = locals[image->code[pc++]];
+            stack[sp++] = frames[fp].locals[image->code[pc++]];
             break;
         }
         case 3: /* store_local */
             if (pc >= image->code_size || image->code[pc] >= 64 || sp == 0) return fail("GWO2 VM local store fault");
-            locals[image->code[pc++]] = stack[--sp];
+            frames[fp].locals[image->code[pc++]] = stack[--sp];
             break;
         case 15: { /* const_bytes: copy a NUL-terminated literal into VM memory */
             if (pc >= image->code_size) return fail("GWO2 VM byte constant fault");
@@ -213,10 +221,43 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             }
             break;
         }
+        case 20: { /* call(target, argc, result) */
+            if (pc + 4 > image->code_size || fp + 1 >= VM_MAX_FRAMES)
+                return fail("GWO2 VM call frame fault");
+            uint32_t target = (uint32_t)image->code[pc] | (uint32_t)image->code[pc + 1] << 8;
+            uint8_t argc = image->code[pc + 2], result = image->code[pc + 3];
+            if (target >= image->code_size || argc > sp || result > 1)
+                return fail("GWO2 VM call target/stack fault");
+            vm_frame_t *frame = &frames[++fp];
+            frame->return_pc = pc + 4;
+            frame->base = sp - argc;
+            frame->result = result;
+            memset(frame->locals, 0, sizeof(frame->locals));
+            for (uint8_t i = 0; i < argc; ++i) frame->locals[i] = stack[frame->base + i];
+            pc = target;
+            break;
+        }
         case 13: /* return */
-            return sp ? (int)stack[sp - 1] : 0;
+            if (sp == 0) return fail("GWO2 VM return stack fault");
+            {
+                int64_t value = stack[--sp];
+                if (fp == 0) return (int)value;
+                vm_frame_t frame = frames[fp--];
+                sp = frame.base;
+                if (frame.result) stack[sp++] = value;
+                pc = frame.return_pc;
+            }
+            break;
         case 14: /* halt */
             return 0;
+        case 21: /* return_void */
+            if (fp == 0) return 0;
+            {
+                vm_frame_t frame = frames[fp--];
+                sp = frame.base;
+                pc = frame.return_pc;
+            }
+            break;
         default:
             return fail("GWO2 VM unknown opcode");
         }
