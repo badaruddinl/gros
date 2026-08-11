@@ -11,9 +11,9 @@ second roadmap.
 The release-candidate audit and local runtime campaign discussed here use:
 
 ```txt
-branch: feature/self-hosting-alpha-hardening
-commit: 93e5f13 (release candidate; to be fast-forwarded to development)
-subject: refactor: split ATA wait path byte-identically
+branch: feature/self-hosting-alpha-hardening (to be fast-forwarded to development)
+commit: HEAD (release candidate; see remote development after publish)
+subject: hardening and modularization release candidate
 ```
 
 The independent feedback audited committed source, contracts, and test
@@ -72,10 +72,13 @@ ATTEMPTS=96 make grogan-process-create-failures-qemu
 make grogan-compiler-bounds-qemu grogan-ata-failures-qemu
 make validate-static
 make grogan-clean-checkout
+make validate-release
 ```
 
-The targeted hardening runs and the full static lane passed on the candidate
-commit. The QEMU release lane must be rerun after the final merge to
+The targeted hardening runs, full static lane, full QEMU lane, clean-checkout
+rebuild, and the combined `validate-release` gate all passed on the candidate
+commit. The combined gate reported 100 clean-boot reliability cycles and the
+two-clean-boot fixed point. It must be rerun after the final merge to
 `development`; this ledger never treats a script's presence as runtime proof.
 
 The pre-modular parent image/kernel baseline recorded by

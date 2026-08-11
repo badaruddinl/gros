@@ -819,7 +819,7 @@ This is source modularization, not a rewrite and not a move to Rust or C.
   into `kernel/runtime/`.
 - [x] **P2-A09 Per-move identity:** after every move, require the assembled
   kernel and complete image to be byte-identical to the recorded baseline.
-- [ ] **P2-A10 Final gates:** run static, QEMU, fixed-point, fault, and release
+- [x] **P2-A10 Final gates:** run static, QEMU, fixed-point, fault, and release
   validation after the last include split.
 
 Exit condition: maintainers can navigate subsystem files while the flat binary

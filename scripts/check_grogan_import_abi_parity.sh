@@ -21,7 +21,7 @@ syscall_path = contracts / "syscall-abi-v1.tsv"
 import_path = contracts / "gwo2-import-abi-v1.tsv"
 rust = (root / "tools/grc0.rs").read_text(encoding="utf-8")
 grown = (root / "examples/grown-alpha/grc1.grw").read_text(encoding="utf-8")
-kernel = (root / "kernel/longmode_boot.asm").read_text(encoding="utf-8")
+kernel = "\n".join(path.read_text(encoding="utf-8") for path in sorted((root / "kernel").rglob("*.asm")))
 grvm = (root / "tools/grvm.c").read_text(encoding="utf-8")
 
 def read_table(path, header):
