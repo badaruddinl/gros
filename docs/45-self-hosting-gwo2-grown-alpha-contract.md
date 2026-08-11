@@ -55,12 +55,16 @@ Bytecode is a deterministic stack machine. The first executable encoding is:
 0x12 duplicate                   0x13 drop
 0x14 call <u16-target> <u8-argc> <u8-result>
 0x15 return_void
+0x16 xor_i32
 ```
 
 Imports are fixed and verifier-checked: id 1 is `print_i32(i32)`, id 2 is
 `exit(i32)`, and id 3 is `newline()`. IDs 4-13 are the checked runtime ABI:
 `console_read`, `file_open`, `file_read`, `file_write`, `file_close`,
 `file_stat`, `mem_grow`, `path_create`, `file_unlink`, and `print_bytes`.
+IDs 15 and 16 extend the Alpha process ABI with `process_spawn(image, size)`
+and `process_wait(pid)`; both return an i32 status and are bounded by the
+same verified GWO2 loader used at boot.
 `const_bytes` copies a bounded NUL-terminated literal into the runtime's
 owned byte pool; byte load/store operations validate the pointed-to user span.
 Each instruction has a declared stack effect. Jumps target instruction
@@ -81,7 +85,7 @@ follow-on work.
 ## Bootstrap stages
 
 ```txt
-grc0 (hosted reference compiler) -> GWO2 bytecode
+grc0 (hosted Rust bootstrap compiler) -> GWO2 bytecode
 grc0 compiles grc1 written in Grown
 GrOS GrVM runs grc1.gwo
 grc1 compiles its own source inside GrOS
@@ -89,7 +93,9 @@ grc1 compiles its own source inside GrOS
 
 `grc0` and `grc1` must agree on canonical module order, diagnostics, symbol
 IDs, and emitted bytes. A native backend is reserved for after Alpha; bytecode
-self-hosting is not a fixture or a hardcoded payload shortcut.
+self-hosting is not a fixture or a hardcoded payload shortcut. The Rust
+bootstrap is `tools/grc0.rs`; the C host tools are limited to GWO2 verification
+and VM reference execution.
 
 ## Batch 1.4 gate
 

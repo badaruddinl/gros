@@ -21,9 +21,9 @@ require_hex() {
 
 require_hex 0f05 "missing user syscall instruction"
 require_hex 480f07 "missing SYSRETQ return path"
-require_hex 47574f31 "missing GWO1 executable magic"
-require_hex 18000000 "missing GWO header-size validation"
-require_hex 81040000 "missing GWO checksum contract"
+require_hex 47574f32 "missing GWO2 executable magic"
+require_hex 20000000 "missing GWO2 header-size validation"
+require_hex c59d1c81 "missing GWO2 FNV-1a checksum contract"
 require_hex f3a4 "missing bounded GWO payload copy"
 require_hex ffff000000f2cf00 "missing DPL3 user data descriptor"
 require_hex ffff000000faaf00 "missing DPL3 user code descriptor"
@@ -35,4 +35,4 @@ require_hex b053e6e9b043e6e9b046e6e9b047e6e9 "missing syscall configuration proo
 require_hex b053e6e9b043e6e9b031e6e9 "missing syscall write proof"
 require_hex b053e6e9b043e6e9b032e6e9 "missing syscall exit proof"
 
-echo "Grogan syscalls: GWO1 validation, DPL3 boundary, SYSCALL/SYSRETQ, and return-state preservation ok"
+echo "Grogan syscalls: GWO2 validation, DPL3 boundary, SYSCALL/SYSRETQ, and return-state preservation ok"

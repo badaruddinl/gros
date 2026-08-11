@@ -1,8 +1,10 @@
 # Self-Hosting Alpha Kernel GWO2 VM Bridge
 
 The long-mode kernel now consumes the same GWO2 artifact emitted by the hosted
-`grc0` compiler. The image builder generates
-`build/generated/grogan-user.gwo`, and the kernel embeds that exact file.
+Rust bootstrap compiler. The image builder generates
+`build/generated/grogan-user.gwo`, the installed `grc1.gwo`, and the compiler
+source in GFS2. The kernel embeds those exact artifacts; it does not consult a
+host path after image creation.
 
 ## Load and verify
 
@@ -41,14 +43,16 @@ preservation accident.
 ```bash
 make grogan-compiler grogan-processes
 make grogan-x86_64-qemu grogan-process-qemu
+make grogan-self-host-qemu
 ```
 
 The QEMU trace contains `GWO2OK`, two VM-produced `28` outputs, normal process
 exit markers, and a separate fault-injection run where both ring-3 guard-page
 faults reach `USEROK` without halting the kernel.
 
-The VM bridge is deliberately not claimed as compiler self-hosting yet. File
-imports and function calls now have host/kernel parity fixtures, with QEMU
-coverage for persistent storage and ring-3 call/return. A persistent ring-3
-editor, in-OS `grc1`, and fixed-point self-rebuild remain the next roadmap
-gates.
+The shell's `b` command runs the installed compiler source in ring 3 and writes
+`grc2.gwo` through the normal GFS2 syscalls; `x` loads that persisted artifact
+through the same verifier and runs it. The QEMU self-host gate checks the
+compile status, run status, and persisted artifact. Host fixed-point equality
+is checked by `make grogan-self-host`; the two gates are intentionally kept
+separate so a host proof cannot mask an in-OS failure.

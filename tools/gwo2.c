@@ -145,8 +145,11 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
         uint8_t op = h[code_offset + pc];
         uint32_t length = 1;
         if (op == 1) length = 5;
-        else if (op == 2 || op == 3) length = 2;
-        else if (op >= 4 && op <= 9) length = 1;
+        else if (op == 2 || op == 3) {
+            length = 2;
+            if (pc + length <= code_size && h[code_offset + pc + 1] == 255) { VERIFY_FREE(); set_error(error, error_size, "GWO2 local index outside Alpha limit"); return 0; }
+        }
+        else if ((op >= 4 && op <= 9) || op == 22) length = 1;
         else if (op == 10 || op == 11) length = 3;
         else if (op == 12) length = 3;
         else if (op == 13 || op == 14 || op == 15 || op == 16 || op == 17 || op == 18 || op == 19 || op == 21) {
@@ -167,7 +170,7 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
             uint16_t target = get16(h + code_offset + pc + 1);
             uint8_t argc = h[code_offset + pc + 3];
             uint8_t result = h[code_offset + pc + 4];
-            if (target >= code_size || argc > 64 || result > 1) { VERIFY_FREE(); set_error(error, error_size, "invalid GWO2 call target or signature"); return 0; }
+            if (target >= code_size || argc > 192 || result > 1) { VERIFY_FREE(); set_error(error, error_size, "invalid GWO2 call target or signature"); return 0; }
             flow_kind[pc] = 2;
             flow_targets[pc] = target;
             flow_argc[pc] = argc;
@@ -181,7 +184,8 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
                         ((import_id == 6 || import_id == 7) && argc == 3) ||
                         ((import_id == 8 || import_id == 11 || import_id == 12) && argc == 1) ||
                         (import_id == 9 && argc == 2) || (import_id == 10 && argc == 1) ||
-                        (import_id == 13 && argc == 2) || (import_id == 14 && argc == 0);
+                        (import_id == 13 && argc == 2) || (import_id == 14 && argc == 0) ||
+                        (import_id == 15 && argc == 2) || (import_id == 16 && argc == 1);
             if (!valid) { VERIFY_FREE(); set_error(error, error_size, "unsupported GWO2 import signature"); return 0; }
         }
         pc += length;
@@ -219,7 +223,7 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
             unsigned need = 0;
             if (op == 1 || op == 2 || op == 15 || op == 18) effect = 1;
             else if (op == 3 || op == 19 || op == 13) { effect = -1; need = 1; }
-            else if (op >= 4 && op <= 9) { effect = -1; need = 2; }
+            else if ((op >= 4 && op <= 9) || op == 22) { effect = -1; need = 2; }
             else if (op == 11) { effect = -1; need = 1; }
             else if (op == 16) { effect = -1; need = 2; }
             else if (op == 17) { effect = -3; need = 3; }
@@ -235,7 +239,7 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
                 need = argc;
                 effect = (int)flow_result[pc] - (int)argc;
             }
-            if (depths[pc] < need || (int)depths[pc] + effect < 0 || depths[pc] + effect > 128) {
+            if (depths[pc] < need || (int)depths[pc] + effect < 0 || depths[pc] + effect > 192) {
                 VERIFY_FREE(); free(depths); set_error(error, error_size, "GWO2 control-flow stack effect mismatch"); return 0;
             }
             uint8_t out = (uint8_t)((int)depths[pc] + effect);

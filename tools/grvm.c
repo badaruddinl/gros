@@ -16,7 +16,7 @@ typedef struct {
     uint32_t return_pc;
     uint32_t base;
     uint8_t result;
-    int64_t locals[64];
+    int64_t locals[255];
 } vm_frame_t;
 
 static int memory_span(uint64_t pointer, uint64_t size) {
@@ -52,12 +52,12 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             pc += 4;
             break;
         case 2: { /* load_local */
-            if (pc >= image->code_size || image->code[pc] >= 64 || sp >= 1024) return fail("GWO2 VM local fault");
+            if (pc >= image->code_size || image->code[pc] == 255 || sp >= 1024) return fail("GWO2 VM local fault");
             stack[sp++] = frames[fp].locals[image->code[pc++]];
             break;
         }
         case 3: /* store_local */
-            if (pc >= image->code_size || image->code[pc] >= 64 || sp == 0) return fail("GWO2 VM local store fault");
+            if (pc >= image->code_size || image->code[pc] == 255 || sp == 0) return fail("GWO2 VM local store fault");
             frames[fp].locals[image->code[pc++]] = stack[--sp];
             break;
         case 15: { /* const_bytes: copy a NUL-terminated literal into VM memory */
@@ -81,7 +81,9 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             break;
         }
         case 17: { /* store_byte(pointer, index, value) */
-            if (sp < 3 || stack[sp - 1] < 0 || stack[sp - 2] < 0) return fail("GWO2 VM byte store stack fault");
+            if (sp < 3 || stack[sp - 2] < 0 || stack[sp - 3] < 0) {
+                return fail("GWO2 VM byte store stack fault");
+            }
             uint64_t pointer = (uint64_t)stack[sp - 3], index = (uint64_t)stack[sp - 2];
             if (index >= VM_MEMORY_SIZE || !memory_span(pointer + index, 1)) return fail("GWO2 VM byte store bounds fault");
             memory[pointer + index] = (uint8_t)stack[sp - 1];
@@ -97,7 +99,7 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             if (sp == 0) return fail("GWO2 VM drop stack fault");
             --sp;
             break;
-        case 4: case 5: case 6: case 7: case 8: case 9: {
+        case 4: case 5: case 6: case 7: case 8: case 9: case 22: {
             if (sp < 2) return fail("GWO2 VM arithmetic stack fault");
             int64_t rhs = stack[--sp], lhs = stack[--sp], value = 0;
             if (op == 4) value = lhs + rhs;
@@ -105,8 +107,9 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             else if (op == 6) value = lhs * rhs;
             else if (op == 7) { if (rhs == 0) return fail("GWO2 VM division by zero"); value = lhs / rhs; }
             else if (op == 8) value = lhs == rhs;
-            else value = lhs < rhs;
-            stack[sp++] = value;
+            else if (op == 9) value = lhs < rhs;
+            else value = (int32_t)((uint32_t)(int32_t)lhs ^ (uint32_t)(int32_t)rhs);
+            stack[sp++] = (int32_t)value;
             break;
         }
         case 10: { /* jump */
@@ -216,6 +219,12 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
                 fwrite(memory + pointer, 1, (size_t)count, stdout);
             } else if (id == 14 && argc == 0) {
                 stack[sp++] = 0;
+            } else if (id == 15 && argc == 2) {
+                sp -= 2;
+                stack[sp++] = -38;
+            } else if (id == 16 && argc == 1) {
+                --sp;
+                stack[sp++] = -11;
             } else {
                 return fail("GWO2 VM unsupported import");
             }
@@ -233,7 +242,6 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             frame->base = sp - argc;
             frame->result = result;
             memset(frame->locals, 0, sizeof(frame->locals));
-            for (uint8_t i = 0; i < argc; ++i) frame->locals[i] = stack[frame->base + i];
             pc = target;
             break;
         }

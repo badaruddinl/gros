@@ -2,8 +2,8 @@
 set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 FILE=${1:-"$ROOT/build/gros-longmode.img"}
-KERNEL_BYTES=63488
-FS_START_LBA=128
+KERNEL_BYTES=98816
+FS_START_LBA=224
 fail() { echo "error: $1" >&2; exit 1; }
 [ -f "$FILE" ] || fail "file not found: $FILE"
 [ "$(wc -c < "$FILE" | tr -d ' ')" -ge "$KERNEL_BYTES" ] || fail "long-mode image must contain a $KERNEL_BYTES-byte kernel"

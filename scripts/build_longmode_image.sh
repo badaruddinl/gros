@@ -2,8 +2,8 @@
 set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT=${1:-"$ROOT/build/gros-longmode.img"}
-KERNEL_BYTES=63488
-FS_START_LBA=128
+KERNEL_BYTES=98816
+FS_START_LBA=224
 FS_BLOCKS=128
 USER_SOURCE=${GROGAN_USER_SOURCE:-"$ROOT/examples/grown-alpha/hello.grw"}
 command -v nasm > /dev/null 2>&1 || { echo 'error: nasm is required' >&2; exit 1; }
@@ -15,6 +15,9 @@ mkdir -p "$ROOT/build/generated"
 "$ROOT/scripts/grc0.sh" \
     "$ROOT/examples/grown-alpha/hello.grw" \
     "$ROOT/build/generated/grogan-helper.gwo"
+"$ROOT/scripts/grc0.sh" \
+    "$ROOT/examples/grown-alpha/grc1.grw" \
+    "$ROOT/build/generated/grc1.gwo"
 cd "$ROOT"
 nasm -f bin "$ROOT/kernel/longmode_boot.asm" -o "$OUT"
 [ "$(wc -c < "$OUT" | tr -d ' ')" = "$KERNEL_BYTES" ] || { echo "error: long-mode kernel must be $KERNEL_BYTES bytes" >&2; exit 1; }
@@ -22,5 +25,7 @@ nasm -f bin "$ROOT/kernel/longmode_boot.asm" -o "$OUT"
 # remaining sectors are a real disk surface for the GFS2 block layer; keeping
 # it in the same raw image lets ATA persistence survive a QEMU reboot.
 truncate -s "$((512 * (FS_START_LBA + FS_BLOCKS)))" "$OUT"
-"$ROOT/scripts/build_gfs2_volume.sh" "$OUT" "$((512 * FS_START_LBA))" "$FS_BLOCKS" > /dev/null
+GFS2_SEED_COMPILER="$ROOT/build/generated/grc1.gwo" \
+GFS2_SEED_SOURCE="$ROOT/examples/grown-alpha/grc1.grw" \
+    "$ROOT/scripts/build_gfs2_volume.sh" "$OUT" "$((512 * FS_START_LBA))" "$FS_BLOCKS" > /dev/null
 echo "built: $OUT"

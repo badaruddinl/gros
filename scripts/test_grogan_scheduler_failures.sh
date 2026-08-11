@@ -18,9 +18,15 @@ echo "ok: validator syntax"
 "$VALIDATOR" "$IMAGE" > /dev/null
 echo "ok: baseline"
 
-OFFSET=$(od -An -tx1 -v "$IMAGE" | tr -d ' \n' | awk 'match($0,"5053515256575541504151415241534154415541564157") { print (RSTART - 1) / 2; exit }')
-[ -n "$OFFSET" ] || fail "baseline missing timer register context save"
-printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+HEX_FILE="$TMP_DIR/image.hex"
+xxd -p "$IMAGE" | tr -d ' \n' > "$HEX_FILE"
+FOUND=0
+while IFS=: read -r CHAR_OFFSET _; do
+    OFFSET=$((CHAR_OFFSET / 2))
+    printf '\000' | dd of="$IMAGE" bs=1 seek="$OFFSET" count=1 conv=notrunc status=none
+    FOUND=1
+done < <(grep -o -b "5053515256575541504151415241534154415541564157" "$HEX_FILE" || true)
+[ "$FOUND" = 1 ] || fail "baseline missing timer register context save"
 if "$VALIDATOR" "$IMAGE" > "$TMP_DIR/out" 2> "$TMP_DIR/err"; then
     fail "missing-context-save: expected failure"
 fi

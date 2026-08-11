@@ -20,7 +20,7 @@ echo "ok: validator syntax"
 "$VALIDATOR" "$IMAGE" > /dev/null
 echo "ok: baseline"
 truncate -s 512 "$IMAGE"
-expect_failure short-image "long-mode image must contain a 63488-byte kernel"
+expect_failure short-image "long-mode image must contain a 98816-byte kernel"
 "$ROOT/scripts/build_longmode_image.sh" "$IMAGE" > /dev/null
 printf '\000' | dd of="$IMAGE" bs=1 seek=510 count=1 conv=notrunc status=none
 expect_failure missing-signature "missing boot signature"

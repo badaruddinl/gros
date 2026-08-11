@@ -8,6 +8,8 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 IMAGE="$TMP_DIR/storage.img"
 LOG="$TMP_DIR/debug.log"
 MONITOR_LOG="$TMP_DIR/monitor.log"
+FS_OFFSET=114688
+FS_BLOCKS=128
 
 fail() { echo "error: $1" >&2; exit 1; }
 command -v qemu-system-x86_64 > /dev/null 2>&1 || fail 'qemu-system-x86_64 is required'
@@ -39,8 +41,8 @@ grep -aF 'ATAOKGFS2OK' "$LOG" > /dev/null || fail 'GFS2 mount proof missing'
 grep -aF 'A' "$LOG" > /dev/null || fail 'ring-3 file syscall byte round-trip missing'
 
 "$CC" -std=c11 -O2 -Wall -Wextra -Werror "$ROOT/tools/gfs2.c" -o "$TMP_DIR/gfs2"
-"$TMP_DIR/gfs2" check "$IMAGE" 65536 128 > /dev/null
-if "$TMP_DIR/gfs2" ls "$IMAGE" 65536 128 | grep -F 'vm-storage-smoke.grw' > /dev/null; then
+"$TMP_DIR/gfs2" check "$IMAGE" "$FS_OFFSET" "$FS_BLOCKS" > /dev/null
+if "$TMP_DIR/gfs2" ls "$IMAGE" "$FS_OFFSET" "$FS_BLOCKS" | grep -F 'vm-storage-smoke.grw' > /dev/null; then
     fail 'ring-3 unlink left the temporary file on disk'
 fi
 

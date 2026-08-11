@@ -11,7 +11,7 @@ checksums, verifier, and stack VM all participate in the result.
 examples/grown-alpha/hello.grw
         │
         ▼
-scripts/grc0.sh (tools/grc0.c)
+scripts/grc0.sh (tools/grc0.rs)
         │  canonical GWO2 bytes
         ▼
 scripts/grvm.sh (tools/grvm.c)
@@ -43,6 +43,21 @@ non-boundary jumps, and unsupported imports.
 
 The hosted path is the reference implementation for the later in-OS GrVM. The
 storage-smoke and functions fixtures prove byte round-trip, unlink, and
-function call/return through the same import and bytecode signatures. It does
-not yet claim a multi-module linker or compiler self-rebuild; those are the
-next roadmap gates.
+function call/return through the same import and bytecode signatures.
+
+The bootstrap compiler is Rust (`tools/grc0.rs`); this is a deliberate
+implementation constraint for the first compiler stage. The C programs
+`tools/gwo2.c` and `tools/grvm.c` remain host-only verifier/VM reference tools
+and are not a compiler or a self-hosting shortcut.
+
+The hosted self-host gate now executes the Rust-produced `grc1.gwo`, lets that
+Grown compiler emit `grc2.gwo`, executes `grc2.gwo` twice, and requires the two
+Grown-produced artifacts to be byte-identical:
+
+```bash
+make grogan-self-host
+```
+
+The in-OS counterpart is exercised separately by `make grogan-self-host-qemu`;
+it boots a clean image, compiles the installed compiler source from the ring-3
+shell, runs the result, and checks that `grc2.gwo` is persisted in GFS2.

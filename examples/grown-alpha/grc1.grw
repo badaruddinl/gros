@@ -1,0 +1,978 @@
+target "gros.x86.bios.longmode.grogan.v1"
+
+fn get32(base: i32, off: i32) -> i32 {
+    let p: i32 = base + off;
+    let a: i32 = load_byte(p, 0);
+    let b: i32 = load_byte(p, 1);
+    let c: i32 = load_byte(p, 2);
+    let d: i32 = load_byte(p, 3);
+    return a + b * 256 + c * 65536 + d * 16777216;
+}
+
+fn put16(base: i32, off: i32, value: i32) -> void {
+    let p: i32 = base + off;
+    store_byte(p, 0, value);
+    store_byte(p, 1, value / 256);
+}
+
+fn put32(base: i32, off: i32, value: i32) -> void {
+    let q1: i32 = value / 256;
+    let b0: i32 = value - q1 * 256;
+    if (b0 < 0) { b0 = b0 + 256; q1 = q1 - 1; }
+    let q2: i32 = q1 / 256;
+    let b1: i32 = q1 - q2 * 256;
+    if (b1 < 0) { b1 = b1 + 256; q2 = q2 - 1; }
+    let q3: i32 = q2 / 256;
+    let b2: i32 = q2 - q3 * 256;
+    if (b2 < 0) { b2 = b2 + 256; q3 = q3 - 1; }
+    let b3: i32 = q3 - (q3 / 256) * 256;
+    if (b3 < 0) { b3 = b3 + 256; }
+    let p: i32 = base + off;
+    store_byte(p, 0, b0);
+    store_byte(p, 1, b1);
+    store_byte(p, 2, b2);
+    store_byte(p, 3, b3);
+}
+
+fn strlen0(pointer: i32) -> i32 {
+    let index: i32 = 0;
+    let done: i32 = 0;
+    while (done == 0) {
+        if (load_byte(pointer, index) == 0) {
+            done = 1;
+        } else {
+            index = index + 1;
+        }
+    }
+    return index;
+}
+
+fn xor32(left: i32, right: i32) -> i32 {
+    return left ^ right;
+}
+
+fn emit8(state: i32, value: i32) -> void {
+    let output: i32 = get32(state, 12);
+    let length: i32 = get32(state, 16);
+    store_byte(output, length, value);
+    put32(state, 16, length + 1);
+}
+
+fn emit32(state: i32, value: i32) -> void {
+    let q1: i32 = value / 256;
+    let b0: i32 = value - q1 * 256;
+    if (b0 < 0) { b0 = b0 + 256; q1 = q1 - 1; }
+    let q2: i32 = q1 / 256;
+    let b1: i32 = q1 - q2 * 256;
+    if (b1 < 0) { b1 = b1 + 256; q2 = q2 - 1; }
+    let q3: i32 = q2 / 256;
+    let b2: i32 = q2 - q3 * 256;
+    if (b2 < 0) { b2 = b2 + 256; q3 = q3 - 1; }
+    let b3: i32 = q3 - (q3 / 256) * 256;
+    if (b3 < 0) { b3 = b3 + 256; }
+    emit8(state, b0);
+    emit8(state, b1);
+    emit8(state, b2);
+    emit8(state, b3);
+}
+
+fn fnv(state: i32, start: i32, length: i32) -> i32 {
+    let output: i32 = get32(state, 12);
+    let hash: i32 = 2166136261;
+    let index: i32 = 0;
+    while (index < length) {
+        hash = xor32(hash, load_byte(output, start + index));
+        hash = hash * 16777619;
+        index = index + 1;
+    }
+    return hash;
+}
+
+fn is_space(value: i32) -> i32 {
+    let result: i32 = 0;
+    if (value == 32) { result = 1; }
+    if (value == 9) { result = 1; }
+    if (value == 10) { result = 1; }
+    if (value == 13) { result = 1; }
+    return result;
+}
+
+fn is_ident(value: i32) -> i32 {
+    let result: i32 = 0;
+    if (64 < value) {
+        if (value < 91) { result = 1; }
+    }
+    if (96 < value) {
+        if (value < 123) { result = 1; }
+    }
+    if (47 < value) {
+        if (value < 58) { result = 1; }
+    }
+    if (value == 95) { result = 1; }
+    return result;
+}
+
+fn is_ident_start(value: i32) -> i32 {
+    let result: i32 = 0;
+    if (64 < value) {
+        if (value < 91) { result = 1; }
+    }
+    if (96 < value) {
+        if (value < 123) { result = 1; }
+    }
+    if (value == 95) { result = 1; }
+    return result;
+}
+
+fn skip(state: i32) -> void {
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    let position: i32 = get32(state, 8);
+    let done: i32 = 0;
+    while (done == 0) {
+        if (position < length) {
+            let value: i32 = load_byte(source, position);
+            if (is_space(value) == 1) {
+                position = position + 1;
+            } else {
+                if (value == 47) {
+                    if (load_byte(source, position + 1) == 47) {
+                        position = position + 2;
+                        let comment_done: i32 = 0;
+                        while (comment_done == 0) {
+                            if (position < length) {
+                                if (load_byte(source, position) == 10) {
+                                    comment_done = 1;
+                                } else {
+                                    position = position + 1;
+                                }
+                            } else {
+                                comment_done = 1;
+                            }
+                        }
+                    } else {
+                        done = 1;
+                    }
+                } else {
+                    done = 1;
+                }
+            }
+        } else {
+            done = 1;
+        }
+    }
+    put32(state, 8, position);
+}
+
+fn word(state: i32, text: i32) -> i32 {
+    skip(state);
+    let source: i32 = get32(state, 0);
+    let position: i32 = get32(state, 8);
+    let length: i32 = strlen0(text);
+    let index: i32 = 0;
+    let result: i32 = 1;
+    while (index < length) {
+        if (load_byte(source, position + index) == load_byte(text, index)) {
+            result = result;
+        } else {
+            result = 0;
+        }
+        index = index + 1;
+    }
+    if (result == 1) { put32(state, 8, position + length); }
+    return result;
+}
+
+fn read_ident(state: i32, destination: i32) -> i32 {
+    skip(state);
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    let position: i32 = get32(state, 8);
+    let clear_index: i32 = 0;
+    while (clear_index < 32) {
+        store_byte(destination, clear_index, 0);
+        clear_index = clear_index + 1;
+    }
+    let index: i32 = 0;
+    let done: i32 = 0;
+    while (done == 0) {
+        if (position < length) {
+            let value: i32 = load_byte(source, position);
+            if (is_ident(value) == 1) {
+                store_byte(destination, index, value);
+                index = index + 1;
+                position = position + 1;
+            } else {
+                done = 1;
+            }
+        } else {
+            done = 1;
+        }
+    }
+    store_byte(destination, index, 0);
+    put32(state, 8, position);
+    return index;
+}
+
+fn read_number(state: i32) -> i32 {
+    skip(state);
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    let position: i32 = get32(state, 8);
+    let value: i32 = 0;
+    let done: i32 = 0;
+    while (done == 0) {
+        if (position < length) {
+            let digit: i32 = load_byte(source, position);
+            if (47 < digit) {
+                if (digit < 58) {
+                    value = value * 10 + digit - 48;
+                    position = position + 1;
+                } else {
+                    done = 1;
+                }
+            } else {
+                done = 1;
+            }
+        } else {
+            done = 1;
+        }
+    }
+    put32(state, 8, position);
+    return value;
+}
+
+fn skip_string(state: i32) -> void {
+    skip(state);
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    let position: i32 = get32(state, 8);
+    if (load_byte(source, position) == 34) {
+        position = position + 1;
+        let done: i32 = 0;
+        while (done == 0) {
+            if (position < length) {
+                if (load_byte(source, position) == 34) {
+                    position = position + 1;
+                    done = 1;
+                } else {
+                    position = position + 1;
+                }
+            } else {
+                done = 1;
+            }
+        }
+    }
+    put32(state, 8, position);
+}
+
+fn skip_body(state: i32) -> void {
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    let position: i32 = get32(state, 8);
+    let depth: i32 = 1;
+    let in_string: i32 = 0;
+    let done: i32 = 0;
+    while (done == 0) {
+        if (position < length) {
+            let value: i32 = load_byte(source, position);
+            if (in_string == 1) {
+                if (value == 34) { in_string = 0; }
+                position = position + 1;
+            } else {
+                if (value == 34) {
+                    in_string = 1;
+                    position = position + 1;
+                } else {
+                    if (value == 123) {
+                        depth = depth + 1;
+                        position = position + 1;
+                    } else {
+                        if (value == 125) {
+                            depth = depth - 1;
+                            position = position + 1;
+                            if (depth == 0) { done = 1; }
+                        } else {
+                            position = position + 1;
+                        }
+                    }
+                }
+            }
+        } else {
+            done = 1;
+            put32(state, 40, 1);
+        }
+    }
+    put32(state, 8, position);
+}
+
+fn scan_functions(state: i32) -> void {
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    let done: i32 = 0;
+    while (done == 0) {
+        skip(state);
+        let position: i32 = get32(state, 8);
+        if (position < length) {
+            let keyword: i32 = state + 64;
+            read_ident(state, keyword);
+            if (name_eq(keyword, "fn") == 1) {
+                let name: i32 = state + 96;
+                read_ident(state, name);
+                let record: i32 = add_function(state, name, 0);
+                skip(state);
+                position = get32(state, 8);
+                if (load_byte(source, position) == 40) { put32(state, 8, position + 1); }
+                let parameter_count: i32 = 0;
+                let parameters_done: i32 = 0;
+                while (parameters_done == 0) {
+                    skip(state);
+                    position = get32(state, 8);
+                    if (load_byte(source, position) == 41) {
+                        put32(state, 8, position + 1);
+                        parameters_done = 1;
+                    } else {
+                        let parameter: i32 = state + 128;
+                        read_ident(state, parameter);
+                        skip(state);
+                        position = get32(state, 8);
+                        if (load_byte(source, position) == 58) { put32(state, 8, position + 1); }
+                        let type_name: i32 = state + 160;
+                        read_ident(state, type_name);
+                        parameter_count = parameter_count + 1;
+                        skip(state);
+                        position = get32(state, 8);
+                        if (load_byte(source, position) == 44) {
+                            put32(state, 8, position + 1);
+                        } else {
+                            if (load_byte(source, position) == 41) { put32(state, 8, position + 1); }
+                            parameters_done = 1;
+                        }
+                    }
+                }
+                skip(state);
+                position = get32(state, 8);
+                if (load_byte(source, position) == 45) {
+                    position = position + 1;
+                    if (load_byte(source, position) == 62) { position = position + 1; }
+                    put32(state, 8, position);
+                }
+                let return_name: i32 = state + 160;
+                read_ident(state, return_name);
+                let returns: i32 = 0;
+                if (name_eq(return_name, "i32") == 1) { returns = 1; }
+                put32(record, 36, parameter_count);
+                put32(record, 40, returns);
+                skip(state);
+                position = get32(state, 8);
+                if (load_byte(source, position) == 123) { put32(state, 8, position + 1); }
+                skip_body(state);
+            } else {
+                done = 1;
+                put32(state, 8, position);
+            }
+        } else {
+            done = 1;
+        }
+    }
+}
+
+fn emit_jump(state: i32, opcode: i32) -> i32 {
+    let position: i32 = get32(state, 16) - 48;
+    emit8(state, opcode);
+    emit8(state, 0);
+    emit8(state, 0);
+    return position;
+}
+
+fn patch_jump(state: i32, position: i32, target: i32) -> void {
+    let delta: i32 = target - position - 3;
+    if (delta < 0) { delta = delta + 65536; }
+    let output: i32 = get32(state, 12);
+    put16(output, 48 + position + 1, delta);
+}
+
+fn copy_name(source: i32, destination: i32) -> void {
+    let index: i32 = 0;
+    let done: i32 = 0;
+    while (done == 0) {
+        if (index < 31) {
+            let value: i32 = load_byte(source, index);
+            store_byte(destination, index, value);
+            if (value == 0) { done = 1; } else { index = index + 1; }
+        } else {
+            store_byte(destination, 31, 0);
+            done = 1;
+        }
+    }
+}
+
+fn name_eq(left: i32, right: i32) -> i32 {
+    let index: i32 = 0;
+    let result: i32 = 1;
+    let done: i32 = 0;
+    while (done == 0) {
+        if (index < 32) {
+            let left_value: i32 = load_byte(left, index);
+            let right_value: i32 = load_byte(right, index);
+            if (left_value == right_value) {
+                if (left_value == 0) { done = 1; }
+                else { index = index + 1; }
+            } else {
+                result = 0;
+                done = 1;
+            }
+        } else {
+            done = 1;
+        }
+    }
+    return result;
+}
+
+fn add_function(state: i32, name: i32, offset: i32) -> i32 {
+    let count: i32 = get32(state, 28);
+    if (count == 48) { put32(state, 40, 1); return 0; }
+    let record: i32 = state + 512 + count * 44;
+    copy_name(name, record);
+    put32(record, 32, offset);
+    put32(record, 36, 0);
+    put32(record, 40, 0);
+    put32(state, 28, count + 1);
+    return record;
+}
+
+fn find_function(state: i32, name: i32) -> i32 {
+    let count: i32 = get32(state, 28);
+    let index: i32 = 0;
+    let result: i32 = 0;
+    while (index < count) {
+        let record: i32 = state + 512 + index * 44;
+        if (name_eq(name, record) == 1) { result = record; }
+        index = index + 1;
+    }
+    return result;
+}
+
+fn reset_locals(state: i32) -> void {
+    put32(state, 32, 0);
+    put32(state, 36, 0);
+}
+
+fn add_local(state: i32, name: i32) -> i32 {
+    let count: i32 = get32(state, 32);
+    let slot: i32 = get32(state, 36);
+    if (count == 36) { put32(state, 40, 1); return 0; }
+    let record: i32 = state + 2624 + count * 40;
+    copy_name(name, record);
+    put32(record, 32, slot);
+    put32(state, 32, count + 1);
+    put32(state, 36, slot + 1);
+    return slot;
+}
+
+fn find_local(state: i32, name: i32) -> i32 {
+    let count: i32 = get32(state, 32);
+    let index: i32 = 0;
+    let result: i32 = 0 - 1;
+    while (index < count) {
+        let record: i32 = state + 2624 + index * 40;
+        if (name_eq(name, record) == 1) { result = get32(record, 32); }
+        index = index + 1;
+    }
+    return result;
+}
+
+fn add_call_patch(state: i32, position: i32, record: i32) -> void {
+    let count: i32 = get32(state, 60);
+    if (count == 512) {
+        put32(state, 40, 1);
+    } else {
+        let patch: i32 = get32(state, 56) + count * 8;
+        put32(patch, 0, position);
+        put32(patch, 4, record);
+        put32(state, 60, count + 1);
+    }
+}
+
+fn patch_calls(state: i32) -> void {
+    let count: i32 = get32(state, 60);
+    let index: i32 = 0;
+    while (index < count) {
+        let patch: i32 = get32(state, 56) + index * 8;
+        let position: i32 = get32(patch, 0);
+        let record: i32 = get32(patch, 4);
+        let output: i32 = get32(state, 12);
+        put16(output, 48 + position + 1, get32(record, 32));
+        index = index + 1;
+    }
+}
+
+fn emit_load_local(state: i32, slot: i32) -> void {
+    emit8(state, 2);
+    emit8(state, slot);
+}
+
+fn emit_store_local(state: i32, slot: i32) -> void {
+    emit8(state, 3);
+    emit8(state, slot);
+}
+
+fn read_string_literal(state: i32) -> i32 {
+    skip(state);
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    let position: i32 = get32(state, 8);
+    let start: i32 = position + 1;
+    let index: i32 = 0;
+    let done: i32 = 0;
+    if (load_byte(source, position) == 34) { position = position + 1; }
+    while (done == 0) {
+        if (position < length) {
+            if (load_byte(source, position) == 34) {
+                done = 1;
+            } else {
+                position = position + 1;
+                index = index + 1;
+            }
+        } else {
+            done = 1;
+        }
+    }
+    emit8(state, 15);
+    emit8(state, index);
+    let copy: i32 = 0;
+    while (copy < index) {
+        emit8(state, load_byte(source, start + copy));
+        copy = copy + 1;
+    }
+    if (position < length) { position = position + 1; }
+    put32(state, 8, position);
+    return 1;
+}
+
+fn read_number_emit(state: i32) -> i32 {
+    let value: i32 = read_number(state);
+    emit8(state, 1);
+    emit32(state, value);
+    return 1;
+}
+
+fn parse_expression(state: i32, minimum: i32) -> i32 {
+    skip(state);
+    let source: i32 = get32(state, 0);
+    let position: i32 = get32(state, 8);
+    let value: i32 = load_byte(source, position);
+    let result: i32 = 0;
+    if (47 < value) {
+        if (value < 58) { result = read_number_emit(state); }
+    }
+    if (value == 34) {
+        result = read_string_literal(state);
+    }
+    if (value == 40) {
+        put32(state, 8, position + 1);
+        result = parse_expression(state, 0);
+        skip(state);
+        position = get32(state, 8);
+        if (load_byte(source, position) == 41) { put32(state, 8, position + 1); }
+    }
+    if (is_ident_start(value) == 1) {
+        let name: i32 = state + 416;
+        read_ident(state, name);
+        skip(state);
+        position = get32(state, 8);
+        if (load_byte(source, position) == 40) {
+            result = parse_call(state, name);
+        } else {
+            let slot: i32 = find_local(state, name);
+            if (slot < 0) {
+                put32(state, 40, 1);
+            } else { emit_load_local(state, slot); result = 1; }
+        }
+    }
+    let done: i32 = 0;
+    while (done == 0) {
+        skip(state);
+        position = get32(state, 8);
+        value = load_byte(source, position);
+        let level: i32 = 0;
+        let opcode: i32 = 0;
+        if (value == 61) {
+            if (load_byte(source, position + 1) == 61) { level = 1; opcode = 8; }
+        }
+        if (value == 60) { level = 1; opcode = 9; }
+        if (value == 94) { level = 1; opcode = 22; }
+        if (value == 43) { level = 2; opcode = 4; }
+        if (value == 45) { level = 2; opcode = 5; }
+        if (value == 42) { level = 3; opcode = 6; }
+        if (value == 47) { level = 3; opcode = 7; }
+        if (level < minimum) { level = 0; }
+        if (level == 0) {
+            done = 1;
+        } else {
+            if (opcode == 8) { put32(state, 8, position + 2); } else { put32(state, 8, position + 1); }
+            parse_expression(state, level + 1);
+            emit8(state, opcode);
+        }
+    }
+    return result;
+}
+
+fn parse_call(state: i32, name: i32) -> i32 {
+    let depth: i32 = get32(state, 52);
+    if (depth == 128) { put32(state, 40, 1); return 0; }
+    let call_stack: i32 = get32(state, 48);
+    let saved_name: i32 = call_stack + depth * 32;
+    copy_name(name, saved_name);
+    put32(state, 52, depth + 1);
+    let call_name: i32 = state + 448;
+    let source: i32 = get32(state, 0);
+    let position: i32 = get32(state, 8);
+    put32(state, 8, position + 1);
+    let argc: i32 = 0;
+    skip(state);
+    position = get32(state, 8);
+    let has_args: i32 = 1;
+    if (load_byte(source, position) == 41) { has_args = 0; }
+    if (has_args == 1) {
+        let args_done: i32 = 0;
+        while (args_done == 0) {
+            parse_expression(state, 0);
+            argc = argc + 1;
+            skip(state);
+            position = get32(state, 8);
+            if (load_byte(source, position) == 44) {
+                put32(state, 8, position + 1);
+            } else {
+                args_done = 1;
+            }
+        }
+    }
+    skip(state);
+    position = get32(state, 8);
+    if (load_byte(source, position) == 41) { put32(state, 8, position + 1); }
+    copy_name(saved_name, call_name);
+    let result: i32 = 0;
+    if (name_eq(call_name, "load_byte") == 1) { emit8(state, 16); result = 1; }
+    if (name_eq(call_name, "store_byte") == 1) { emit8(state, 17); }
+    if (name_eq(call_name, "print_i32") == 1) { emit8(state, 12); emit8(state, 1); emit8(state, argc); }
+    if (name_eq(call_name, "exit") == 1) { emit8(state, 12); emit8(state, 2); emit8(state, argc); }
+    if (name_eq(call_name, "newline") == 1) { emit8(state, 12); emit8(state, 3); emit8(state, argc); }
+    if (name_eq(call_name, "console_read") == 1) { emit8(state, 12); emit8(state, 4); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "file_open") == 1) { emit8(state, 12); emit8(state, 5); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "file_read") == 1) { emit8(state, 12); emit8(state, 6); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "file_write") == 1) { emit8(state, 12); emit8(state, 7); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "file_close") == 1) { emit8(state, 12); emit8(state, 8); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "file_stat") == 1) { emit8(state, 12); emit8(state, 9); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "mem_grow") == 1) { emit8(state, 12); emit8(state, 10); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "path_create") == 1) { emit8(state, 12); emit8(state, 11); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "file_unlink") == 1) { emit8(state, 12); emit8(state, 12); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "print_bytes") == 1) { emit8(state, 12); emit8(state, 13); emit8(state, argc); }
+    if (name_eq(call_name, "task_yield") == 1) { emit8(state, 12); emit8(state, 14); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "process_spawn") == 1) { emit8(state, 12); emit8(state, 15); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "process_wait") == 1) { emit8(state, 12); emit8(state, 16); emit8(state, argc); result = 1; }
+    if (name_eq(call_name, "drop") == 1) { emit8(state, 19); }
+    let record: i32 = find_function(state, call_name);
+    if (record == 0) {
+        result = result;
+    } else {
+        emit8(state, 20);
+        emit8(state, 0);
+        emit8(state, 0);
+        emit8(state, argc);
+        emit8(state, get32(record, 40));
+        add_call_patch(state, get32(state, 16) - 48 - 5, record);
+        result = get32(record, 40);
+    }
+    put32(state, 52, depth);
+    return result;
+}
+
+fn parse_block(state: i32) -> void {
+    let source: i32 = get32(state, 0);
+    let length: i32 = get32(state, 4);
+    skip(state);
+    let open_position: i32 = get32(state, 8);
+    if (load_byte(source, open_position) == 123) { put32(state, 8, open_position + 1); }
+    let done: i32 = 0;
+    while (done == 0) {
+        skip(state);
+        let position: i32 = get32(state, 8);
+        if (position < length) {
+            if (load_byte(source, position) == 125) {
+                put32(state, 8, position + 1);
+                done = 1;
+            } else {
+                parse_statement(state);
+            }
+        } else {
+            done = 1;
+            put32(state, 40, 1);
+        }
+    }
+}
+
+fn parse_statement(state: i32) -> void {
+    let source: i32 = get32(state, 0);
+    let name: i32 = state + 320;
+    read_ident(state, name);
+    if (name_eq(name, "let") == 1) {
+        let variable: i32 = state + 352;
+        read_ident(state, variable);
+        skip(state);
+        let position: i32 = get32(state, 8);
+        if (load_byte(source, position) == 58) { put32(state, 8, position + 1); }
+        let type_name: i32 = state + 384;
+        read_ident(state, type_name);
+        skip(state);
+        position = get32(state, 8);
+        if (load_byte(source, position) == 61) { put32(state, 8, position + 1); }
+        let decl_slot: i32 = add_local(state, variable);
+        parse_expression(state, 0);
+        skip(state);
+        position = get32(state, 8);
+        if (load_byte(source, position) == 59) { put32(state, 8, position + 1); }
+        emit_store_local(state, decl_slot);
+    } else {
+        if (name_eq(name, "return") == 1) {
+            skip(state);
+            position = get32(state, 8);
+            if (load_byte(source, position) == 59) {
+                put32(state, 8, position + 1);
+                if (get32(state, 44) == 1) { emit8(state, 1); emit32(state, 0); emit8(state, 13); }
+                else { emit8(state, 21); }
+            } else {
+                parse_expression(state, 0);
+                skip(state);
+                position = get32(state, 8);
+                if (load_byte(source, position) == 59) { put32(state, 8, position + 1); }
+                emit8(state, 13);
+            }
+        } else {
+            if (name_eq(name, "if") == 1) {
+                skip(state);
+                position = get32(state, 8);
+                if (load_byte(source, position) == 40) { put32(state, 8, position + 1); }
+                parse_expression(state, 0);
+                skip(state);
+                position = get32(state, 8);
+                if (load_byte(source, position) == 41) { put32(state, 8, position + 1); }
+                skip(state);
+                position = get32(state, 8);
+                if (load_byte(source, position) == 123) { put32(state, 8, position + 1); }
+                let false_jump: i32 = emit_jump(state, 11);
+                parse_block(state);
+                skip(state);
+                position = get32(state, 8);
+                let has_else: i32 = word(state, "else");
+                if (has_else == 1) {
+                    let if_end_jump: i32 = emit_jump(state, 10);
+                    patch_jump(state, false_jump, get32(state, 16) - 48);
+                    skip(state);
+                    position = get32(state, 8);
+                    if (load_byte(source, position) == 123) { put32(state, 8, position + 1); }
+                    parse_block(state);
+                    patch_jump(state, if_end_jump, get32(state, 16) - 48);
+                } else {
+                    put32(state, 8, position);
+                    patch_jump(state, false_jump, get32(state, 16) - 48);
+                }
+            } else {
+                if (name_eq(name, "while") == 1) {
+                    let loop: i32 = get32(state, 16) - 48;
+                    skip(state);
+                    position = get32(state, 8);
+                    if (load_byte(source, position) == 40) { put32(state, 8, position + 1); }
+                    parse_expression(state, 0);
+                    skip(state);
+                    position = get32(state, 8);
+                    if (load_byte(source, position) == 41) { put32(state, 8, position + 1); }
+                    skip(state);
+                    position = get32(state, 8);
+                    if (load_byte(source, position) == 123) { put32(state, 8, position + 1); }
+                    let while_end_jump: i32 = emit_jump(state, 11);
+                    parse_block(state);
+                    let back_jump: i32 = emit_jump(state, 10);
+                    patch_jump(state, back_jump, loop);
+                    patch_jump(state, while_end_jump, get32(state, 16) - 48);
+                } else {
+                    skip(state);
+                    position = get32(state, 8);
+                    if (load_byte(source, position) == 61) {
+                        put32(state, 8, position + 1);
+                        parse_expression(state, 0);
+                        let assign_slot: i32 = find_local(state, name);
+                        if (assign_slot < 0) { put32(state, 40, 1); } else { emit_store_local(state, assign_slot); }
+                        skip(state);
+                        position = get32(state, 8);
+                        if (load_byte(source, position) == 59) { put32(state, 8, position + 1); }
+                    } else {
+                        let result: i32 = parse_call(state, name);
+                        if (result == 1) { emit8(state, 19); }
+                        skip(state);
+                        position = get32(state, 8);
+                        if (load_byte(source, position) == 59) { put32(state, 8, position + 1); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn parse_function(state: i32) -> void {
+    let source: i32 = get32(state, 0);
+    let name: i32 = state + 192;
+    read_ident(state, name);
+    let offset: i32 = get32(state, 16) - 48;
+    let record: i32 = find_function(state, name);
+    if (record == 0) { let new_record: i32 = add_function(state, name, offset); record = new_record; }
+    put32(record, 32, offset);
+    reset_locals(state);
+    skip(state);
+    let position: i32 = get32(state, 8);
+    if (load_byte(source, position) == 40) { put32(state, 8, position + 1); }
+    let parameter_count: i32 = 0;
+    skip(state);
+    position = get32(state, 8);
+    if (load_byte(source, position) == 41) {
+        put32(state, 8, position + 1);
+    } else {
+        let done: i32 = 0;
+        while (done == 0) {
+            let parameter: i32 = state + 224;
+            read_ident(state, parameter);
+            skip(state);
+            position = get32(state, 8);
+            if (load_byte(source, position) == 58) { put32(state, 8, position + 1); }
+            let type_name: i32 = state + 256;
+            read_ident(state, type_name);
+            add_local(state, parameter);
+            parameter_count = parameter_count + 1;
+            skip(state);
+            position = get32(state, 8);
+            if (load_byte(source, position) == 44) {
+                put32(state, 8, position + 1);
+            } else {
+                if (load_byte(source, position) == 41) { put32(state, 8, position + 1); }
+                done = 1;
+            }
+        }
+    }
+    skip(state);
+    position = get32(state, 8);
+    if (load_byte(source, position) == 45) {
+        position = position + 1;
+        if (load_byte(source, position) == 62) { position = position + 1; }
+        put32(state, 8, position);
+    }
+    skip(state);
+    let return_name: i32 = state + 256;
+    read_ident(state, return_name);
+    let returns: i32 = 0;
+    if (name_eq(return_name, "i32") == 1) { returns = 1; }
+    put32(state, 44, returns);
+    put32(record, 36, parameter_count);
+    put32(record, 40, returns);
+    skip(state);
+    position = get32(state, 8);
+    if (load_byte(source, position) == 123) { put32(state, 8, position + 1); }
+    let index: i32 = 0;
+    while (index < parameter_count) {
+        let slot: i32 = get32(state + 2624 + (parameter_count - index - 1) * 40, 32);
+        emit_store_local(state, slot);
+        index = index + 1;
+    }
+    parse_block(state);
+    if (returns == 1) { emit8(state, 1); emit32(state, 0); emit8(state, 13); }
+    else { emit8(state, 21); }
+    if (name_eq(name, "main") == 1) { put32(state, 20, offset); }
+}
+
+fn main() -> void {
+    let state: i32 = mem_grow(4096);
+    let call_stack: i32 = mem_grow(4096);
+    let call_patches: i32 = mem_grow(4096);
+    let source: i32 = mem_grow(4096);
+    let source_page1: i32 = mem_grow(4096);
+    let source_page2: i32 = mem_grow(4096);
+    let source_page3: i32 = mem_grow(4096);
+    let source_page4: i32 = mem_grow(4096);
+    let source_page5: i32 = mem_grow(4096);
+    let source_page6: i32 = mem_grow(4096);
+    let source_page7: i32 = mem_grow(4096);
+    let source_page8: i32 = mem_grow(4096);
+    let source_page9: i32 = mem_grow(4096);
+    let source_page10: i32 = mem_grow(4096);
+    let source_page11: i32 = mem_grow(4096);
+    let output: i32 = mem_grow(4096);
+    let output_page1: i32 = mem_grow(4096);
+    let output_page2: i32 = mem_grow(4096);
+    let input_handle: i32 = file_open("grc1.grw", 0);
+    if (input_handle < 0) { print_i32(2); newline(); exit(2); }
+    let input_size: i32 = file_read(input_handle, source, 49152);
+    file_close(input_handle);
+    if (input_size < 0) { print_i32(3); newline(); exit(3); }
+    put32(state, 0, source);
+    put32(state, 4, input_size);
+    put32(state, 8, 0);
+    put32(state, 12, output);
+    put32(state, 16, 48);
+    put32(state, 20, 0);
+    put32(state, 28, 0);
+    put32(state, 32, 0);
+    put32(state, 36, 0);
+    put32(state, 40, 0);
+    put32(state, 44, 0);
+    put32(state, 48, call_stack);
+    put32(state, 52, 0);
+    put32(state, 56, call_patches);
+    put32(state, 60, 0);
+    if (word(state, "target") == 0) { print_i32(4); newline(); exit(4); }
+    skip_string(state);
+    let source_start: i32 = get32(state, 8);
+    scan_functions(state);
+    put32(state, 8, source_start);
+    put32(state, 40, 0);
+    let compile_done: i32 = 0;
+    while (compile_done == 0) {
+        skip(state);
+        let compile_position: i32 = get32(state, 8);
+        if (compile_position < input_size) {
+            if (word(state, "fn") == 1) {
+                parse_function(state);
+            } else {
+                compile_done = 1;
+                put32(state, 40, 1);
+            }
+        } else {
+            compile_done = 1;
+        }
+    }
+    patch_calls(state);
+    if (get32(state, 40) == 1) { print_i32(5); print_i32(get32(state, 8)); newline(); exit(5); }
+    let code_size: i32 = get32(state, 16) - 48;
+    store_byte(output, 0, 71);
+    store_byte(output, 1, 87);
+    store_byte(output, 2, 79);
+    store_byte(output, 3, 50);
+    put16(output, 4, 2);
+    put16(output, 6, 1);
+    put16(output, 8, 1);
+    put16(output, 10, 0);
+    put32(output, 12, 32);
+    put32(output, 16, 1);
+    put32(output, 20, get32(state, 20));
+    put32(output, 24, code_size);
+    put32(output, 32, 1);
+    put32(output, 36, 48);
+    put32(output, 40, code_size);
+    put32(output, 44, fnv(state, 48, code_size));
+    put32(output, 28, fnv(state, 32, code_size + 16));
+    file_unlink("grc2.gwo");
+    let output_handle: i32 = path_create("grc2.gwo");
+    if (output_handle < 0) { print_i32(6); newline(); exit(6); }
+    let output_size: i32 = get32(state, 16);
+    let written: i32 = file_write(output_handle, output, output_size);
+    file_close(output_handle);
+    if (written < output_size) { print_i32(7); newline(); exit(7); }
+}

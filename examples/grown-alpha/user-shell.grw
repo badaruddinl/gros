@@ -1,4 +1,39 @@
 target "gros.x86.bios.longmode.grogan.v1"
+
+fn wait_child(pid: i32) -> i32 {
+    let status: i32 = process_wait(pid);
+    while (status < 0) {
+        task_yield();
+        status = process_wait(pid);
+    }
+    return status;
+}
+
+fn load_and_spawn(path: i32) -> i32 {
+    let handle: i32 = file_open(path, 0);
+    if (handle < 0) { return handle; }
+    let image: i32 = mem_grow(64);
+    let image_page1: i32 = mem_grow(64);
+    let image_page2: i32 = mem_grow(64);
+    let image_page3: i32 = mem_grow(64);
+    let size: i32 = file_read(handle, image, 16384);
+    file_close(handle);
+    if (size < 1) { return size; }
+    return process_spawn(image, size);
+}
+
+fn compile_self() -> i32 {
+    let pid: i32 = load_and_spawn("grc1.gwo");
+    if (pid < 0) { return pid; }
+    return wait_child(pid);
+}
+
+fn run_compiled() -> i32 {
+    let pid: i32 = load_and_spawn("grc2.gwo");
+    if (pid < 0) { return pid; }
+    return wait_child(pid);
+}
+
 fn main() -> void {
     let input: i32 = mem_grow(64);
     let pending: i32 = 0;
@@ -37,6 +72,14 @@ fn main() -> void {
                 file_write(edit_handle, "target \"gros.x86.bios.longmode.grogan.v1\"\nfn main() -> void {\n    print_i32(28);\n}\n", 83);
                 file_close(edit_handle);
                 print_str("SAVE OK\n");
+            } else if (first == 98) {
+                let compile_status: i32 = compile_self();
+                if (compile_status == 0) { print_str("COMPILE OK\n"); }
+                else { print_i32(compile_status); print_str(" COMPILE FAIL\n"); }
+            } else if (first == 120) {
+                let run_status: i32 = run_compiled();
+                if (run_status == 0) { print_str("RUN OK\n"); }
+                else { print_i32(run_status); print_str(" RUN FAIL\n"); }
             }
         }
     }

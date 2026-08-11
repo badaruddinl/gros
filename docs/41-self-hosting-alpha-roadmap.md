@@ -524,3 +524,24 @@ Toolchain: 6.1 -> 6.2 and 7.1 -> 7.2
 The first concrete implementation milestone is C1, not the compiler. A real
 compiler cannot safely self-host until GrOS can allocate memory, validate user
 pointers, isolate faults, load a process, and reclaim its resources.
+
+## Current implementation checkpoint (feature/self-hosting-alpha)
+
+The following roadmap work is now implemented and covered by executable gates:
+
+| Area | Evidence | Status |
+| --- | --- | --- |
+| GWO2 v2 verifier and GrVM parity | `make gwo2-host gwo2-host-failures` | complete |
+| Rust bootstrap compiler | `scripts/grc0.sh` (`tools/grc0.rs`) | complete |
+| Grown compiler subset (`grc1.grw`) | `make grogan-compiler grogan-compiler-failures` | complete |
+| Hosted compiler fixed point | `make grogan-self-host` | complete |
+| Ring-3 GWO2 execution and GFS2 syscalls | `make grogan-processes grogan-storage` and their QEMU gates | complete |
+| In-OS compile/run and persistence | `make grogan-self-host-qemu` | complete |
+
+The hosted fixed-point proof compares the output produced by `grc1.gwo` with
+the next output produced by that Grown compiler; it does not incorrectly
+compare the Rust bootstrap seed with the canonical Grown output. The C host
+verifier/VM is retained only as a reference oracle. `make validate-self-host`
+is the short gate for both hosted and in-OS proofs; the full Phase 10 release
+gate still requires the reliability, mutation, and reproducible-distribution
+work listed above.

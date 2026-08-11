@@ -30,7 +30,11 @@ prepare_base_policy_root() {
     while IFS= read -r path; do
         [ -n "$path" ] || continue
         mkdir -p "$BASE_ROOT/$(dirname -- "$path")"
-        cp "$ROOT/$path" "$BASE_ROOT/$path"
+        if [ -e "$ROOT/$path" ]; then
+            cp "$ROOT/$path" "$BASE_ROOT/$path"
+        else
+            git -C "$ROOT" show "HEAD:$path" > "$BASE_ROOT/$path"
+        fi
     done < <(git -C "$ROOT" ls-files)
 
     git -C "$BASE_ROOT" init -q

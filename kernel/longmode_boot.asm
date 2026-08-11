@@ -9,29 +9,41 @@ section .boot start=0 vstart=0x7c00
 ; appends the persistent GFS2 volume after that transfer window.  Keeping the
 ; sector count here and in the image builder prevents a partially loaded
 ; kernel from ever reaching long mode.
-%define KERNEL_LOAD_SECTORS 123
+%define KERNEL_LOAD_SECTORS 192
 %define PAGE_SIZE 0x1000
 %define USER_BASE 0x400000
 %define USER_CODE 0x400000
-%define MAX_PAYLOAD_PAGES 2
+%define MAX_PAYLOAD_PAGES 3
 %define MAX_PAYLOAD_BYTES (MAX_PAYLOAD_PAGES * PAGE_SIZE)
+%define MAX_GWO_IMAGE_BYTES (MAX_PAYLOAD_BYTES + 48)
 %define USER_GUARD (USER_CODE + VM_BLOB_OFFSET + MAX_PAYLOAD_BYTES)
 %define USER_STACK (USER_GUARD + PAGE_SIZE)
 %define USER_STACK_TOP (USER_STACK + PAGE_SIZE)
+%define VM_RUNTIME_BASE USER_STACK_TOP
 %define USER_LIMIT 0x40000000
 ; Keep the fixed GrVM entry and the verified bytecode in separate user pages.
 ; The interpreter has grown beyond the original 0x400-byte inline prefix;
 ; sharing a page would let the payload overwrite its native dispatch loop.
 %define VM_BLOB_OFFSET 0x1000
-%define VM_STACK_BASE (USER_STACK + 0x100)
-%define VM_LOCALS_BASE (USER_STACK + 0x600)
-%define VM_FRAME_BASE (USER_STACK + 0x800)
-%define VM_FRAME_STRIDE 24
-%define VM_FRAME_LIMIT (USER_STACK + 0x900)
-%define VM_BUFFER (USER_STACK + 0x900)
-%define VM_CONST_BASE (VM_BUFFER + 0x80)
-%define VM_CONST_LIMIT (VM_BUFFER + 0x2c0)
-%define VM_CONST_CURSOR (VM_BUFFER + 0x2c0)
+%define VM_STACK_BASE (USER_STACK + 0x80)
+%define VM_FRAME_BASE VM_RUNTIME_BASE
+%define VM_FRAME_STRIDE 2080
+%define VM_FRAME_LOCALS 24
+%define VM_FRAME_COUNT 64
+%define VM_FRAME_END (VM_FRAME_BASE + VM_FRAME_COUNT * VM_FRAME_STRIDE)
+%define VM_FRAME_LIMIT VM_FRAME_END
+; Hosted GrVM allocates byte constants from its 1 MiB memory arena.  The
+; self-hosting compiler emits literals inside loops, so reserve a private
+; 32-page constant arena after the frame records and keep the process heap
+; above both regions.
+%define VM_CONST_PAGES 32
+%define VM_CONST_BASE ((VM_FRAME_END + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+%define VM_CONST_LIMIT (VM_CONST_BASE + VM_CONST_PAGES * PAGE_SIZE)
+%define VM_RUNTIME_PAGES ((VM_CONST_LIMIT - VM_RUNTIME_BASE) >> 12)
+%define VM_RUNTIME_END VM_CONST_LIMIT
+%define VM_BUFFER (USER_STACK + 0xd80)
+%define VM_CONST_CURSOR (VM_BUFFER + 0x200)
+%define VM_INSTRUCTION_LIMIT 100000000
 %define VM_PC_SLOT USER_STACK
 %define VM_SP_SLOT (USER_STACK + 8)
 %define VM_STEP_SLOT (USER_STACK + 16)
@@ -45,8 +57,8 @@ section .boot start=0 vstart=0x7c00
 %define KERNEL_USER_PT 0x7000
 %define TSS_SELECTOR 0x38
 %define MAX_FRAMES 768
-%define FS_START_LBA 128
-%define GFS_MAX_FILE_BYTES 4096
+%define FS_START_LBA 224
+%define GFS_MAX_FILE_BYTES 65536
 %define ATA_PRIMARY_DATA 0x1f0
 %define ATA_PRIMARY_SECTOR_COUNT 0x1f2
 %define ATA_PRIMARY_LBA0 0x1f3
@@ -95,20 +107,37 @@ start:
     mov sp, 0x7c00
     ; Stable bootstrap-info block: boot drive at 0000:5ffe.
     mov [0x5ffe], dl
-    mov ah, 0x02
-    mov al, KERNEL_LOAD_SECTORS
-    mov ch, 0
-    mov cl, 2
-    mov dh, 0
+    ; Use the BIOS extended-disk protocol in two DMA-safe chunks.  A single
+    ; CHS transfer of this kernel would exceed both the 127-sector BIOS limit
+    ; and the 64 KiB real-mode DMA boundary; the two contiguous destinations
+    ; below keep the stage-2 image complete before the far jump.
+    mov si, disk_address_packet
     mov dl, [0x5ffe]
-    mov bx, 0x8000
+    mov ah, 0x42
     int 0x13
     jc disk_fail
+    mov word [disk_address_packet + 4], 0x0000
+    mov word [disk_address_packet + 6], 0x1400
+    mov dword [disk_address_packet + 8], 1 + KERNEL_LOAD_SECTORS / 2
+    mov si, disk_address_packet
+    mov dl, [0x5ffe]
+    mov ah, 0x42
+    int 0x13
+    jc disk_fail
+    xor ax, ax
+    mov es, ax
+    mov dl, [0x5ffe]
     jmp 0x0000:0x8000
 disk_fail:
     cli
 .halt: hlt
     jmp .halt
+disk_address_packet:
+    db 0x10, 0x00
+    dw KERNEL_LOAD_SECTORS / 2
+    dw 0x8000
+    dw 0x0000
+    dq 1
 times 510-($-$$) db 0
 dw 0xaa55
 
@@ -461,6 +490,30 @@ process_create:
     shr rcx, 12
     mov [rbx + rcx * 8], rax
 
+    ; Reserve private VM frame storage after the user stack.  Each frame has
+    ; a return record plus 255 local slots; the process heap starts after this
+    ; region so user allocations cannot overlap interpreter state.
+    xor r11d, r11d
+.vm_runtime_page:
+    cmp r11d, VM_RUNTIME_PAGES
+    jae .vm_runtime_done
+    mov rdi, r13
+    call frame_alloc_owned
+    test rax, rax
+    jz .fail
+    mov r10, rax
+    mov rdi, r10
+    call zero_page
+    mov rbx, [r12 + PROC_PT]
+    mov eax, r11d
+    add eax, (VM_RUNTIME_BASE - USER_BASE) >> 12
+    mov r8, r10
+    or r8, 7
+    mov [rbx + rax * 8], r8
+    inc r11d
+    jmp .vm_runtime_page
+.vm_runtime_done:
+
     ; The executable page contains the fixed ring-3 GrVM entry followed by
     ; verified GWO2 bytecode.  The VM itself is native bootstrap code; the
     ; program it interprets is always the checked artifact supplied by the
@@ -476,13 +529,17 @@ process_create:
     mov qword [r12 + PROC_RSP], USER_STACK_TOP
     mov qword [r12 + PROC_FLAGS], 0x202
     mov qword [r12 + PROC_NEXT], 0
-    mov qword [r12 + PROC_HEAP], USER_STACK_TOP
+    mov qword [r12 + PROC_HEAP], VM_RUNTIME_END
 
     ; A timer interrupt from ring 3 returns through this prepared full frame.
     mov r8, [r12 + PROC_KSTACK]
     lea r9, [r8 + PAGE_SIZE]
     mov [r12 + PROC_KTOP], r9
-    sub r9, 160
+    ; Keep the saved iret frame below the deepest syscall call chain.  The
+    ; top 160 bytes are live kernel-stack scratch while a process enters via
+    ; SYSCALL; placing the persistent frame there would let a return address
+    ; overwrite its SS word before the next timer switch.
+    sub r9, 512
     mov [r12 + PROC_CONTEXT], r9
     mov rdi, r9
     xor eax, eax
@@ -667,6 +724,8 @@ user_mode_seed:
     ; user memory or reusing a page table.
     cli
     call gwo_load_user
+    test eax, eax
+    jz .load_fail
     mov rdx, user_payload_kernel
     mov ecx, [abs user_payload_size]
     mov rdi, process_one
@@ -693,6 +752,10 @@ user_mode_seed:
     mov r11, 0x202
     mov rsp, USER_STACK_TOP
     db 0x48, 0x0f, 0x07       ; SYSRETQ
+.load_fail:
+    cli
+.halt: hlt
+    jmp .halt
 
 gwo_load_user:
     mov rdi, user_gwo_image
@@ -707,6 +770,8 @@ gwo_load_image:
     push r13
     mov r12, rdi
     mov r13d, esi
+    cmp r13d, 48
+    jb .fail
     cmp dword [r12], 0x324f5747 ; GWO2
     jne .fail
     cmp word [r12 + 4], 2
@@ -774,13 +839,15 @@ gwo_load_image:
     out 0xe9, al
     mov al, 'K'
     out 0xe9, al
+    mov eax, 1
     pop r13
     pop r12
     ret
 .fail:
-    cli
-.halt: hlt
-    jmp .halt
+    xor eax, eax
+    pop r13
+    pop r12
+    ret
 
 gwo_fnv32:
     mov eax, 2166136261
@@ -831,6 +898,8 @@ gwo2_verify_code:
     jb .not_arithmetic
     cmp eax, 9
     jbe .arithmetic
+    cmp eax, 22
+    je .arithmetic
 .not_arithmetic:
     cmp eax, 15
     je .byte_const
@@ -856,6 +925,8 @@ gwo2_verify_code:
     je .call
     cmp eax, 21
     je .return_void
+    cmp eax, 22
+    je .arithmetic
     jmp .bad
 .const:
     mov r10d, 5
@@ -864,14 +935,14 @@ gwo2_verify_code:
 .local_load:
     mov r10d, 2
     movzx edx, byte [r12 + r8 + 1]
-    cmp edx, 64
+    cmp edx, 255
     jae .bad
     mov r11d, 1
     jmp .finish
 .local_store:
     mov r10d, 2
     movzx edx, byte [r12 + r8 + 1]
-    cmp edx, 64
+    cmp edx, 255
     jae .bad
     mov r11d, -1
     jmp .finish
@@ -939,6 +1010,10 @@ gwo2_verify_code:
     je .import_two_void
     cmp edx, 14
     je .import_zero
+    cmp edx, 15
+    je .import_two_result
+    cmp edx, 16
+    je .import_one_result
     jmp .bad
 .import_one:
     cmp ecx, 1
@@ -973,6 +1048,11 @@ gwo2_verify_code:
     jne .bad
     mov r11d, -2
     jmp .finish
+.import_one_result:
+    cmp ecx, 1
+    jne .bad
+    xor r11d, r11d
+    jmp .finish
 .return:
     mov r10d, 1
     mov r11d, -1
@@ -986,7 +1066,7 @@ gwo2_verify_code:
     mov r10d, 5
     movzx edx, byte [r12 + r8 + 3]
     movzx ecx, byte [r12 + r8 + 4]
-    cmp edx, 64
+    cmp edx, 255
     ja .bad
     cmp ecx, 1
     ja .bad
@@ -1049,6 +1129,8 @@ gwo2_verify_code:
     cmp eax, 20
     je .boundary_call
     cmp eax, 21
+    je .boundary_length
+    cmp eax, 22
     je .boundary_length
     cmp eax, 4
     jb .bad
@@ -1128,6 +1210,8 @@ gwo2_verify_code:
     jb .cfg_special
     cmp eax, 9
     jbe .cfg_arithmetic
+    cmp eax, 22
+    je .cfg_arithmetic
 .cfg_special:
     cmp eax, 10
     je .cfg_jump
@@ -1193,7 +1277,7 @@ gwo2_verify_code:
     mov r14d, 5
     movzx edx, byte [r12 + r8 + 3]
     movzx ecx, byte [r12 + r8 + 4]
-    cmp edx, 64
+    cmp edx, 255
     ja .bad
     cmp ecx, 1
     ja .bad
@@ -1270,7 +1354,7 @@ gwo2_verify_code:
     mov edx, r9d
     add edx, r15d
     js .bad
-    cmp edx, 128
+    cmp edx, 192
     ja .bad
     mov r9d, edx                ; output depth
     ; Merge the fall-through successor for normal and conditional ops.
@@ -1390,6 +1474,10 @@ syscall_entry:
     je .path_create
     cmp eax, 0x0e               ; file_unlink
     je .file_unlink
+    cmp eax, 0x0f               ; process_spawn(image, size)
+    je .process_spawn
+    cmp eax, 0x10               ; process_wait(pid)
+    je .process_wait
     cmp eax, 0x0b               ; process_exit
     je .exit
     cmp eax, 0x0c               ; task_yield
@@ -1468,6 +1556,12 @@ syscall_entry:
     jmp .return_user
 .file_unlink:
     call gfs_file_unlink_user
+    jmp .return_user
+.process_spawn:
+    call process_spawn_user
+    jmp .return_user
+.process_wait:
+    call process_wait_user
     jmp .return_user
 .exit:
     mov al, 'S'
@@ -1601,6 +1695,91 @@ user_span_valid:
     xor eax, eax
     ret
 
+process_spawn_user:
+    ; RDI=user GWO2 image, RSI=image bytes.  The image is copied through the
+    ; same user-span proof as every other syscall, verified in a kernel-owned
+    ; buffer, then installed into the reusable child slot only after the old
+    ; child has been fully reaped.
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi
+    mov r13, rsi
+    cmp r13, 48
+    jb .invalid
+    cmp r13, MAX_GWO_IMAGE_BYTES
+    ja .invalid
+    mov rdi, r12
+    mov rsi, r13
+    call user_span_valid
+    test eax, eax
+    jz .fault
+    mov rsi, r12
+    mov rdi, user_gwo_staging
+    mov rcx, r13
+    rep movsb
+    mov rdi, user_gwo_staging
+    mov esi, r13d
+    call gwo_load_image
+    test eax, eax
+    jz .bad_exec
+    mov r14, process_two
+    cmp r14, [abs current_process]
+    je .busy
+    cmp dword [r14 + PROC_STATE], PROC_EXITED
+    jne .busy
+    mov rdx, user_payload_kernel
+    mov ecx, [abs user_payload_size]
+    mov rdi, r14
+    mov esi, 2
+    call process_create
+    test rax, rax
+    jz .no_memory
+    mov qword [abs process_one + PROC_NEXT], process_two
+    mov qword [abs process_two + PROC_NEXT], process_one
+    mov eax, 2
+    jmp .done
+.invalid:
+    mov eax, -22
+    jmp .done
+.fault:
+    mov eax, -14
+    jmp .done
+.bad_exec:
+    mov eax, -8
+    jmp .done
+.busy:
+    mov eax, -16
+    jmp .done
+.no_memory:
+    mov eax, -12
+.done:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+
+process_wait_user:
+    ; Alpha keeps a single reusable child slot.  Waiting is deliberately
+    ; non-blocking: -EAGAIN lets the Grown caller yield and retry without
+    ; hiding scheduler progress inside a syscall.
+    cmp rdi, 2
+    jne .invalid
+    cmp dword [abs process_two + PROC_PID], 2
+    jne .invalid
+    cmp dword [abs process_two + PROC_STATE], PROC_EXITED
+    jne .again
+    movsxd rax, dword [abs process_two + PROC_EXIT_STATUS]
+    ret
+.again:
+    mov eax, -11
+    ret
+.invalid:
+    mov eax, -22
+    ret
+
 process_load_context:
     ; RDI=next process.  The caller immediately returns through SYSRET, so
     ; this routine only changes ownership state and the address-space root.
@@ -1636,6 +1815,23 @@ process_next_ready:
 
 process_yield_current:
     mov rbx, [abs current_process]
+    ; A cooperative yield enters through SYSCALL rather than an IRQ, so there
+    ; is no hardware iret frame to retain.  Materialize the saved syscall
+    ; return tuple in the process-owned context slot before another process
+    ; can be selected by a timer interrupt.
+    mov r8, [rbx + PROC_CONTEXT]
+    mov rdi, r8
+    xor eax, eax
+    mov ecx, 20
+    rep stosq
+    mov rax, [rbx + PROC_RIP]
+    mov [r8 + 120], rax
+    mov qword [r8 + 128], 0x33
+    mov rax, [rbx + PROC_FLAGS]
+    mov [r8 + 136], rax
+    mov rax, [rbx + PROC_RSP]
+    mov [r8 + 144], rax
+    mov qword [r8 + 152], 0x2b
     mov rdi, rbx
     call process_next_ready
     test rax, rax
@@ -1645,13 +1841,9 @@ process_yield_current:
     mov rdi, r12
     call process_load_context
 .return:
-    mov al, 'R'
-    out 0xe9, al
     mov rbx, [abs current_process]
-    mov rcx, [rbx + PROC_RIP]
-    mov r11, [rbx + PROC_FLAGS]
-    mov rsp, [rbx + PROC_RSP]
-    db 0x48, 0x0f, 0x07       ; SYSRETQ
+    mov rax, [rbx + PROC_CONTEXT]
+    jmp process_iret_context
 
 process_exit_current:
     mov rbx, [abs current_process]
@@ -1668,11 +1860,8 @@ process_exit_current:
     mov rsp, [r12 + PROC_KTOP]
     mov rdi, r13
     call process_reap
-    mov rbx, [abs current_process]
-    mov rcx, [rbx + PROC_RIP]
-    mov r11, [rbx + PROC_FLAGS]
-    mov rsp, [rbx + PROC_RSP]
-    db 0x48, 0x0f, 0x07
+    mov rax, [r12 + PROC_CONTEXT]
+    jmp process_iret_context
 .kernel_shell:
     mov rsp, 0x90000
     mov rdi, rbx
@@ -1688,6 +1877,29 @@ process_exit_current:
     mov ss, ax
     jmp after_user_mode
 
+process_iret_context:
+    ; RAX points at a process-owned full register/iret frame.  Cooperative
+    ; yields and exits must restore this frame, not restart the native VM at
+    ; PROC_RIP: a timer may already have saved the VM's live PC and registers
+    ; there.  The frame layout matches irq_timer_stub exactly.
+    mov rsp, rax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    iretq
+
 process_timer_tick:
     ; RDI=register-save pointer created by irq_timer_stub.  Preserve the
     ; interrupted frame in the current process, then return the next process
@@ -1696,7 +1908,12 @@ process_timer_tick:
     mov rbx, [abs current_process]
     test rbx, rbx
     jz .same
-    mov [rbx + PROC_CONTEXT], rdi
+    mov r8, [rbx + PROC_CONTEXT]
+    mov rsi, rdi
+    mov rdi, r8
+    mov ecx, 20
+    rep movsq
+    mov rdi, rbx
     mov dword [rbx + PROC_STATE], PROC_READY
     mov rdi, rbx
     call process_next_ready
@@ -3793,6 +4010,8 @@ keyboard_handle_scancode:
     je .v
     cmp ebx, 0x2c
     je .z
+    cmp ebx, 0x2d
+    je .x
     ret
 .a:
     mov al, 'a'
@@ -3835,6 +4054,9 @@ keyboard_handle_scancode:
     jmp .print
 .v:
     mov al, 'v'
+    jmp .print
+.x:
+    mov al, 'x'
     jmp .print
 .z: mov al, 'z'
 .print:
@@ -4047,13 +4269,13 @@ user_vm_program:
     add r12, [abs VM_ENTRY_SLOT]
     xor eax, eax
     mov rdi, VM_STACK_BASE
-    mov ecx, 192
+    mov ecx, 128
     rep stosq
     mov qword [abs VM_CONST_CURSOR], VM_CONST_BASE
     mov qword [abs VM_FP_SLOT], 0
 .loop:
     inc r14
-    cmp r14, 1000000
+    cmp r14, VM_INSTRUCTION_LIMIT
     jae .fail
     cmp r12, [abs VM_LIMIT_SLOT]
     jae .fail
@@ -4097,6 +4319,8 @@ user_vm_program:
     je .call
     cmp eax, 21
     je .return_void
+    cmp eax, 22
+    je .arithmetic
     jmp .fail
 .const:
     cmp r13, 128
@@ -4109,11 +4333,14 @@ user_vm_program:
 .load_local:
     movzx eax, byte [r12]
     inc r12
-    cmp eax, 64
+    cmp eax, 255
     jae .fail
     cmp r13, 128
     jae .fail
-    mov rax, [abs VM_LOCALS_BASE + rax * 8]
+    mov r8, [abs VM_FP_SLOT]
+    imul r8, VM_FRAME_STRIDE
+    add r8, VM_FRAME_BASE + VM_FRAME_LOCALS
+    mov rax, [r8 + rax * 8]
     mov [abs VM_STACK_BASE + r13 * 8], rax
     inc r13
     jmp .loop
@@ -4122,11 +4349,14 @@ user_vm_program:
     jb .fail
     movzx eax, byte [r12]
     inc r12
-    cmp eax, 64
+    cmp eax, 255
     jae .fail
     dec r13
     mov rdx, [abs VM_STACK_BASE + r13 * 8]
-    mov [abs VM_LOCALS_BASE + rax * 8], rdx
+    mov r8, [abs VM_FP_SLOT]
+    imul r8, VM_FRAME_STRIDE
+    add r8, VM_FRAME_BASE + VM_FRAME_LOCALS
+    mov [r8 + rax * 8], rdx
     jmp .loop
 .byte_const:
     movzx eax, byte [r12]
@@ -4159,6 +4389,7 @@ user_vm_program:
     jb .fail
     mov rax, [abs VM_STACK_BASE + r13 * 8 - 8]
     mov rbx, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov r10, rax
     test rax, rax
     js .fail
     add rbx, rax
@@ -4224,18 +4455,20 @@ user_vm_program:
     je .eq
     cmp byte [r12 - 1], 9
     je .lt
+    cmp byte [r12 - 1], 22
+    je .xor
     jmp .fail
 .add:
-    add rbx, rax
-    mov rax, rbx
+    add ebx, eax
+    movsxd rax, ebx
     jmp .binary_push
 .sub:
-    sub rbx, rax
-    mov rax, rbx
+    sub ebx, eax
+    movsxd rax, ebx
     jmp .binary_push
 .mul:
-    imul rbx, rax
-    mov rax, rbx
+    imul ebx, eax
+    movsxd rax, ebx
     jmp .binary_push
 .div:
     test rax, rax
@@ -4254,6 +4487,10 @@ user_vm_program:
     cmp rbx, rax
     setl al
     movzx eax, al
+    jmp .binary_push
+.xor:
+    xor ebx, eax
+    movsxd rax, ebx
 .binary_push:
     mov [abs VM_STACK_BASE + r13 * 8], rax
     inc r13
@@ -4315,6 +4552,10 @@ user_vm_program:
     je .import_print_bytes
     cmp eax, 14
     je .import_task_yield
+    cmp eax, 15
+    je .import_process_spawn
+    cmp eax, 16
+    je .import_process_wait
     jmp .fail
 .import_console_read:
     cmp ebx, 2
@@ -4526,21 +4767,62 @@ user_vm_program:
     mov [abs VM_STACK_BASE + r13 * 8], rax
     inc r13
     jmp .loop
+.import_process_spawn:
+    cmp ebx, 2
+    jne .fail
+    cmp r13, 2
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 16]
+    mov rsi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    sub r13, 2
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 0x0f
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
+.import_process_wait:
+    cmp ebx, 1
+    jne .fail
+    cmp r13, 1
+    jb .fail
+    mov rdi, [abs VM_STACK_BASE + r13 * 8 - 8]
+    dec r13
+    mov [abs VM_PC_SLOT], r12
+    mov [abs VM_SP_SLOT], r13
+    mov [abs VM_STEP_SLOT], r14
+    mov eax, 0x10
+    syscall
+    movsxd rax, eax
+    mov r12, [abs VM_PC_SLOT]
+    mov r13, [abs VM_SP_SLOT]
+    mov r14, [abs VM_STEP_SLOT]
+    mov [abs VM_STACK_BASE + r13 * 8], rax
+    inc r13
+    jmp .loop
 .call:
     movzx eax, word [r12]
+    mov r9, rax
     add r12, 2
     movzx ebx, byte [r12]
     inc r12
     movzx ecx, byte [r12]
     inc r12
-    cmp ebx, 64
+    cmp ebx, 255
     ja .fail
     cmp ecx, 1
     ja .fail
     cmp r13, rbx
     jb .fail
     mov r15, [abs VM_FP_SLOT]
-    cmp r15, 15
+    inc r15
+    cmp r15, VM_FRAME_COUNT
     jae .fail
     mov rdx, r13
     sub rdx, rbx
@@ -4550,10 +4832,13 @@ user_vm_program:
     mov [r8], r12
     mov [r8 + 8], rdx
     mov [r8 + 16], rcx
-    inc r15
+    lea rdi, [r8 + VM_FRAME_LOCALS]
+    xor eax, eax
+    mov ecx, 255
+    rep stosq
     mov [abs VM_FP_SLOT], r15
     mov r12, USER_CODE + VM_BLOB_OFFSET
-    add r12, rax
+    add r12, r9
     cmp r12, [abs VM_LIMIT_SLOT]
     jae .fail
     jmp .loop
@@ -4602,14 +4887,14 @@ user_vm_program:
     mov r15, [abs VM_FP_SLOT]
     test r15, r15
     jz .return_main
-    dec r15
-    mov [abs VM_FP_SLOT], r15
     mov r8, r15
     imul r8, VM_FRAME_STRIDE
     add r8, VM_FRAME_BASE
     mov rdx, [r8 + 8]
     mov r12, [r8]
     mov rcx, [r8 + 16]
+    dec r15
+    mov [abs VM_FP_SLOT], r15
     mov r13, rdx
     test rcx, rcx
     jz .loop
@@ -4625,13 +4910,13 @@ user_vm_program:
     mov r15, [abs VM_FP_SLOT]
     test r15, r15
     jz .halt
-    dec r15
-    mov [abs VM_FP_SLOT], r15
     mov r8, r15
     imul r8, VM_FRAME_STRIDE
     add r8, VM_FRAME_BASE
     mov r13, [r8 + 8]
     mov r12, [r8]
+    dec r15
+    mov [abs VM_FP_SLOT], r15
     jmp .loop
 .halt:
     xor edi, edi
@@ -4951,7 +5236,10 @@ gfs_recovery_buffer:
     times 512 db 0
 align 4096
 user_payload_kernel:
-    times MAX_PAYLOAD_BYTES db 0
+    times MAX_GWO_IMAGE_BYTES db 0
+align 4096
+user_gwo_staging:
+    times MAX_GWO_IMAGE_BYTES db 0
 shell_len:
     db 0
 shell_done:
