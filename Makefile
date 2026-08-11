@@ -92,7 +92,7 @@ headered-stage2-rejection-failures:
 release-ready: validate-static validate-qemu
 	@echo "ok: release readiness gate"
 
-validate-release: release-ready grogan-reliability-qemu
+validate-release: release-ready grogan-reliability-qemu grogan-clean-checkout
 
 validate-self-host: grogan-self-host grogan-self-host-qemu
 

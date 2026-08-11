@@ -166,6 +166,23 @@ fn wait_child(pid: i32) -> i32 {
     return status;
 }
 
+fn run_compiled_output(path: i32) -> i32 {
+    let handle: i32 = file_open(path, 0);
+    if (handle < 0) { return 0; }
+    let image: i32 = mem_grow(4096);
+    let image_page1: i32 = mem_grow(4096);
+    let image_page2: i32 = mem_grow(4096);
+    let image_page3: i32 = mem_grow(4096);
+    let image_page4: i32 = mem_grow(4096);
+    let size: i32 = file_read(handle, image, 16432);
+    file_close(handle);
+    if (size < 1) { return 0; }
+    let pid: i32 = process_spawn(image, size);
+    if (pid < 0) { return 0; }
+    if (wait_child(pid) == 0) { return 1; }
+    return 0;
+}
+
 fn run_case(image: i32, size: i32, args: i32, source_path: i32, source: i32, source_size: i32, output: i32, expected: i32) -> i32 {
     let source_handle: i32 = path_create(source_path);
     if (source_handle < 0) { return 0; }
@@ -177,8 +194,17 @@ fn run_case(image: i32, size: i32, args: i32, source_path: i32, source: i32, sou
     if (pid < 0) { file_unlink(source_path); return 0; }
     let status: i32 = wait_child(pid);
     file_unlink(source_path);
+    if (status == expected) {
+        if (expected == 0) {
+            let ran: i32 = run_compiled_output(output);
+            file_unlink(output);
+            if (ran == 0) { return 0; }
+        } else {
+            file_unlink(output);
+        }
+        return 1;
+    }
     file_unlink(output);
-    if (status == expected) { return 1; }
     return 0;
 }
 
@@ -208,8 +234,17 @@ fn run_corpus_case(image: i32, size: i32, args: i32, corpus: i32, offset: i32, s
     if (pid < 0) { file_unlink(source_path); return 0; }
     let status: i32 = wait_child(pid);
     file_unlink(source_path);
+    if (status == expected) {
+        if (expected == 0) {
+            let ran: i32 = run_compiled_output(output);
+            file_unlink(output);
+            if (ran == 0) { return 0; }
+        } else {
+            file_unlink(output);
+        }
+        return 1;
+    }
     file_unlink(output);
-    if (status == expected) { return 1; }
     return 0;
 }
 
@@ -236,7 +271,7 @@ fn main() -> void {
     if (run_corpus_case(image, size, args, corpus, $offset_id64, $bytes_id64, "shared-id64.grw", "shared-id64.gwo", $expected_id64_status) == 1) { ok = ok; } else { ok = 0; }
     if (run_corpus_case(image, size, args, corpus, $offset_str255, $bytes_str255, "shared-str255.grw", "shared-str255.gwo", $expected_str255_status) == 1) { ok = ok; } else { ok = 0; }
     if (run_corpus_case(image, size, args, corpus, $offset_str256, $bytes_str256, "shared-str256.grw", "shared-str256.gwo", $expected_str256_status) == 1) { ok = ok; } else { ok = 0; }
-    if (run_corpus_case(image, size, args, corpus, $offset_yield, $bytes_yield, "shared-yield.grw", "shared-yield.gwo", $expected_yield_status) == 1) { ok = ok; } else { ok = 0; }
+    if (run_corpus_case(image, size, args, corpus, $offset_yield, $bytes_yield, "shared-yield.grw", "shared-yield.gwo", $expected_yield_status) == 1) { print_str("YIELDOK\\n"); } else { ok = 0; }
     let source_size: i32 = build_identifier(source, 31);
     if (run_case(image, size, args, "id31.grw", source, source_size, "id31.gwo", 0) == 1) { ok = ok; } else { ok = 0; }
     source_size = build_identifier(source, 32);
@@ -270,7 +305,7 @@ qemu-system-x86_64 \
 QEMU_PID=$!
 deadline=$((SECONDS + QEMU_TIMEOUT))
 while kill -0 "$QEMU_PID" 2>/dev/null; do
-    if [ -f "$LOG" ] && grep -aF 'BOUNDSOK' "$LOG" > /dev/null && grep -aF 'USEROK' "$LOG" > /dev/null; then
+    if [ -f "$LOG" ] && grep -aF 'BOUNDSOK' "$LOG" > /dev/null && grep -aF 'YIELDOK' "$LOG" > /dev/null && grep -aF 'USEROK' "$LOG" > /dev/null; then
         kill "$QEMU_PID" 2>/dev/null || true
         break
     fi
@@ -285,6 +320,7 @@ wait "$QEMU_PID" 2>/dev/null || true
 QEMU_PID=
 
 grep -aF 'BOUNDSOK' "$LOG" > /dev/null || fail 'in-OS compiler boundary corpus failed'
+grep -aF 'YIELDOK' "$LOG" > /dev/null || fail 'in-OS compiler task_yield artifact was not executed successfully'
 grep -aF 'USEROK' "$LOG" > /dev/null || fail 'kernel recovery marker missing'
 grep -aF 'BOUNDSBAD' "$LOG" > /dev/null && fail 'in-OS compiler reported a boundary mismatch'
 echo 'Grogan compiler bounds: shared corpus matches Rust accept/reject at identifier 31/32/63/64, string 255/256, and task_yield'

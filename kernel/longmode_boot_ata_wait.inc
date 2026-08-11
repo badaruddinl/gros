@@ -6,21 +6,25 @@ ata_wait_drq:
     ; Exercise the real ERR branch with a deterministic status byte.  This is
     ; intentionally a status-read shim, not a direct jump to the failure
     ; return, so the injected lane covers the same decision as hardware ERR.
+    cmp byte [abs ata_test_phase], 1
+    jne .hardware
     mov al, 1
     jmp .status
 %elif ATA_TEST_FAULT == 2
     ; Exercise the finite no-DRQ poll with a deterministic status byte.  The
     ; bounded loop below is the same timeout branch used by a real device.
+    cmp byte [abs ata_test_phase], 1
+    jne .hardware
     mov ecx, 0x100000
 .forced_timeout:
     xor eax, eax
     jmp .status
-%else
+%endif
+.hardware:
     mov dx, ATA_PRIMARY_STATUS
     mov ecx, 0x100000
 .poll:
     in al, dx
-%endif
 .status:
     test al, 0x80
     jnz .again
@@ -30,12 +34,18 @@ ata_wait_drq:
     jnz .ready
 .again:
     dec ecx
+    test ecx, ecx
+    jz .timeout
 %if ATA_TEST_FAULT == 2
-    jnz .forced_timeout
+    cmp byte [abs ata_test_phase], 1
+    je .forced_timeout
+    jmp .poll
 %elif ATA_TEST_FAULT == 1
-    jmp .timeout
+    cmp byte [abs ata_test_phase], 1
+    je .timeout
+    jmp .poll
 %else
-    jnz .poll
+    jmp .poll
 %endif
 .timeout:
     mov byte [abs ata_failure_code], 2

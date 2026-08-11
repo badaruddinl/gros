@@ -81,6 +81,7 @@ ata_select_lba:
 
 ata_probe:
     cli
+    mov byte [abs ata_test_phase], 0
     mov dx, ATA_PRIMARY_DRIVE
     mov al, 0xa0
     out dx, al
@@ -131,6 +132,7 @@ ata_probe:
     test rax, rax
     jz .fail
     mov [abs ata_capacity], rax
+    mov byte [abs ata_test_phase], 1
     mov byte [abs ata_ready], 1
     mov eax, 1
     ret
@@ -166,6 +168,7 @@ ata_block_read:
     ret
 .pop_fail:
     pop rsi
+    jmp .fail
 .range_fail:
     mov byte [abs ata_failure_code], 3
 .fail:
