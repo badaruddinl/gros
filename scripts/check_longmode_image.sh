@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 FILE=${1:-"$ROOT/build/gros-longmode.img"}
-KERNEL_BYTES=59904
+KERNEL_BYTES=63488
 FS_START_LBA=128
 fail() { echo "error: $1" >&2; exit 1; }
 [ -f "$FILE" ] || fail "file not found: $FILE"

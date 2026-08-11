@@ -1,0 +1,18 @@
+target "gros.x86.bios.longmode.grogan.v1"
+fn main() -> void {
+    let handle: i32 = path_create("vm-storage-large.grw");
+    let buffer: i32 = mem_grow(1024);
+    let index: i32 = 0;
+    while (index < 1024) {
+        store_byte(buffer, index, 65);
+        index = index + 1;
+    }
+    file_write(handle, buffer, 1024);
+    file_close(handle);
+    let reader: i32 = file_open("vm-storage-large.grw", 0);
+    let output: i32 = mem_grow(1024);
+    let count: i32 = file_read(reader, output, 1024);
+    print_i32(count);
+    file_close(reader);
+    file_unlink("vm-storage-large.grw");
+}

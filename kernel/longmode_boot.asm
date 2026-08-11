@@ -9,13 +9,15 @@ section .boot start=0 vstart=0x7c00
 ; appends the persistent GFS2 volume after that transfer window.  Keeping the
 ; sector count here and in the image builder prevents a partially loaded
 ; kernel from ever reaching long mode.
-%define KERNEL_LOAD_SECTORS 116
+%define KERNEL_LOAD_SECTORS 123
 %define PAGE_SIZE 0x1000
 %define USER_BASE 0x400000
 %define USER_CODE 0x400000
-%define USER_GUARD 0x402000
-%define USER_STACK 0x403000
-%define USER_STACK_TOP 0x404000
+%define MAX_PAYLOAD_PAGES 2
+%define MAX_PAYLOAD_BYTES (MAX_PAYLOAD_PAGES * PAGE_SIZE)
+%define USER_GUARD (USER_CODE + VM_BLOB_OFFSET + MAX_PAYLOAD_BYTES)
+%define USER_STACK (USER_GUARD + PAGE_SIZE)
+%define USER_STACK_TOP (USER_STACK + PAGE_SIZE)
 %define USER_LIMIT 0x40000000
 ; Keep the fixed GrVM entry and the verified bytecode in separate user pages.
 ; The interpreter has grown beyond the original 0x400-byte inline prefix;
@@ -31,7 +33,7 @@ section .boot start=0 vstart=0x7c00
 %define VM_SP_SLOT (USER_STACK + 8)
 %define VM_STEP_SLOT (USER_STACK + 16)
 %define VM_LIMIT_SLOT (USER_STACK + 24)
-%define VM_CODE_LIMIT (USER_CODE + VM_BLOB_OFFSET + PAGE_SIZE)
+%define VM_CODE_LIMIT (USER_CODE + VM_BLOB_OFFSET + MAX_PAYLOAD_BYTES)
 %define KERNEL_CR3 0x1000
 %define KERNEL_PDPT 0x2000
 %define KERNEL_PD 0x3000
@@ -39,6 +41,7 @@ section .boot start=0 vstart=0x7c00
 %define TSS_SELECTOR 0x38
 %define MAX_FRAMES 768
 %define FS_START_LBA 128
+%define GFS_MAX_FILE_BYTES 4096
 %define ATA_PRIMARY_DATA 0x1f0
 %define ATA_PRIMARY_SECTOR_COUNT 0x1f2
 %define ATA_PRIMARY_LBA0 0x1f3
@@ -69,7 +72,8 @@ section .boot start=0 vstart=0x7c00
 %define PROC_OFFSET 136
 %define PROC_INODE 144
 %define PROC_FILE_SIZE 152
-%define PROC_SIZE 160
+%define PROC_PAYLOAD_PAGES 160
+%define PROC_SIZE 176
 %define PROC_READY 1
 %define PROC_RUNNING 2
 %define PROC_BLOCKED 3
@@ -310,7 +314,7 @@ process_create:
     mov r13, rsi
     mov r14, rdx
     mov r15, rcx
-    cmp r15, PAGE_SIZE
+    cmp r15, MAX_PAYLOAD_BYTES
     ja .fail
     xor eax, eax
     mov rdi, r12
@@ -358,17 +362,46 @@ process_create:
     mov rdi, r8
     call zero_page
 
-    ; The native GrVM entry and the verified bytecode have separate pages.
-    ; PROC_PARENT is unused by the Alpha scheduler and stores the payload
-    ; frame so teardown can reclaim it without enlarging the fixed object.
+    ; Allocate and map every verified payload page after the fixed native
+    ; interpreter page.  The page table is scanned during teardown, so a
+    ; compiler artifact may grow without hiding owned frames in a side table.
+    mov eax, r15d
+    add eax, PAGE_SIZE - 1
+    shr eax, 12
+    mov [r12 + PROC_PAYLOAD_PAGES], eax
+    xor r11d, r11d
+.payload_page:
+    cmp r11d, [r12 + PROC_PAYLOAD_PAGES]
+    jae .payload_done
     mov rdi, r13
     call frame_alloc_owned
     test rax, rax
     jz .fail
-    mov [r12 + PROC_PARENT], rax
-    mov r8, rax
-    mov rdi, r8
+    mov r10, rax
+    mov rdi, r10
     call zero_page
+    mov rbx, [r12 + PROC_PT]
+    mov eax, r11d
+    inc eax
+    mov r8, r10
+    or r8, 5
+    mov [rbx + rax * 8], r8
+    mov rdi, r10
+    mov rsi, r14
+    mov eax, r11d
+    shl eax, 12
+    add rsi, rax
+    mov ecx, PAGE_SIZE
+    mov edx, r15d
+    sub edx, eax
+    cmp edx, PAGE_SIZE
+    jae .payload_copy
+    mov ecx, edx
+.payload_copy:
+    rep movsb
+    inc r11d
+    jmp .payload_page
+.payload_done:
 
     mov rdi, r13
     call frame_alloc_owned
@@ -404,19 +437,19 @@ process_create:
     or rax, 7
     mov [rbx + 16], rax
 
-    ; PTE[0] is the native RX entry, PTE[1] is the verified RX bytecode,
-    ; PTE[2] is the unmapped guard page, and PTE[3] is the RW user stack.
+    ; PTE[0] is the native RX entry, PTE[1..N] are verified RX bytecode,
+    ; USER_GUARD remains unmapped, and USER_STACK is the RW runtime stack.
     ; A missing PTE therefore becomes a recoverable user fault.
     mov rbx, [r12 + PROC_PT]
     mov rax, [r12 + PROC_CODE]
     or rax, 5
     mov [rbx], rax
-    mov rax, [r12 + PROC_PARENT]
-    or rax, 5
-    mov [rbx + 8], rax
     mov rax, [r12 + PROC_STACK]
     or rax, 7
-    mov [rbx + 24], rax
+    mov rcx, USER_STACK
+    sub rcx, USER_BASE
+    shr rcx, 12
+    mov [rbx + rcx * 8], rax
 
     ; The executable page contains the fixed ring-3 GrVM entry followed by
     ; verified GWO2 bytecode.  The VM itself is native bootstrap code; the
@@ -426,11 +459,6 @@ process_create:
     mov rsi, user_vm_program
     mov ecx, user_vm_program_end - user_vm_program
     rep movsb
-    mov rdi, [r12 + PROC_PARENT]
-    mov rsi, r14
-    mov ecx, r15d
-    rep movsb
-
     mov dword [r12 + PROC_PID], r13d
     mov dword [r12 + PROC_STATE], PROC_READY
     mov dword [r12 + PROC_EXIT_STATUS], 0
@@ -438,7 +466,7 @@ process_create:
     mov qword [r12 + PROC_RSP], USER_STACK_TOP
     mov qword [r12 + PROC_FLAGS], 0x202
     mov qword [r12 + PROC_NEXT], 0
-    mov qword [r12 + PROC_HEAP], USER_BASE + 4 * PAGE_SIZE
+    mov qword [r12 + PROC_HEAP], USER_STACK_TOP
 
     ; A timer interrupt from ring 3 returns through this prepared full frame.
     mov r8, [r12 + PROC_KSTACK]
@@ -517,13 +545,30 @@ process_reap:
     push r14
     mov r12, rdi
     mov r13d, [r12 + PROC_PID]
-    mov rdi, [r12 + PROC_PARENT]
-    test rdi, rdi
-    jz .payload_done
+    ; Reclaim all user mappings except the fixed stack page.  This covers the
+    ; payload span and any heap pages created by mem_grow without permitting a
+    ; process to release another process's frames.
+    mov rbx, [r12 + PROC_PT]
+    mov eax, USER_STACK
+    sub eax, USER_BASE
+    shr eax, 12
+    mov r14d, 1
+.user_page:
+    cmp r14d, 512
+    jae .user_pages_done
+    cmp r14d, eax
+    je .user_page_next
+    mov rdi, [rbx + r14 * 8]
+    test rdi, 1
+    jz .user_page_next
+    and rdi, -PAGE_SIZE
     mov rsi, r13
     call frame_free_owned
-    mov qword [r12 + PROC_PARENT], 0
-.payload_done:
+    mov qword [rbx + r14 * 8], 0
+.user_page_next:
+    inc r14d
+    jmp .user_page
+.user_pages_done:
     lea rbx, [r12 + PROC_CR3]
     mov r14d, 7
 .frame:
@@ -671,7 +716,7 @@ gwo_load_image:
     mov r8d, [r12 + 24]
     test r8d, r8d
     jz .fail
-    cmp r8d, PAGE_SIZE
+    cmp r8d, MAX_PAYLOAD_BYTES
     ja .fail
     mov eax, r8d
     add eax, 48
@@ -751,7 +796,7 @@ gwo2_verify_code:
     mov r13d, esi
     mov rdi, gwo2_boundaries
     xor eax, eax
-    mov ecx, PAGE_SIZE
+    mov ecx, MAX_PAYLOAD_BYTES
     rep stosb
     xor r8d, r8d
     mov r11d, 0xff
@@ -1009,7 +1054,7 @@ gwo2_verify_code:
     ; joins: every reachable instruction receives exactly one operand depth.
     mov rdi, gwo2_depths
     mov al, 0xff
-    mov ecx, PAGE_SIZE
+    mov ecx, MAX_PAYLOAD_BYTES
     rep stosb
     mov byte [gwo2_depths], 0
 .cfg_pass:
@@ -2844,8 +2889,8 @@ gfs_create_path:
     ret
 
 gfs_file_read_user:
-    ; RDI=handle, RSI=user buffer, RDX=count.  Alpha v1 supports one 512-byte
-    ; extent per file and returns a partial read at EOF.
+    ; RDI=handle, RSI=user buffer, RDX=count.  Reads are sequential and may
+    ; cross the bounded contiguous extent in 512-byte ATA chunks.
     cmp rdi, 1
     jne .bad_handle
     mov r12, [abs current_process]
@@ -2853,7 +2898,7 @@ gfs_file_read_user:
     mov r14, rdx
     test r14, r14
     jz .zero
-    cmp r14, 512
+    cmp r14, GFS_MAX_FILE_BYTES
     ja .invalid
     mov rax, [r12 + PROC_OFFSET]
     mov r15, rax
@@ -2878,27 +2923,48 @@ gfs_file_read_user:
     jz .zero
     cmp dword [rbx + 16], 1
     jne .io
-    mov rax, r15
-    mov r11d, r15d
-    shr rax, 9
-    mov r10, [rbx + 24]
-    add rax, r10
-    mov rdi, rax
-    mov rsi, gfs_data_buffer
-    call ata_block_read
-    test eax, eax
-    jz .io
     mov rdi, r13
     mov rsi, r14
     call user_span_valid
     test eax, eax
     jz .fault
-    and r11d, 511
+    xor r11d, r11d
+.read_block:
+    cmp r11d, r14d
+    jae .read_done
+    mov rax, r15
+    add rax, r11
+    mov rcx, rax
+    shr rax, 9
+    cmp rax, [rbx + 32]
+    jae .io
+    add rax, [rbx + 24]
+    mov rdi, rax
     mov rsi, gfs_data_buffer
-    add rsi, r11
+    call ata_block_read
+    test eax, eax
+    jz .io
+    mov rax, r15
+    add rax, r11
+    mov edx, eax
+    and edx, 511
+    mov ecx, 512
+    sub ecx, edx
+    mov eax, r14d
+    sub eax, r11d
+    cmp eax, ecx
+    jae .read_chunk_ready
+    mov ecx, eax
+.read_chunk_ready:
+    mov r8d, ecx
+    mov rsi, gfs_data_buffer
+    add rsi, rdx
     mov rdi, r13
-    mov rcx, r14
+    add rdi, r11
     rep movsb
+    add r11d, r8d
+    jmp .read_block
+.read_done:
     add [r12 + PROC_OFFSET], r14
     mov rax, r14
     ret
@@ -2919,17 +2985,15 @@ gfs_file_read_user:
     ret
 
 gfs_file_write_user:
-    ; RDI=handle, RSI=user bytes, RDX=count.  The first writable profile is a
-    ; checked truncate/replace operation for one 512-byte extent.  It is enough
-    ; to persist a small .grw source while retaining real bitmap/inode/commit
-    ; ordering; larger append/random-write semantics remain a declared Alpha
-    ; extension rather than a silently partial write.
+    ; RDI=handle, RSI=user bytes, RDX=count.  Replace the file with one
+    ; contiguous extent of bounded ATA blocks.  User bytes are copied and
+    ; flushed a block at a time before the inode/bitmap/superblock commit.
     cmp rdi, 1
     jne .bad_handle
     mov r12, [abs current_process]
     mov r13, rsi
     mov r14, rdx
-    cmp r14, 512
+    cmp r14, GFS_MAX_FILE_BYTES
     ja .invalid
     cmp qword [r12 + PROC_OFFSET], 0
     jne .invalid
@@ -2940,10 +3004,6 @@ gfs_file_write_user:
     call user_span_valid
     test eax, eax
     jz .fault
-    mov rdi, gfs_data_buffer
-    mov rsi, r13
-    mov rcx, r14
-    rep movsb
     mov edi, [r12 + PROC_INODE]
     call gfs_read_inode
     test rax, rax
@@ -2956,58 +3016,120 @@ gfs_file_write_user:
     call ata_block_read
     test eax, eax
     jz .io
-    ; Release the previous single extent, if any.
+    ; Release every block in the previous extent.
     cmp dword [rbx + 16], 1
     jne .allocate
-    mov edx, [rbx + 24]
+    mov r10d, [rbx + 32]
+    mov r11d, [rbx + 24]
+.release_block:
+    test r10d, r10d
+    jz .allocate
+    mov eax, r11d
+    mov edx, eax
+    shr edx, 3
+    mov r9d, edx
+    movzx r8d, byte [gfs_bitmap_buffer + r9]
+    mov edx, eax
+    and edx, 7
     mov ecx, edx
-    shr ecx, 3
-    mov r8d, ecx
-    movzx eax, byte [gfs_bitmap_buffer + rcx]
-    mov ecx, edx
-    and ecx, 7
-    mov edx, 1
-    shl edx, cl
-    not dl
-    and al, dl
-    mov [gfs_bitmap_buffer + r8], al
+    mov eax, 1
+    shl eax, cl
+    not al
+    and r8b, al
+    mov [gfs_bitmap_buffer + r9], r8b
+    inc r11d
+    dec r10d
+    jmp .release_block
 .allocate:
-    xor r15d, r15d
-    test r14, r14
-    jz .update_inode
+    mov eax, r14d
+    add eax, 511
+    shr eax, 9
+    mov [abs gfs_io_blocks], eax
+    test eax, eax
+    jz .zero
     mov r15d, 12
-.find_block:
+.find_extent:
     cmp r15d, [abs gfs_total_blocks]
     jae .no_space
+    xor r8d, r8d
+.check_extent:
+    cmp r8d, [abs gfs_io_blocks]
+    jae .extent_found
     mov eax, r15d
+    add eax, r8d
     mov ecx, eax
     shr ecx, 3
     movzx edx, byte [gfs_bitmap_buffer + rcx]
-    mov ecx, r15d
+    mov ecx, eax
     and ecx, 7
     bt edx, ecx
-    jc .next_block
+    jc .next_extent
+    inc r8d
+    jmp .check_extent
+.next_extent:
+    inc r15d
+    jmp .find_extent
+.extent_found:
+    mov [abs gfs_io_start], r15d
+    xor r10d, r10d
+.mark_extent:
+    cmp r10d, [abs gfs_io_blocks]
+    jae .write_extent
+    mov eax, r15d
+    add eax, r10d
+    mov ecx, eax
+    shr ecx, 3
+    mov r9d, ecx
+    mov edx, eax
+    and edx, 7
+    mov ecx, edx
     mov eax, 1
     shl eax, cl
-    mov ecx, r15d
-    shr ecx, 3
-    or byte [gfs_bitmap_buffer + rcx], al
-    mov edi, r15d
+    or byte [gfs_bitmap_buffer + r9], al
+    inc r10d
+    jmp .mark_extent
+.write_extent:
+    xor r15d, r15d
+.write_block:
+    cmp r15d, [abs gfs_io_blocks]
+    jae .update_inode
+    mov eax, r15d
+    shl eax, 9
+    mov edx, r14d
+    sub edx, eax
+    cmp edx, 512
+    jbe .write_chunk_ready
+    mov edx, 512
+.write_chunk_ready:
+    mov rdi, gfs_data_buffer
+    xor eax, eax
+    mov ecx, 64
+    rep stosq
+    mov rsi, r13
+    mov eax, r15d
+    shl eax, 9
+    add rsi, rax
+    mov ecx, edx
+    mov rdi, gfs_data_buffer
+    rep movsb
+    mov eax, [abs gfs_io_start]
+    add eax, r15d
+    mov edi, eax
     mov rsi, gfs_data_buffer
     call ata_block_write
     test eax, eax
     jz .io
-    jmp .update_inode
-.next_block:
     inc r15d
-    jmp .find_block
+    jmp .write_block
 .update_inode:
     mov [rbx + 8], r14
     test r14, r14
     jz .empty_extent
     mov dword [rbx + 16], 1
-    mov [rbx + 24], r15
-    mov dword [rbx + 32], 1
+    mov eax, [abs gfs_io_start]
+    mov [rbx + 24], eax
+    mov eax, [abs gfs_io_blocks]
+    mov [rbx + 32], eax
     jmp .inode_checksum
 .empty_extent:
     mov dword [rbx + 16], 0
@@ -3445,19 +3567,31 @@ gfs_file_unlink_user:
     mov rdx, [rbx + 24]
     cmp rdx, 12
     jb .io
-    cmp rdx, [abs gfs_total_blocks]
+    mov r10d, [rbx + 32]
+    mov eax, edx
+    add eax, r10d
+    cmp eax, [abs gfs_total_blocks]
     jae .io
+    mov r11d, edx
+.unlink_extent_block:
+    test r10d, r10d
+    jz .clear_inode
+    mov eax, r11d
+    mov edx, eax
+    shr edx, 3
+    mov r8d, edx
+    movzx r9d, byte [gfs_bitmap_buffer + r8]
+    mov edx, eax
+    and edx, 7
+    mov eax, 1
     mov ecx, edx
-    shr ecx, 3
-    mov r8d, ecx
-    movzx eax, byte [gfs_bitmap_buffer + rcx]
-    mov ecx, edx
-    and ecx, 7
-    mov edx, 1
-    shl edx, cl
-    not dl
-    and al, dl
-    mov [gfs_bitmap_buffer + r8], al
+    shl eax, cl
+    not al
+    and r9b, al
+    mov [gfs_bitmap_buffer + r8], r9b
+    inc r11d
+    dec r10d
+    jmp .unlink_extent_block
 .clear_inode:
     mov edi, r13d
     call gfs_inode_block_for
@@ -4618,9 +4752,9 @@ user_payload_size:
     dd 0
 align 8
 gwo2_boundaries:
-    times PAGE_SIZE db 0
+    times MAX_PAYLOAD_BYTES db 0
 gwo2_depths:
-    times PAGE_SIZE db 0
+    times MAX_PAYLOAD_BYTES db 0
 ata_ready:
     db 0
 gfs_mount_valid:
@@ -4643,6 +4777,15 @@ gfs_data_buffer:
     times 512 db 0
 gfs_path_buffer:
     times 32 db 0
+align 8
+gfs_io_user:
+    dq 0
+gfs_io_size:
+    dq 0
+gfs_io_start:
+    dd 0
+gfs_io_blocks:
+    dd 0
 align 512
 ata_identify_buffer:
     times 512 db 0
@@ -4652,7 +4795,7 @@ gfs_recovery_buffer:
     times 512 db 0
 align 4096
 user_payload_kernel:
-    times PAGE_SIZE db 0
+    times MAX_PAYLOAD_BYTES db 0
 shell_len:
     db 0
 shell_done:
