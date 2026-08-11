@@ -26,6 +26,15 @@ the failure code, and `grogan-clean-checkout` is a dependency of
 successful run is runtime evidence; neither may silently stand in for the
 other.
 
+## Remote CI activation
+
+The repository's `GrOS Self-Hosting Alpha Release` workflow was manually
+disabled in GitHub Actions during the first external audit. It has now been
+re-enabled for `development`; the next documentation push is intentionally
+used to create the immutable workflow run that must accompany this evidence
+ledger. Until that run completes successfully, local gate results remain local
+evidence rather than a GitHub release check.
+
 ## Hosted fixed-point proof
 
 Run from the repository root with the documented Rust and C host toolchains:
