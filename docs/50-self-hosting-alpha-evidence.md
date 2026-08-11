@@ -29,11 +29,26 @@ other.
 ## Remote CI activation
 
 The repository's `GrOS Self-Hosting Alpha Release` workflow was manually
-disabled in GitHub Actions during the first external audit. It has now been
-re-enabled for `development`; the next documentation push is intentionally
-used to create the immutable workflow run that must accompany this evidence
-ledger. Until that run completes successfully, local gate results remain local
-evidence rather than a GitHub release check.
+disabled in GitHub Actions during the first external audit. It was re-enabled
+for `development`, and the first immutable hosted gate now exists:
+
+```txt
+commit : 3b5cc3073b1b8962a3b41abd7a475a6ed0f0a09c
+run    : https://github.com/badaruddinl/gros/actions/runs/31537949708
+check  : Immutable release gate (success, 40m 25s)
+job    : https://github.com/badaruddinl/gros/actions/runs/31537949708/job/93933477364
+artifact: self-hosting-alpha-3b5cc3073b1b8962a3b41abd7a475a6ed0f0a09c
+digest : sha256:623a466f5cbd709ff6726e3014893e409e145e6c53e62e9a9a1f3a827c06e6c2
+```
+
+The hosted run executed `make validate-release` on the exact commit, passed
+the static lane in 194 seconds and the QEMU lane in 405 seconds, completed the
+100-cycle reliability gate, and uploaded the environment and validation log.
+The GitHub warning about forced Node.js 24 execution for `checkout@v4` and
+`upload-artifact@v4` is non-failing platform maintenance noise; it does not
+alter the gate result or artifact digest. Local gate results and hosted check
+results remain separate evidence, but both now exist for the same source
+lineage.
 
 ## Hosted fixed-point proof
 
@@ -169,10 +184,10 @@ true when an intermediate operation fails.
 | Clean-checkout reproducibility | Two isolated `git archive HEAD` builds and a poison untracked input produce equal manifests. | P1-E |
 | Kernel maintainability | Thirteen ordered include units cover entry, arch, MM, proc, drivers, FS, runtime, and data with direct-parent byte identity. | P2-A |
 
-The remaining release action is the fresh external chatgpt.com audit of this
-commit and its GitHub Actions check/artifact. Native code generation and
-general-purpose hardware support remain deliberately outside this Alpha
-release.
+The remaining release action is the fresh external chatgpt.com audit of the
+latest documentation tip and its GitHub Actions check/artifact. Native code
+generation and general-purpose hardware support remain deliberately outside
+this Alpha release.
 
 ## Deliberate Alpha limits
 

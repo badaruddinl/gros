@@ -525,7 +525,7 @@ The first concrete implementation milestone is C1, not the compiler. A real
 compiler cannot safely self-host until GrOS can allocate memory, validate user
 pointers, isolate faults, load a process, and reclaim its resources.
 
-## Current implementation checkpoint (`development` at `99f46f5`)
+## Current implementation checkpoint (`development` at `3b5cc30`)
 
 The following roadmap work is now implemented and covered by executable gates:
 
@@ -598,6 +598,18 @@ release score:
 
 The corrected Phase 10 rule is: a gate name or script default is not enough.
 Every invariant named by the roadmap must be measured by that gate.
+
+### Remote release-gate checkpoint (`3b5cc30`)
+
+GitHub Actions now provides immutable hosted evidence for the exact
+`development` commit. Run `31537949708` passed the complete
+`make validate-release` target in 40m25s, including static, QEMU, clean-boot
+reliability, and release-readiness gates. The run produced one artifact named
+`self-hosting-alpha-3b5cc3073b1b8962a3b41abd7a475a6ed0f0a09c` with digest
+`sha256:623a466f5cbd709ff6726e3014893e409e145e6c53e62e9a9a1f3a827c06e6c2`.
+The check and job links are recorded in
+`docs/50-self-hosting-alpha-evidence.md`; a fresh external chatgpt.com audit
+of the final pushed tip remains the last release action.
 
 ## Smallest executable hardening plan
 
