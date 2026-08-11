@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Every ABI column family is mutation-tested.  A contract edit must fail the
+# parity checker before it can silently drift one implementation surface.
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+fail() { echo "error: $1" >&2; exit 1; }
+
+expect_failure() {
+    local label=$1
+    if SELF_HOSTING_ABI_CONTRACTS="$TMP_DIR/contracts" SELF_HOSTING_ABI_SKIP_GENERATED=1 \
+        "$ROOT/scripts/check_grogan_import_abi_parity.sh" > "$TMP_DIR/stdout" 2> "$TMP_DIR/stderr"; then
+        fail "$label mutation survived ABI parity validation"
+    fi
+    echo "ok: $label"
+}
+
+mkdir -p "$TMP_DIR/contracts"
+cp "$ROOT/contracts/self-hosting-alpha/syscall-abi-v1.tsv" "$TMP_DIR/contracts/syscall-abi-v1.tsv"
+cp "$ROOT/contracts/self-hosting-alpha/gwo2-import-abi-v1.tsv" "$TMP_DIR/contracts/gwo2-import-abi-v1.tsv"
+
+sed -i '0,/bytes-or-errno/s//zero-or-errno/' "$TMP_DIR/contracts/syscall-abi-v1.tsv"
+expect_failure syscall-result
+cp "$ROOT/contracts/self-hosting-alpha/syscall-abi-v1.tsv" "$TMP_DIR/contracts/syscall-abi-v1.tsv"
+
+sed -i '0,/0x0f/s//0x0a/' "$TMP_DIR/contracts/syscall-abi-v1.tsv"
+expect_failure syscall-selector
+cp "$ROOT/contracts/self-hosting-alpha/syscall-abi-v1.tsv" "$TMP_DIR/contracts/syscall-abi-v1.tsv"
+
+sed -i '0,/15\tprocess_spawn\t2/s//15\tprocess_spawn\t3/' "$TMP_DIR/contracts/gwo2-import-abi-v1.tsv"
+expect_failure import-argc
+cp "$ROOT/contracts/self-hosting-alpha/gwo2-import-abi-v1.tsv" "$TMP_DIR/contracts/gwo2-import-abi-v1.tsv"
+
+sed -i '0,/15\tprocess_spawn\t2\ti32\t15/s//15\tprocess_spawn\t2\ti32\t14/' "$TMP_DIR/contracts/gwo2-import-abi-v1.tsv"
+expect_failure import-selector
+cp "$ROOT/contracts/self-hosting-alpha/gwo2-import-abi-v1.tsv" "$TMP_DIR/contracts/gwo2-import-abi-v1.tsv"
+
+sed -i '0,/15\tprocess_spawn/s//15\tprocess_spawn_mutated/' "$TMP_DIR/contracts/gwo2-import-abi-v1.tsv"
+expect_failure import-name
+
+echo 'Grogan import ABI failures: result, selector, argc, name, and mapping mutations are rejected'

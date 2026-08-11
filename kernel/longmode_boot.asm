@@ -10,6 +10,16 @@ section .boot start=0 vstart=0x7c00
 ; sector count here and in the image builder prevents a partially loaded
 ; kernel from ever reaching long mode.
 %define KERNEL_LOAD_SECTORS 228
+%ifndef PROCESS_CREATE_TEST
+%define PROCESS_CREATE_TEST 0
+%endif
+%ifndef RESOURCE_TEST
+%define RESOURCE_TEST 0
+%endif
+%ifndef ATA_TEST_FAULT
+%define ATA_TEST_FAULT 0
+%endif
+%include "kernel/self_hosting_abi.inc"
 %define PAGE_SIZE 0x1000
 %define USER_BASE 0x400000
 %define USER_CODE 0x400000
@@ -370,8 +380,27 @@ process_create:
     ; failure can return every frame without taking the kernel fail-stop path.
     mov dword [r12 + PROC_PID], r13d
 
+%if PROCESS_CREATE_TEST
+    ; Validation images arm a one-shot countdown after the two boot processes
+    ; exist.  Child attempt 1 fails at allocation 1, attempt 2 at allocation
+    ; 2, and so on; an attempt beyond the real allocation count succeeds.
+    mov dword [abs process_create_test_active], 0
+    cmp dword [abs process_create_test_armed], 0
+    je .test_not_child
+    inc dword [abs process_create_test_attempt]
+    mov dword [abs process_create_test_counter], 0
+    mov dword [abs process_create_test_active], 1
+    mov al, 'P'
+    out 0xe9, al
+    mov al, 'C'
+    out 0xe9, al
+    mov al, 'A'
+    out 0xe9, al
+.test_not_child:
+%endif
+
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_CR3], rax
@@ -379,7 +408,7 @@ process_create:
     call zero_page
 
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_PDPT], rax
@@ -387,7 +416,7 @@ process_create:
     call zero_page
 
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_PD], rax
@@ -395,7 +424,7 @@ process_create:
     call zero_page
 
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_PT], rax
@@ -403,7 +432,7 @@ process_create:
     call zero_page
 
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_CODE], rax
@@ -425,7 +454,7 @@ process_create:
     cmp r11d, [r12 + PROC_PAYLOAD_PAGES]
     jae .payload_done
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov r10, rax
@@ -455,7 +484,7 @@ process_create:
 .payload_done:
 
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_STACK], rax
@@ -469,7 +498,7 @@ process_create:
     mov [r8 + 40], eax
 
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov [r12 + PROC_KSTACK], rax
@@ -512,7 +541,7 @@ process_create:
     cmp r11d, VM_RUNTIME_PAGES
     jae .vm_runtime_done
     mov rdi, r13
-    call frame_alloc_owned
+    call process_create_alloc_owned
     test rax, rax
     jz .fail
     mov r10, rax
@@ -564,6 +593,18 @@ process_create:
     mov qword [r9 + 136], 0x202
     mov qword [r9 + 144], USER_STACK_TOP
     mov qword [r9 + 152], 0x2b
+%if PROCESS_CREATE_TEST
+    cmp dword [abs process_create_test_active], 1
+    jne .test_success_done
+    mov dword [abs process_create_test_active], 0
+    mov al, 'P'
+    out 0xe9, al
+    mov al, 'C'
+    out 0xe9, al
+    mov al, 'S'
+    out 0xe9, al
+.test_success_done:
+%endif
     mov rax, r12
     pop r15
     pop r14
@@ -572,6 +613,9 @@ process_create:
     pop rbx
     ret
 .fail:
+%if PROCESS_CREATE_TEST
+    mov dword [abs process_create_test_active], 0
+%endif
     mov rdi, r12
     mov rsi, r13
     call process_destroy_partial
@@ -582,6 +626,30 @@ process_create:
     pop r12
     pop rbx
     ret
+
+; Allocation wrapper used only by process_create.  In a validation image the
+; Nth child attempt fails at its Nth allocation exactly once; normal images
+; assemble this as a direct tail call with no test state or marker bytes.
+process_create_alloc_owned:
+%if PROCESS_CREATE_TEST
+    cmp dword [abs process_create_test_active], 1
+    jne .real
+    inc dword [abs process_create_test_counter]
+    mov eax, [abs process_create_test_attempt]
+    cmp [abs process_create_test_counter], eax
+    jne .real
+    mov dword [abs process_create_test_active], 0
+    mov al, 'P'
+    out 0xe9, al
+    mov al, 'C'
+    out 0xe9, al
+    mov al, 'F'
+    out 0xe9, al
+    xor eax, eax
+    ret
+.real:
+%endif
+    jmp frame_alloc_owned
 
 process_destroy_partial:
     ; RDI=partially initialized process, RSI=owner PID.  Only pages that have
@@ -630,6 +698,15 @@ process_destroy_partial:
     add rbx, 8
     dec r14d
     jnz .frame
+    ; The allocation transaction has not published this process yet.  Return
+    ; the object to one canonical reusable state as well as releasing frames;
+    ; otherwise a later spawn observes state zero and reports a permanent
+    ; EBUSY after a single -ENOMEM failure.
+    mov rdi, r12
+    xor eax, eax
+    mov ecx, PROC_SIZE / 8
+    rep stosq
+    mov dword [r12 + PROC_STATE], PROC_EXITED
     pop r14
     pop r13
     pop r12
@@ -723,12 +800,69 @@ process_reap:
     add rbx, 8
     dec r14d
     jnz .frame
+%if RESOURCE_TEST
+    cmp dword [r12 + PROC_HANDLE], 0
+    je .handle_done
+    dec dword [abs resource_test_handles_live]
+.handle_done:
+%endif
     mov dword [r12 + PROC_STATE], PROC_EXITED
     pop r14
     pop r13
     pop r12
     pop rbx
     ret
+
+%if RESOURCE_TEST
+; Emit a stable per-reap resource snapshot. R<frames>H<handles>P<pid> lets a
+; failed validation identify the reaped owner without adding a test syscall.
+resource_test_emit_snapshot:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    mov rsi, rdi
+    mov al, 'R'
+    out 0xe9, al
+    mov eax, [abs resource_test_frames_live]
+    call resource_test_emit_hex32
+    mov al, 'H'
+    out 0xe9, al
+    mov eax, [abs resource_test_handles_live]
+    call resource_test_emit_hex32
+    mov al, 'P'
+    out 0xe9, al
+    mov eax, [rsi + PROC_PID]
+    call resource_test_emit_hex32
+    mov al, 10
+    out 0xe9, al
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
+resource_test_emit_hex32:
+    push rbx
+    push rcx
+    push rdx
+    mov ebx, eax
+    mov ecx, 8
+.hex:
+    mov edx, ebx
+    shr edx, 28
+    mov al, [resource_test_hex + rdx]
+    out 0xe9, al
+    shl ebx, 4
+    dec ecx
+    jnz .hex
+    pop rdx
+    pop rcx
+    pop rbx
+    ret
+%endif
 
 interrupt_controller_seed:
     ; Remap the legacy PIC so IRQ0/IRQ1 use the installed x86_64 IDT gates.
@@ -821,6 +955,9 @@ user_mode_seed:
     mov qword [abs process_two + PROC_NEXT], process_one
     mov qword [abs current_process], process_one
     mov dword [abs process_one + PROC_STATE], PROC_RUNNING
+%if PROCESS_CREATE_TEST
+    mov dword [abs process_create_test_armed], 1
+%endif
     mov rax, [abs process_one + PROC_CR3]
     mov cr3, rax
     mov rax, [abs process_one + PROC_KTOP]
@@ -1556,39 +1693,39 @@ syscall_entry:
     mov [rbx + PROC_FLAGS], r11d
     mov [rbx + PROC_RSP], rsp
     mov rsp, [rbx + PROC_KTOP]
-    cmp eax, 1                  ; console_read (non-blocking Alpha seed)
+    cmp eax, strict byte SYS_CONSOLE_READ  ; console_read (non-blocking Alpha seed)
     je .read
-    cmp eax, 2                  ; console_write
+    cmp eax, strict byte SYS_CONSOLE_WRITE  ; console_write
     je .write
-    cmp eax, 8                  ; mem_grow
+    cmp eax, strict byte SYS_MEM_GROW       ; mem_grow
     je .mem_grow
-    cmp eax, 3                  ; file_open
+    cmp eax, strict byte SYS_FILE_OPEN      ; file_open
     je .file_open
-    cmp eax, 4                  ; file_read
+    cmp eax, strict byte SYS_FILE_READ      ; file_read
     je .file_read
-    cmp eax, 5                  ; file_write
+    cmp eax, strict byte SYS_FILE_WRITE     ; file_write
     je .file_write
-    cmp eax, 6                  ; file_close
+    cmp eax, strict byte SYS_FILE_CLOSE     ; file_close
     je .file_close
-    cmp eax, 7                  ; file_stat
+    cmp eax, strict byte SYS_FILE_STAT      ; file_stat
     je .file_stat
-    cmp eax, 0x0d               ; path_create
+    cmp eax, strict byte SYS_PATH_CREATE    ; path_create
     je .path_create
-    cmp eax, 0x0e               ; file_unlink
+    cmp eax, strict byte SYS_FILE_UNLINK    ; file_unlink
     je .file_unlink
-    cmp eax, 0x0f               ; process_spawn(image, size)
+    cmp eax, strict byte SYS_PROCESS_SPAWN ; process_spawn(image, size)
     je .process_spawn
-    cmp eax, 0x10               ; process_wait(pid)
+    cmp eax, strict byte SYS_PROCESS_WAIT  ; process_wait(pid)
     je .process_wait
-    cmp eax, 0x11               ; process_spawn_args(image, size, args, args_len)
+    cmp eax, strict byte SYS_PROCESS_SPAWN_ARGS ; process_spawn_args(image, size, args, args_len)
     je .process_spawn_args
-    cmp eax, 0x12               ; process_args(buffer, capacity)
+    cmp eax, strict byte SYS_PROCESS_ARGS  ; process_args(buffer, capacity)
     je .process_args
-    cmp eax, 0x13               ; file_list(buffer, capacity)
+    cmp eax, strict byte SYS_FILE_LIST     ; file_list(buffer, capacity)
     je .file_list
-    cmp eax, 0x0b               ; process_exit
+    cmp eax, strict byte SYS_PROCESS_EXIT  ; process_exit
     je .exit
-    cmp eax, 0x0c               ; task_yield
+    cmp eax, strict byte SYS_TASK_YIELD    ; task_yield
     je .yield
     mov rax, -38                ; -ENOSYS
     jmp .return_user
@@ -2079,12 +2216,20 @@ process_exit_current:
     mov rsp, [r12 + PROC_KTOP]
     mov rdi, r13
     call process_reap
+%if RESOURCE_TEST
+    mov rdi, r13
+    call resource_test_emit_snapshot
+%endif
     mov rax, [r12 + PROC_CONTEXT]
     jmp process_iret_context
 .kernel_shell:
     mov rsp, 0x90000
     mov rdi, rbx
     call process_reap
+%if RESOURCE_TEST
+    mov rdi, rbx
+    call resource_test_emit_snapshot
+%endif
     mov qword [abs current_process], 0
     mov eax, KERNEL_CR3
     mov cr3, rax
@@ -2403,6 +2548,9 @@ frame_alloc_owned:
     mov edx, [rsp]
     mov [frame_owner + rcx * 4], edx
     mov rax, r8
+%if RESOURCE_TEST
+    inc dword [abs resource_test_frames_live]
+%endif
     pop rdi
     ret
 .none:
@@ -2430,6 +2578,9 @@ frame_free_owned:
     jne .not_found
     mov byte [frame_used + rcx], 0
     mov dword [frame_owner + rcx * 4], 0
+%if RESOURCE_TEST
+    dec dword [abs resource_test_frames_live]
+%endif
     mov eax, 1
     ret
 .not_found:
@@ -2784,6 +2935,15 @@ fs_seed:
 ata_wait_drq:
     ; Poll BSY/ERR/DRQ with a finite budget.  A device error or timeout is a
     ; normal block-layer failure, never an infinite interrupt-disabled loop.
+%if ATA_TEST_FAULT == 1
+    jmp .fail
+%elif ATA_TEST_FAULT == 2
+    mov ecx, 0x100000
+.forced_timeout:
+    dec ecx
+    jnz .forced_timeout
+    jmp .fail
+%endif
     mov dx, ATA_PRIMARY_STATUS
     mov ecx, 0x100000
 .poll:
@@ -4102,6 +4262,9 @@ gfs_file_open_user:
     cmp word [rax + 4], 1
     jne .io
     mov dword [r12 + PROC_HANDLE], 1
+%if RESOURCE_TEST
+    inc dword [abs resource_test_handles_live]
+%endif
     mov dword [r12 + PROC_INODE], r13d
     mov qword [r12 + PROC_OFFSET], 0
     mov rax, [rax + 8]
@@ -4125,9 +4288,15 @@ gfs_file_close_user:
     cmp rdi, 1
     jne .bad
     mov r12, [abs current_process]
+    cmp dword [r12 + PROC_HANDLE], 0
+    je .done
+%if RESOURCE_TEST
+    dec dword [abs resource_test_handles_live]
+%endif
     mov dword [r12 + PROC_HANDLE], 0
     mov qword [r12 + PROC_OFFSET], 0
     mov qword [r12 + PROC_INODE], 0
+.done:
     mov eax, 0
     ret
 .bad:
@@ -4183,6 +4352,9 @@ gfs_path_create_user:
     js .return_error
     mov r13d, eax
     mov dword [r12 + PROC_HANDLE], 1
+%if RESOURCE_TEST
+    inc dword [abs resource_test_handles_live]
+%endif
     mov dword [r12 + PROC_INODE], r13d
     mov qword [r12 + PROC_OFFSET], 0
     mov qword [r12 + PROC_FILE_SIZE], 0
@@ -5046,43 +5218,43 @@ user_vm_program:
     inc r12
     movzx ebx, byte [r12]
     inc r12
-    cmp eax, 1
+    cmp eax, strict byte GWO_IMPORT_PRINT_I32
     je .import_print
-    cmp eax, 2
+    cmp eax, strict byte GWO_IMPORT_EXIT
     je .import_exit
-    cmp eax, 3
+    cmp eax, strict byte GWO_IMPORT_NEWLINE
     je .import_newline
-    cmp eax, 4
+    cmp eax, strict byte GWO_IMPORT_CONSOLE_READ
     je .import_console_read
-    cmp eax, 5
+    cmp eax, strict byte GWO_IMPORT_FILE_OPEN
     je .import_file_open
-    cmp eax, 6
+    cmp eax, strict byte GWO_IMPORT_FILE_READ
     je .import_file_read
-    cmp eax, 7
+    cmp eax, strict byte GWO_IMPORT_FILE_WRITE
     je .import_file_write
-    cmp eax, 8
+    cmp eax, strict byte GWO_IMPORT_FILE_CLOSE
     je .import_file_close
-    cmp eax, 9
+    cmp eax, strict byte GWO_IMPORT_FILE_STAT
     je .import_file_stat
-    cmp eax, 10
+    cmp eax, strict byte GWO_IMPORT_MEM_GROW
     je .import_mem_grow
-    cmp eax, 11
+    cmp eax, strict byte GWO_IMPORT_PATH_CREATE
     je .import_path_create
-    cmp eax, 12
+    cmp eax, strict byte GWO_IMPORT_FILE_UNLINK
     je .import_file_unlink
-    cmp eax, 13
+    cmp eax, strict byte GWO_IMPORT_PRINT_BYTES
     je .import_print_bytes
-    cmp eax, 14
+    cmp eax, strict byte GWO_IMPORT_TASK_YIELD
     je .import_task_yield
-    cmp eax, 15
+    cmp eax, strict byte GWO_IMPORT_PROCESS_SPAWN
     je .import_process_spawn
-    cmp eax, 16
+    cmp eax, strict byte GWO_IMPORT_PROCESS_WAIT
     je .import_process_wait
-    cmp eax, 17
+    cmp eax, strict byte GWO_IMPORT_PROCESS_SPAWN_ARGS
     je .import_process_spawn_args
-    cmp eax, 18
+    cmp eax, strict byte GWO_IMPORT_PROCESS_ARGS
     je .import_process_args
-    cmp eax, 19
+    cmp eax, strict byte GWO_IMPORT_FILE_LIST
     je .import_file_list
     jmp .fail
 .import_console_read:
@@ -5096,7 +5268,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 1
+    mov eax, SYS_CONSOLE_READ
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5117,7 +5289,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 3
+    mov eax, SYS_FILE_OPEN
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5139,7 +5311,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 4
+    mov eax, SYS_FILE_READ
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5161,7 +5333,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 5
+    mov eax, SYS_FILE_WRITE
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5181,7 +5353,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 6
+    mov eax, SYS_FILE_CLOSE
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5202,7 +5374,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 7
+    mov eax, SYS_FILE_STAT
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5222,7 +5394,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 8
+    mov eax, SYS_MEM_GROW
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5242,7 +5414,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x0d
+    mov eax, SYS_PATH_CREATE
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5262,7 +5434,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x0e
+    mov eax, SYS_FILE_UNLINK
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5283,7 +5455,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 2
+    mov eax, SYS_CONSOLE_WRITE
     syscall
     mov r12, [abs VM_PC_SLOT]
     mov r13, [abs VM_SP_SLOT]
@@ -5296,7 +5468,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x0c
+    mov eax, SYS_TASK_YIELD
     syscall
     mov r12, [abs VM_PC_SLOT]
     mov r13, [abs VM_SP_SLOT]
@@ -5314,7 +5486,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x0f
+    mov eax, SYS_PROCESS_SPAWN
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5338,7 +5510,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x11
+    mov eax, SYS_PROCESS_SPAWN_ARGS
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5359,7 +5531,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x12
+    mov eax, SYS_PROCESS_ARGS
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5380,7 +5552,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x13
+    mov eax, SYS_FILE_LIST
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5400,7 +5572,7 @@ user_vm_program:
     mov [abs VM_PC_SLOT], r12
     mov [abs VM_SP_SLOT], r13
     mov [abs VM_STEP_SLOT], r14
-    mov eax, 0x10
+    mov eax, SYS_PROCESS_WAIT
     syscall
     movsxd rax, eax
     mov r12, [abs VM_PC_SLOT]
@@ -5799,6 +5971,26 @@ process_one_args:
     times MAX_PROCESS_ARGS db 0
 process_two_args:
     times MAX_PROCESS_ARGS db 0
+%if PROCESS_CREATE_TEST
+align 4
+process_create_test_armed:
+    dd 0
+process_create_test_attempt:
+    dd 0
+process_create_test_counter:
+    dd 0
+process_create_test_active:
+    dd 0
+%endif
+%if RESOURCE_TEST
+align 4
+resource_test_frames_live:
+    dd 0
+resource_test_handles_live:
+    dd 0
+resource_test_hex:
+    db '0123456789ABCDEF'
+%endif
 current_process:
     dq 0
 user_payload_size:

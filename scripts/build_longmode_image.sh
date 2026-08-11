@@ -9,17 +9,21 @@ USER_SOURCE=${GROGAN_USER_SOURCE:-"$ROOT/examples/grown-alpha/hello.grw"}
 command -v nasm > /dev/null 2>&1 || { echo 'error: nasm is required' >&2; exit 1; }
 mkdir -p "$(dirname -- "$OUT")"
 mkdir -p "$ROOT/build/generated"
-"$ROOT/scripts/grc0.sh" \
+bash "$ROOT/scripts/grc0.sh" \
     "$USER_SOURCE" \
     "$ROOT/build/generated/grogan-user.gwo"
-"$ROOT/scripts/grc0.sh" \
+bash "$ROOT/scripts/grc0.sh" \
     "$ROOT/examples/grown-alpha/hello.grw" \
     "$ROOT/build/generated/grogan-helper.gwo"
-"$ROOT/scripts/grc0.sh" \
+bash "$ROOT/scripts/grc0.sh" \
     "$ROOT/examples/grown-alpha/grc1.grw" \
     "$ROOT/build/generated/grc1.gwo"
 cd "$ROOT"
-nasm -f bin "$ROOT/kernel/longmode_boot.asm" -o "$OUT"
+NASM_ARGS=()
+if [ -n "${LONGMODE_NASM_DEFINE:-}" ]; then
+    NASM_ARGS+=("-d${LONGMODE_NASM_DEFINE}")
+fi
+nasm "${NASM_ARGS[@]}" -f bin "$ROOT/kernel/longmode_boot.asm" -o "$OUT"
 [ "$(wc -c < "$OUT" | tr -d ' ')" = "$KERNEL_BYTES" ] || { echo "error: long-mode kernel must be $KERNEL_BYTES bytes" >&2; exit 1; }
 # The BIOS transfer covers only the boot sector plus KERNEL_LOAD_SECTORS.  The
 # remaining sectors are a real disk surface for the GFS2 block layer; keeping
@@ -27,5 +31,5 @@ nasm -f bin "$ROOT/kernel/longmode_boot.asm" -o "$OUT"
 truncate -s "$((512 * (FS_START_LBA + FS_BLOCKS)))" "$OUT"
 GFS2_SEED_COMPILER="$ROOT/build/generated/grc1.gwo" \
 GFS2_SEED_SOURCE="$ROOT/examples/grown-alpha/grc1.grw" \
-    "$ROOT/scripts/build_gfs2_volume.sh" "$OUT" "$((512 * FS_START_LBA))" "$FS_BLOCKS" > /dev/null
+    bash "$ROOT/scripts/build_gfs2_volume.sh" "$OUT" "$((512 * FS_START_LBA))" "$FS_BLOCKS" > /dev/null
 echo "built: $OUT"

@@ -7,7 +7,7 @@ STAGE2_DIST_IMAGE := dist/gros-stage2.gwo
 LONGMODE_BUILD_IMAGE := build/gros-longmode.img
 LONGMODE_DIST_IMAGE := dist/gros-longmode.img
 
-.PHONY: grogan-x86_64-image grogan-x86_64-image-failures grogan-x86_64-qemu grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-process-qemu grogan-storage grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-compiler grogan-compiler-failures grogan-self-host grogan-self-host-qemu grogan-general-shell-qemu grogan-modules-qemu grogan-corruption-qemu grogan-boundaries-qemu grogan-ata-failures-qemu grogan-oom-qemu grogan-reliability-qemu grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures grogan-shell-qemu
+.PHONY: grogan-x86_64-image grogan-x86_64-image-failures grogan-x86_64-qemu grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-process-qemu grogan-process-create-failures-qemu grogan-resource-leaks-qemu grogan-storage grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-compiler grogan-compiler-failures self-hosting-abi-generate grogan-import-abi-parity grogan-import-abi-failures grogan-release-exclusions grogan-compiler-bounds-qemu grogan-self-host grogan-self-host-qemu grogan-general-shell-qemu grogan-modules-qemu grogan-corruption-qemu grogan-boundaries-qemu grogan-ata-failures-qemu grogan-oom-qemu grogan-reliability-qemu grogan-clean-checkout grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures grogan-shell-qemu
 
 build:
 	./scripts/build_boot.sh
@@ -26,6 +26,9 @@ project-policy-failures:
 
 self-hosting-contracts:
 	./scripts/check_self_hosting_contracts.sh
+
+self-hosting-abi-generate:
+	./scripts/generate_self_hosting_abi.sh kernel/self_hosting_abi.inc
 
 self-hosting-contract-failures:
 	./scripts/test_self_hosting_contract_failures.sh
@@ -122,7 +125,7 @@ validate: validate-static
 validate-static:
 	./scripts/run_validation_lane.sh static "$(MAKE)" --no-print-directory validate-static-internal
 
-validate-static-internal: policy project-policy-failures self-hosting-contracts self-hosting-contract-failures gfs2-host gfs2-host-failures gwo2-host gwo2-host-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-self-host grogan-x86_64-image grogan-x86_64-image-failures grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-storage grogan-compiler grogan-compiler-failures grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures longmode-image-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures validation-lanes-failures test check stage2
+validate-static-internal: policy project-policy-failures self-hosting-contracts self-hosting-contract-failures grogan-import-abi-parity grogan-import-abi-failures grogan-release-exclusions gfs2-host gfs2-host-failures gwo2-host gwo2-host-failures status-consistency status-consistency-failures grogan-seed grogan-seed-failures grogan-self-host grogan-x86_64-image grogan-x86_64-image-failures grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-storage grogan-compiler grogan-compiler-failures grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures longmode-image-failures generated-fixtures generated-fixtures-failures grabi-generated-code-failures minimal-main minimal-main-failures headered-stage2-rejection-failures boot-image-failures grscall-registry grscall-registry-failures gwo-header-fixtures gwo-header-fixture-failures gwo-artifact-inventory gwo-artifact-inventory-failures runtime-abi-failures stage2-image-failures headered-stage2-failures memory-model-failures stage2-data-failures near-pointers-failures stage2-command-failures stage2-input-failures stage2-debugcon-failures qemu-interaction-failures smoke-stage2-failures validation-lanes-failures test check stage2
 	./scripts/check_boot.sh $(DIST_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(BUILD_IMAGE)
 	./scripts/validate_boot_image.sh --require-ndisasm $(DIST_IMAGE)
@@ -156,10 +159,12 @@ validate-static-internal: policy project-policy-failures self-hosting-contracts 
 validate-qemu:
 	./scripts/run_validation_lane.sh qemu "$(MAKE)" --no-print-directory validate-qemu-internal
 
-validate-qemu-internal: smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection grogan-x86_64-qemu grogan-process-qemu grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-shell-qemu grogan-general-shell-qemu grogan-modules-qemu grogan-corruption-qemu grogan-boundaries-qemu grogan-ata-failures-qemu grogan-oom-qemu grogan-self-host-qemu
+validate-qemu-internal: smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection grogan-x86_64-qemu grogan-process-qemu grogan-process-create-failures-qemu grogan-resource-leaks-qemu grogan-compiler-bounds-qemu grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-shell-qemu grogan-general-shell-qemu grogan-modules-qemu grogan-corruption-qemu grogan-boundaries-qemu grogan-ata-failures-qemu grogan-oom-qemu grogan-self-host-qemu
 
 grogan-x86_64-image:
 	./scripts/build_longmode_image.sh $(LONGMODE_BUILD_IMAGE)
+	mkdir -p "$(dir $(LONGMODE_DIST_IMAGE))"
+	cp $(LONGMODE_BUILD_IMAGE) $(LONGMODE_DIST_IMAGE)
 	./scripts/check_longmode_image.sh $(LONGMODE_BUILD_IMAGE)
 	./scripts/check_grogan_x86_64_profile.sh $(LONGMODE_BUILD_IMAGE)
 
@@ -193,6 +198,9 @@ grogan-process-failures:
 grogan-process-qemu: grogan-x86_64-image
 	./scripts/qemu_grogan_fault_isolation.sh
 
+grogan-process-create-failures-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_process_create_failures.sh
+
 grogan-storage: grogan-x86_64-image
 	./scripts/check_grogan_storage.sh $(LONGMODE_BUILD_IMAGE)
 
@@ -210,6 +218,21 @@ grogan-compiler:
 
 grogan-compiler-failures:
 	./scripts/test_grogan_compiler_failures.sh
+
+grogan-import-abi-parity: self-hosting-contracts
+	./scripts/check_grogan_import_abi_parity.sh
+
+grogan-import-abi-failures:
+	./scripts/test_grogan_import_abi_failures.sh
+
+grogan-release-exclusions:
+	./scripts/check_grogan_release_exclusions.sh
+
+grogan-compiler-bounds-qemu:
+	./scripts/qemu_grogan_compiler_bounds.sh
+
+grogan-resource-leaks-qemu:
+	./scripts/qemu_grogan_resource_leaks.sh
 
 grogan-self-host:
 	./scripts/check_grogan_self_host.sh
@@ -240,6 +263,9 @@ grogan-reliability-qemu: grogan-x86_64-image
 
 grogan-release:
 	./scripts/check_grogan_release.sh
+
+grogan-clean-checkout:
+	./scripts/check_grogan_clean_checkout.sh
 
 grogan-release-failures:
 	./scripts/test_grogan_release_failures.sh

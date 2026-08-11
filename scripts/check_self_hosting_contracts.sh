@@ -31,8 +31,14 @@ require_line syscall-abi-v1.tsv $'0x01\tconsole_read\tbytes-or-errno'
 require_line syscall-abi-v1.tsv $'0x0b\tprocess_exit\tnoreturn'
 require_line syscall-abi-v1.tsv $'0x0e\tfile_unlink\tzero-or-errno'
 require_line syscall-abi-v1.tsv $'0x0f\tprocess_spawn\tpid-or-errno'
+require_line syscall-abi-v1.tsv $'0x10\tprocess_wait\texit-status-or-errno'
 require_line syscall-abi-v1.tsv $'0x11\tprocess_spawn_args(image,size,args,args_len:R8)\tpid-or-errno'
 require_line syscall-abi-v1.tsv $'0x13\tfile_list\tbytes-or-errno'
+
+require_file gwo2-import-abi-v1.tsv
+[ "$(wc -l < "$CONTRACTS/gwo2-import-abi-v1.tsv" | tr -d ' ')" = 20 ] || fail 'GWO2 import ABI must contain header plus 19 imports'
+require_line gwo2-import-abi-v1.tsv $'import_id\tname\targc\tresult\tsyscall_selector'
+require_line gwo2-import-abi-v1.tsv $'16\tprocess_wait\t1\ti32\t16'
 
 require_file gfs2-layout.txt
 require_line gfs2-layout.txt 'schema=gros-gfs2/v1'

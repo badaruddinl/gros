@@ -48,6 +48,11 @@ GFS2, so the host filesystem is not consulted after boot.
   at compile time. Imported files contain function declarations and share the
   importing program's target; nested imports are rejected by the in-OS compiler
   until a recursive module graph contract is added.
+- Until P0 compiler-boundary hardening is complete, keep identifiers at no more
+  than 31 bytes and byte-string literals at no more than 255 bytes. The Rust
+  bootstrap already enforces the literal limit, but cross-compiler rejection
+  parity for overlong identifiers and literals is still an explicit release
+  obligation.
 - User pointers are page-walked before every file/list operation; a buffer that
   crosses an unmapped page returns `-EFAULT` to the process. An ATA capacity
   below the filesystem LBA fails the boot with a bounded `ATAFAIL` marker.
@@ -75,9 +80,17 @@ make validate-self-host
 make validate-release
 ```
 
-`grogan-release` also compares two clean compiler/image builds and emits the
-same SHA-256 manifest. `grogan-reliability-qemu` runs 100 independent clean
-boot/editor/compile/run/reboot cycles by default; set `CYCLES` lower only for
-local iteration. The QEMU lane additionally covers malformed/unsupported
-GWO2, cross-page user buffers, and a short-ATA-capacity boot failure; host
-fixtures mutate GFS2 superblocks, bitmaps, extents, and disk-full states.
+`grogan-release` currently compares two compiler/image builds from the same
+checkout and emits the same SHA-256 manifest. Two isolated `git archive HEAD`
+builds remain the formal clean-checkout reproducibility requirement.
+`grogan-reliability-qemu` runs 100 independent clean-boot
+editor/compile/run/reboot cycles by default; set `CYCLES` lower only for local
+iteration. It proves the functional markers it checks, but it does not yet
+compare owned-frame and open-handle counters before and after every cycle.
+
+The QEMU lane covers malformed/unsupported GWO2, cross-page user buffers, and
+an out-of-range short-ATA-capacity failure. Validation-only device-`ERR` and ATA
+poll-timeout injection remain open. Host fixtures mutate GFS2 superblocks,
+bitmaps, extents, and disk-full states. The complete release-claim boundary and
+atomic follow-up plan are in `docs/41-self-hosting-alpha-roadmap.md` and
+`docs/50-self-hosting-alpha-evidence.md`.

@@ -76,6 +76,7 @@ The prompt supports line editing with Backspace and built-in commands:
 - [Self-Hosting Alpha GWO2 toolchain](docs/48-self-hosting-alpha-gwo2-toolchain.md)
 - [Self-Hosting Alpha kernel GWO2 VM bridge](docs/49-self-hosting-alpha-kernel-gwo2-vm.md)
 - [Self-Hosting Alpha evidence](docs/50-self-hosting-alpha-evidence.md)
+- [Self-Hosting Alpha operations and recovery](docs/50-self-hosting-alpha-operations.md)
 - [x86_64 exception and interrupt foundation](docs/33-x86_64-exception-interrupt-foundation.md)
 - [physical memory ownership seed](docs/34-physical-memory-ownership.md)
 - [kernel heap seed](docs/35-kernel-heap-seed.md)

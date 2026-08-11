@@ -35,7 +35,7 @@ and user-range checks.
 | `0x0d` | `path_create` | handle, or error |
 | `0x0e` | `file_unlink` | zero, or error |
 | `0x0f` | `process_spawn` | child PID, or error |
-| `0x10` | `process_wait` | child PID, or error |
+| `0x10` | `process_wait` | signed child exit status, or error |
 | `0x11` | `process_spawn_args` | child PID, or error |
 | `0x12` | `process_args` | bytes copied, or error |
 | `0x13` | `file_list` | bytes copied, or error |
@@ -66,6 +66,11 @@ bounded and non-blocking: `console_read` and `process_wait` return `-EAGAIN`,
 and userland yields before retrying. A future blocking implementation must
 change the process state to `blocked` and wake only after the documented event;
 it must never spin with interrupts disabled.
+
+`process_wait(pid)` returns the signed exit status recorded by the child. A
+successful zero-status child returns `0`; a nonzero child returns that exact
+signed status. `-EAGAIN` means the child has not exited yet and `-EINVAL`
+means the PID is not the supported child slot.
 
 ## Batch 1.2 gate
 

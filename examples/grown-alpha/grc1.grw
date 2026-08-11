@@ -195,11 +195,16 @@ fn read_ident(state: i32, destination: i32) -> i32 {
     }
     let index: i32 = 0;
     let done: i32 = 0;
+    let overflow: i32 = 0;
     while (done == 0) {
         if (position < length) {
             let value: i32 = load_byte(source, position);
             if (is_ident(value) == 1) {
-                store_byte(destination, index, value);
+                if (index < 31) {
+                    store_byte(destination, index, value);
+                } else {
+                    overflow = 1;
+                }
                 index = index + 1;
                 position = position + 1;
             } else {
@@ -209,7 +214,12 @@ fn read_ident(state: i32, destination: i32) -> i32 {
             done = 1;
         }
     }
-    store_byte(destination, index, 0);
+    if (overflow == 1) {
+        store_byte(destination, 31, 0);
+        put32(state, 40, 1);
+    } else {
+        store_byte(destination, index, 0);
+    }
     put32(state, 8, position);
     return index;
 }
@@ -525,6 +535,7 @@ fn read_string_literal(state: i32) -> i32 {
     let start: i32 = position + 1;
     let index: i32 = 0;
     let done: i32 = 0;
+    let overflow: i32 = 0;
     if (load_byte(source, position) == 34) { position = position + 1; }
     while (done == 0) {
         if (position < length) {
@@ -532,18 +543,23 @@ fn read_string_literal(state: i32) -> i32 {
                 done = 1;
             } else {
                 position = position + 1;
-                index = index + 1;
+                if (index < 255) { index = index + 1; }
+                else { overflow = 1; }
             }
         } else {
             done = 1;
         }
     }
-    emit8(state, 15);
-    emit8(state, index);
-    let copy: i32 = 0;
-    while (copy < index) {
-        emit8(state, load_byte(source, start + copy));
-        copy = copy + 1;
+    if (overflow == 1) {
+        put32(state, 40, 1);
+    } else {
+        emit8(state, 15);
+        emit8(state, index);
+        let copy: i32 = 0;
+        while (copy < index) {
+            emit8(state, load_byte(source, start + copy));
+            copy = copy + 1;
+        }
     }
     if (position < length) { position = position + 1; }
     put32(state, 8, position);

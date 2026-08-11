@@ -16,6 +16,8 @@ const GWO2_HEADER_SIZE: usize = 32;
 const GWO2_SECTION_SIZE: usize = 16;
 const GWO2_MAX_BYTES: usize = 1024 * 1024;
 const MAX_LOCALS: usize = 255;
+const MAX_IDENTIFIER_BYTES: usize = 31;
+const MAX_STRING_BYTES: usize = 255;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum TokenKind {
@@ -304,7 +306,7 @@ impl Parser {
             return None;
         }
         let name = self.lexer.current.text.clone();
-        if name.len() >= 64 {
+        if name.len() > MAX_IDENTIFIER_BYTES {
             diagnostic!(self, "identifier is too long");
             return None;
         }
@@ -372,7 +374,7 @@ impl Parser {
             }
             TokenKind::String => {
                 let text = self.lexer.current.text.clone();
-                if text.len() > 255 {
+                if text.len() > MAX_STRING_BYTES {
                     diagnostic!(self, "byte string is too long");
                     return false;
                 }
@@ -428,7 +430,7 @@ impl Parser {
                 return false;
             }
             let length = self.lexer.current.text.len();
-            if length > 255 {
+            if length > MAX_STRING_BYTES {
                 diagnostic!(self, "byte string is too long");
                 return false;
             }

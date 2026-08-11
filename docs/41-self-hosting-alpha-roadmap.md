@@ -50,7 +50,7 @@ compatibility, package management, or an optimizing native backend.
 | Filesystem | GFS2, writable, single root directory, bounded filenames and files |
 | Executable | Versioned GWO2 container with bytecode and future-native kinds |
 | Runtime | Deterministic stack bytecode VM in a ring-3 runtime process |
-| Language | Typed Grown subset with functions, locals, control flow, arrays, and modules |
+| Language | Typed Grown subset with functions, locals, control flow, byte strings, and one-level modules |
 | Bootstrap | Hosted `grc0`, then Grown `grc1`, then in-OS fixed-point rebuild |
 | Console | Text console with blocking line input and byte-oriented output |
 
@@ -525,7 +525,7 @@ The first concrete implementation milestone is C1, not the compiler. A real
 compiler cannot safely self-host until GrOS can allocate memory, validate user
 pointers, isolate faults, load a process, and reclaim its resources.
 
-## Current implementation checkpoint (feature/self-hosting-alpha)
+## Current implementation checkpoint (`development` at `e7bb96e`)
 
 The following roadmap work is now implemented and covered by executable gates:
 
@@ -539,15 +539,318 @@ The following roadmap work is now implemented and covered by executable gates:
 | In-OS compile/run and persistence | `make grogan-self-host-qemu` | complete |
 | General ring-3 shell, editor, argv, and listing | `make grogan-general-shell-qemu` | complete |
 | One-level multi-module compile and execution | `make grogan-modules-qemu grogan-compiler-failures` | complete |
-| OOM process rollback and malformed-artifact isolation | `make grogan-oom-qemu grogan-corruption-qemu` | complete |
-| Host disk-full, image mutation, and reproducible-build gates | `make gfs2-host-failures grogan-release grogan-release-failures` | complete |
-| Repeated clean-boot development cycles | `CYCLES=100 make grogan-reliability-qemu` | release gate |
+| Transactional process-allocation cleanup and malformed-artifact isolation | `make grogan-oom-qemu grogan-corruption-qemu grogan-process-create-failures-qemu` | complete; every owned allocation edge is injected and retried |
+| Host disk-full and image mutation | `make gfs2-host-failures grogan-release-failures` | complete for the current fixtures |
+| Committed-HEAD reproducible compiler/image builds | `make grogan-release grogan-clean-checkout` | complete; two independent `git archive HEAD` builds and poison fixture agree |
+| Repeated clean-boot development cycles | `CYCLES=100 make grogan-reliability-qemu grogan-resource-leaks-qemu` | complete; every cycle returns frame/handle counters to baseline |
+| ATA capacity, device `ERR`, and timeout rejection | `make grogan-ata-failures-qemu` | complete; three independent bounded-failure boots |
 
 The hosted fixed-point proof compares the output produced by `grc1.gwo` with
 the next output produced by that Grown compiler; it does not incorrectly
 compare the Rust bootstrap seed with the canonical Grown output. The C host
 verifier/VM is retained only as a reference oracle. `make validate-self-host`
-is the short gate for both hosted and in-OS proofs; the full Phase 10 release
-gate runs the 100-cycle clean-boot reliability campaign, host mutation
-fixtures, and reproducible-distribution check; crash-journal recovery and
+is the short gate for both hosted and in-OS proofs. The current
+`validate-release` target runs the static/QEMU lanes and the 100-cycle
+functional campaign, but the post-commit audit below is the authoritative
+boundary for a formal Self-Hosting Alpha 1 claim. Crash-journal recovery and
 multi-directory GFS2 remain deliberately outside Alpha scope.
+
+## Post-`e7bb96e` audit boundary
+
+An external audit of committed source, contracts, and validation harnesses
+classifies GrOS as a credible self-hosting research OS and a Self-Hosting Alpha
+candidate, not as a general-purpose OS. The auditor did not execute the local
+100-cycle QEMU campaign; repository runtime evidence and static audit evidence
+must therefore remain separate claims.
+
+The qualitative audit snapshot is retained for planning context, not used as a
+release score:
+
+| Area | Audit assessment | Boundary that matters for delivery |
+| --- | ---: | --- |
+| Project seriousness | 9.3/10 | An in-OS development environment now exists. |
+| Self-hosting proof | 9.2/10 | `grc2 == grc3` is reproduced on two clean boots. |
+| Validation engineering | 9.0/10 | OOM, corruption, pointer boundary, module, ATA-range, reproducibility, and reliability fixtures exist. |
+| Compiler maturity | 6.5/10 | One-level modules work, but identifier and literal bounds are not yet parity-safe. |
+| Kernel reliability | 6.8/10 | Frame cleanup improved, but failed child creation may poison the reusable slot. |
+| Userland usefulness | 6.5/10 | Shell, editor, compile/run, listing, file read/write, and removal are usable. |
+| Maintainability | 4.5/10 | `kernel/longmode_boot.asm` is 5,933 lines and owns too many subsystems. |
+| Hardware portability | 2.5/10 | QEMU BIOS x86_64 remains the intentional Alpha target. |
+| General-purpose OS | 3.5/10 | General-purpose support is not an Alpha acceptance criterion. |
+
+### Audit reconciliation: implemented versus still unproven
+
+| Audit item | Current evidence | Honest status |
+| --- | --- | --- |
+| Syscall selector drift (`0x09/0x0a` versus `0x0f/0x10`) | Contract and implementation now use `0x0f/0x10`. | closed |
+| `process_create` allocation failure | `qemu_grogan_process_create_failures.sh` injects all 74 owned-frame edges, checks `PCA/PCF/PCS`, and retries each child slot. | closed |
+| OOM and recoverable faults | QEMU covers `mem_grow -> -ENOMEM`, corrupt GWO2, and cross-page `-EFAULT`. | useful coverage; not exhaustive process-create fault injection |
+| 100-cycle campaign | `qemu_grogan_resource_leaks.sh` records `R<frames>H<handles>P<pid>` for every spawn/wait/reap cycle. | closed; per-cycle frame/handle baseline is measured |
+| Multi-module compiler | One-level root-file imports compile on host and inside GrOS. | complete for the Alpha module boundary |
+| Compiler identifier bounds | Host and in-OS corpus covers 31/32/63/64; mutation lane proves removal of the Grown guard is caught. | closed at `IDENT_MAX=31` |
+| String literal bounds | Host and in-OS corpus covers 255/256; mutation lane proves removal of the Grown guard is caught. | closed at `STRING_MAX=255` |
+| ATA failure campaign | Three QEMU images force capacity range, device `ERR`, and bounded timeout branches. | closed |
+| Reproducible distribution | `check_grogan_clean_checkout.sh` builds two archives and ignores a poison untracked input. | closed |
+| ABI source of truth | Full TSV parser, generated NASM constants, Rust/Grown/C dispatch checks, and mutation lane. | closed |
+| Kernel source structure | One NASM flat-binary source still contains boot, MM, processes, interrupts, syscalls, ATA, GFS2, verifier, and GrVM. | source-only modularization open |
+| Native Grown backend | GWO2 bytecode self-hosting is real and sufficient for Alpha. | deliberately deferred until Alpha is locked |
+
+The corrected Phase 10 rule is: a gate name or script default is not enough.
+Every invariant named by the roadmap must be measured by that gate.
+
+## Smallest executable hardening plan
+
+Each checkbox below is intentionally one reviewable action. Do not combine two
+IDs merely because they touch the same source file. Every implementation ID
+must first have a failing test or contract change, and its claim may be updated
+only after the named gate passes.
+
+### P0-A - Restore the reusable child slot after failed creation
+
+Risk: `process_create` clears the process object before allocation. A partial
+failure reclaims frames but leaves `PROC_STATE=0`, so the next spawn can return
+`-EBUSY` until reboot.
+
+- [x] **P0-A01 Contract:** state that every failed unpublished child creation
+  leaves the child slot in one canonical reusable state.
+- [x] **P0-A02 Reproducer:** add one validation-only allocation failure point
+  inside `process_create` and prove `spawn -> -ENOMEM; spawn -> -EBUSY` on the
+  current code without rebooting.
+- [x] **P0-A03 Object reset:** after partial frame cleanup, clear stale links,
+  arguments, handles, offsets, frame pointers, and exit data; set the canonical
+  PID/state fields defined by P0-A01.
+- [x] **P0-A04 Retry proof:** disable the injected failure and require the very
+  next spawn in the same boot to succeed and exit normally.
+- [x] **P0-A05 Regression lane:** add the reproducer to process negative tests
+  and QEMU validation without weakening the existing `mem_grow` OOM test.
+
+Exit condition: one forced `process_create` failure cannot turn the reusable
+child slot into a permanent `-EBUSY` result.
+
+### P0-B - Freeze the real `process_wait` result contract
+
+The kernel returns the child's exit status, while the TSV and ABI document say
+that `process_wait(pid)` returns the PID. Exit status is the chosen behavior.
+
+- [x] **P0-B01 Contract:** change the machine-readable result to
+  `exit-status-or-errno`.
+- [x] **P0-B02 Documentation:** define success as the signed child exit status,
+  `-EAGAIN` as not exited, and `-EINVAL` as an unsupported PID.
+- [x] **P0-B03 Zero-status fixture:** spawn a child that exits `0` and require
+  `process_wait` to return `0`.
+- [x] **P0-B04 Nonzero-status fixture:** spawn a child that exits a nonzero
+  sentinel and require the same sentinel.
+- [x] **P0-B05 Negative fixture:** retain explicit invalid-PID and not-yet-exited
+  checks.
+- [x] **P0-B06 Parity gate:** make the full contract checker reject the old
+  `pid-or-errno` wording.
+
+Exit condition: kernel, TSV, Markdown ABI, runtime import documentation, and
+positive/negative tests agree on exit-status semantics.
+
+### P0-C - Bound identifiers identically in `grc0` and `grc1`
+
+Alpha chooses `IDENT_MAX=31`, matching a 32-byte NUL-terminated compiler name
+buffer. Increasing the internal structure to 64 bytes is not part of this fix.
+
+- [x] **P0-C01 Contract:** record `IDENT_MAX=31` and require rejection before
+  any destination write beyond byte 31.
+- [x] **P0-C02 Rust boundary:** make `grc0` accept 31 bytes and reject 32 or
+  more with the canonical diagnostic.
+- [x] **P0-C03 Grown boundary:** make `grc1.read_ident` stop safely, consume or
+  diagnose the overlong token deterministically, and keep the destination
+  NUL-terminated.
+- [x] **P0-C04 Corpus 31:** require a 31-byte identifier to compile with
+  `grc0`, host-GrVM `grc1`, and in-GrOS `grc1`.
+- [x] **P0-C05 Corpus 32:** require all three paths to reject 32 bytes.
+- [x] **P0-C06 Corpus 63/64:** require all three paths to reject both historical
+  edge cases without producing an artifact.
+- [x] **P0-C07 Damage test:** deliberately remove the Grown bound and require
+  the compiler failure lane to catch it.
+
+Exit condition: the same identifier corpus has the same accept/reject result on
+the Rust bootstrap, hosted Grown compiler, and in-OS Grown compiler.
+
+### P0-D - Bound byte-string literals identically
+
+GWO2 `const_bytes` has a one-byte length. Alpha accepts 255 payload bytes and
+must reject 256 before emitting an opcode, length, or payload prefix.
+
+- [x] **P0-D01 Contract:** state `STRING_MAX=255` for every string-producing
+  source form.
+- [x] **P0-D02 Grown guard:** reject a 256-byte literal in `grc1` before
+  `emit8(state, index)` can wrap.
+- [x] **P0-D03 Corpus 255:** require success through `grc0`, host-GrVM `grc1`,
+  and in-GrOS `grc1`.
+- [x] **P0-D04 Corpus 256:** require deterministic rejection through all three
+  paths and no partial output artifact.
+- [x] **P0-D05 Call-form coverage:** exercise both a primary byte string and
+  the `print_str` lowering path.
+- [x] **P0-D06 Damage test:** make the failure lane detect removal of the
+  Grown guard.
+
+Exit condition: no compiler can encode a wrapped `const_bytes` length.
+
+### P1-A - Exhaust every `process_create` allocation failure edge
+
+- [x] **P1-A01 Hook contract:** define a validation-only allocation countdown;
+  production images must compile with the hook absent.
+- [x] **P1-A02 Site inventory:** count every owned-frame allocation reachable
+  from `process_create`, including page-table and mapped user/runtime pages.
+- [x] **P1-A03 Failure loop:** for failure index `1..N`, require `-ENOMEM`, no
+  kernel stop, and the canonical reusable child state.
+- [x] **P1-A04 Frame baseline:** after every injected failure, require the
+  process-owned frame count to equal its pre-spawn baseline.
+- [x] **P1-A05 Retry loop:** after every injected failure, disable injection and
+  require a successful spawn/wait in the same boot.
+- [x] **P1-A06 End sentinel:** failure index `N+1` must not fire, proving the
+  loop covered all allocation sites rather than stopping early.
+- [x] **P1-A07 Release exclusion:** a static/negative test must prove that the
+  distributed image cannot enable the injection hook.
+
+Exit condition: process creation is transactionally correct at every allocation
+edge, not only under `mem_grow` exhaustion.
+
+### P1-B - Measure zero frame and handle leaks per reliability cycle
+
+- [x] **P1-B01 Counter definition:** specify exactly which frame owners and
+  process-local handles are counted and what the idle baseline is.
+- [x] **P1-B02 Test marker:** add a validation-only, machine-parseable snapshot
+  such as `RESOURCE frames=<n> handles=<n>`; do not add a production syscall
+  solely for the test.
+- [x] **P1-B03 Before snapshot:** record the baseline after boot and before the
+  cycle's write/edit/compile/run work.
+- [x] **P1-B04 After snapshot:** record after child wait, file close, artifact
+  removal, and shell return, but before QEMU quits.
+- [x] **P1-B05 Per-cycle assertion:** compare before/after values inside every
+  one of the 100 boots, not only after the final filesystem check.
+- [x] **P1-B06 Diagnostic:** on mismatch, report cycle number, owner PID, frame
+  delta, handle delta, and retained child state.
+- [x] **P1-B07 Existing checks:** retain editor, compiler, run, cleanup, and
+  final GFS2 consistency assertions.
+
+Exit condition: 100 functional cycles pass and every cycle independently
+returns frames and handles to baseline before reboot masks a leak.
+
+### P1-C - Complete ATA failure injection
+
+- [x] **P1-C01 Fault contract:** define three distinct validation outcomes:
+  out-of-range capacity, device `ERR`, and poll timeout.
+- [x] **P1-C02 ERR hook:** add a validation-image-only path that forces the ATA
+  error-status branch.
+- [x] **P1-C03 Timeout hook:** add a validation-image-only path that forces the
+  bounded polling timeout branch.
+- [x] **P1-C04 Range fixture:** retain the existing short-disk capacity test.
+- [x] **P1-C05 Separate tests:** boot one image per fault and require a distinct
+  marker, bounded completion, and absence of `ATAOK`.
+- [x] **P1-C06 Release exclusion:** prove normal images contain neither forced
+  fault mode.
+- [x] **P1-C07 Lane integration:** require all three fault classes in the QEMU
+  release lane.
+
+Exit condition: the campaign proves capacity bounds, the hardware `ERR` path,
+and timeout handling separately.
+
+### P1-D - Make syscall/import ABI parity machine-readable
+
+- [x] **P1-D01 Import table:** add `gwo2-import-abi-v1.tsv` with every import's
+  ID, name, argc, result shape, and syscall selector or `runtime-only` marker.
+- [x] **P1-D02 Process mapping:** include the explicit mappings
+  `15->0x0f`, `16->0x10`, `17->0x11`, `18->0x12`, and `19->0x13`.
+- [x] **P1-D03 Full parser:** replace selected-line checks with a validator that
+  parses every row in both ABI tables.
+- [x] **P1-D04 Structural checks:** reject duplicate IDs/names/selectors,
+  unknown result kinds, missing rows, wrong argc, and unmapped syscall imports.
+- [x] **P1-D05 Generated NASM:** generate named syscall/import constants and
+  consume them from the kernel instead of numeric process-ABI magic values.
+- [x] **P1-D06 Host declarations:** generate or validate the corresponding C
+  verifier and Rust bootstrap declarations from the same table.
+- [x] **P1-D07 Grown parity:** validate `grc1` import lowering against the table
+  with a corpus until the Grown source can consume generated declarations.
+- [x] **P1-D08 Stale-generation gate:** fail validation when generated ABI files
+  differ from their TSV source.
+- [x] **P1-D09 Mutation tests:** mutate every column family and require the
+  contract failure lane to reject it.
+
+Exit condition: adding or changing any syscall/import requires one
+machine-readable row and cannot silently drift across kernel, verifier, Rust,
+Grown, and documentation surfaces.
+
+### P1-E - Reproduce releases from two isolated clean checkouts
+
+- [x] **P1-E01 Archive A:** export tracked `HEAD` with `git archive` into a new
+  temporary directory.
+- [x] **P1-E02 Archive B:** independently export the same `HEAD` into a second
+  temporary directory.
+- [x] **P1-E03 Independent builds:** build compiler, image, and manifest inside
+  each archive without consulting the caller's `build/`, `dist/`, untracked
+  files, or generated cache.
+- [x] **P1-E04 Equality:** compare compiler bytes, image bytes, and manifest
+  bytes between A and B.
+- [x] **P1-E05 Poison fixture:** place a plausible untracked input in the
+  original worktree and prove neither archive build consumes it.
+- [x] **P1-E06 Dirty-tree rule:** define whether the release command rejects a
+  dirty caller tree or reports that it built committed `HEAD`; do not silently
+  mix the two identities.
+- [x] **P1-E07 Lane integration:** replace the same-working-tree proof in the
+  formal release target while retaining its fast form for local iteration.
+
+Exit condition: the release artifacts depend only on tracked `HEAD` and the
+documented toolchain, not on local files.
+
+### P2-A - Split the NASM kernel without changing one output byte
+
+This is source modularization, not a rewrite and not a move to Rust or C.
+
+- [ ] **P2-A01 Baseline:** record the pre-refactor kernel/image SHA-256 and the
+  exact build command from a fixed commit.
+- [ ] **P2-A02 Include root:** make `kernel/longmode_boot.asm` an ordered include
+  driver while preserving all constants, symbol order, sections, padding, and
+  binary layout.
+- [ ] **P2-A03 Entry/arch:** move boot entry, long-mode transition, GDT, IDT,
+  interrupt, and syscall entry into `kernel/entry.asm` and
+  `kernel/arch/x86_64/` one contiguous block at a time.
+- [ ] **P2-A04 Memory:** move frame, paging, and heap code into `kernel/mm/`.
+- [ ] **P2-A05 Processes:** move process and scheduler code into `kernel/proc/`.
+- [ ] **P2-A06 Drivers:** move ATA and console/keyboard code into
+  `kernel/drivers/`.
+- [ ] **P2-A07 Filesystem:** move GFS2 code into `kernel/fs/gfs2.asm`.
+- [ ] **P2-A08 Runtime:** move the GWO2 loader/verifier and native GrVM bootstrap
+  into `kernel/runtime/`.
+- [ ] **P2-A09 Per-move identity:** after every move, require the assembled
+  kernel and complete image to be byte-identical to the recorded baseline.
+- [ ] **P2-A10 Final gates:** run static, QEMU, fixed-point, fault, and release
+  validation after the last include split.
+
+Exit condition: maintainers can navigate subsystem files while the flat binary
+is unchanged. P2 must finish before a native backend expands kernel/runtime
+complexity further.
+
+### P3 - Native backend remains parked
+
+- [ ] Do not start native code generation before every P0 and P1 exit condition
+  is closed and the formal Alpha milestone is recorded.
+- [ ] Do not pull networking, GUI, USB, SMP, UEFI, package management, POSIX,
+  or dynamic linking into this hardening plan.
+- [ ] Treat native backend planning as a new contract phase with executable
+  format, relocation, memory-permission, and parity gates of its own.
+
+## Formal `Self-Hosting Alpha 1` unlock
+
+The milestone/tag may be created only when:
+
+1. all P0 defects are closed with three-path compiler parity where required;
+2. all P1 gates pass, including exhaustive process-create failure injection;
+3. the 100-cycle campaign proves zero frame and handle deltas before every
+   reboot;
+4. ATA capacity, device `ERR`, and timeout paths are independently proven;
+5. two isolated `git archive HEAD` builds produce identical compiler, image,
+   and manifest bytes;
+6. syscall/import ABI rows are validated in full and generated constants are
+   current;
+7. the two-clean-boot `grc2 == grc3` fixed point still passes; and
+8. documentation records commands, tool versions, durations, resource limits,
+   unsupported hardware, and any intentionally deferred P2/P3 work.
+
+P2 source modularization may land before or immediately after the tag, but it
+must preserve byte identity and must complete before P3 native-backend work.

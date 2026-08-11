@@ -67,6 +67,9 @@ and `process_wait(pid)`; IDs 17 and 18 add
 `process_spawn_args(image, size, args, args_len)` and
 `process_args(buffer, capacity)`. All four return an i32 status and are
 bounded by the same verified GWO2 loader used at boot.
+`process_spawn` and `process_spawn_args` return a child PID (or a negative
+errno); `process_wait` returns the signed child exit status (or a negative
+errno), including `-EAGAIN` while the child is still running.
 Import 19 is `file_list(buffer, capacity)` and returns a bounded
 NUL-separated root-directory listing.
 `const_bytes` copies a bounded NUL-terminated literal into the runtime's
