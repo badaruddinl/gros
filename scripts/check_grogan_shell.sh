@@ -19,7 +19,7 @@ require_hex() {
     esac
 }
 
-require_hex 68656c70206c7320636174206d656d207461736b73207265626f6f74 "missing shell help command set"
+require_hex 68656c70206c73206361742073617665206d656d207461736b73207265626f6f74 "missing shell help command set"
 require_hex 488d47fc "missing filesystem payload ownership handoff"
 require_hex 48890425 "missing filesystem payload pointer state"
 require_hex 8a06 "missing fixed-length filesystem console read"
@@ -32,6 +32,10 @@ require_hex 1c "missing enter key handling"
 require_hex 0e "missing backspace key handling"
 require_hex 68656c70 "missing help command"
 require_hex 7265626f6f74 "missing reboot command"
+require_hex 73617665 "missing persistent save command"
+require_hex 53415645204f4b "missing persistent save response"
+require_hex 68656c6c6f2e677277 "missing GFS2 source path"
+require_hex 47465332 "missing GFS2 file path"
 
 case "$HEX" in
     *494e49543a2047524653*) fail "filesystem cat response is hardcoded instead of read" ;;

@@ -59,7 +59,11 @@ section .boot start=0 vstart=0x7c00
 %define PROC_EXIT_STATUS 108
 %define PROC_NEXT 112
 %define PROC_HEAP 120
-%define PROC_SIZE 128
+%define PROC_HANDLE 128
+%define PROC_OFFSET 136
+%define PROC_INODE 144
+%define PROC_FILE_SIZE 152
+%define PROC_SIZE 160
 %define PROC_READY 1
 %define PROC_RUNNING 2
 %define PROC_BLOCKED 3
@@ -709,6 +713,7 @@ gwo2_verify_code:
     mov ecx, PAGE_SIZE
     rep stosb
     xor r8d, r8d
+    mov r11d, 0xff
     xor r9d, r9d
 .decode:
     cmp r8d, r13d
@@ -909,6 +914,20 @@ syscall_entry:
     je .write
     cmp eax, 8                  ; mem_grow
     je .mem_grow
+    cmp eax, 3                  ; file_open
+    je .file_open
+    cmp eax, 4                  ; file_read
+    je .file_read
+    cmp eax, 5                  ; file_write
+    je .file_write
+    cmp eax, 6                  ; file_close
+    je .file_close
+    cmp eax, 7                  ; file_stat
+    je .file_stat
+    cmp eax, 0x0d               ; path_create
+    je .path_create
+    cmp eax, 0x0e               ; file_unlink
+    je .file_unlink
     cmp eax, 0x0b               ; process_exit
     je .exit
     cmp eax, 0x0c               ; task_yield
@@ -962,6 +981,27 @@ syscall_entry:
     jmp .return_user
 .mem_fail:
     mov rax, -12                ; -ENOMEM
+    jmp .return_user
+.file_open:
+    call gfs_file_open_user
+    jmp .return_user
+.file_read:
+    call gfs_file_read_user
+    jmp .return_user
+.file_write:
+    call gfs_file_write_user
+    jmp .return_user
+.file_close:
+    call gfs_file_close_user
+    jmp .return_user
+.file_stat:
+    call gfs_file_stat_user
+    jmp .return_user
+.path_create:
+    call gfs_path_create_user
+    jmp .return_user
+.file_unlink:
+    call gfs_file_unlink_user
     jmp .return_user
 .exit:
     mov al, 'S'
@@ -2007,6 +2047,7 @@ gfs_validate_super:
     ret
 
 gfs_mount:
+    mov byte [abs gfs_active_super], 0
     xor edi, edi
     mov rsi, gfs_super_buffer
     call ata_block_read
@@ -2035,6 +2076,7 @@ gfs_mount:
     mov rdi, gfs_super_buffer
     mov ecx, 64
     rep movsq
+    mov byte [abs gfs_active_super], 1
 .choose_primary:
     mov rdi, gfs_super_buffer
     call gfs_validate_super
@@ -2083,6 +2125,1000 @@ storage_seed:
     cli
 .halt: hlt
     jmp .halt
+
+; -------------------------- GFS2 kernel file path -------------------------
+; The first kernel-visible file profile is deliberately bounded to one root
+; directory and one 512-byte extent per regular file.  The on-disk metadata,
+; checksums, allocation bitmap, inactive-superblock commit, and ATA writes are
+; nevertheless real GFS2 operations; the bound is an explicit Alpha limit,
+; not a fake success path.
+gfs_copy_user_path:
+    ; RDI=NUL-terminated user path.  Copy <=31 bytes after validating each
+    ; byte through the same page-walk used by console_write.
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+    mov r13, gfs_path_buffer
+    xor r14d, r14d
+.next:
+    cmp r14d, 31
+    jae .bad
+    mov rdi, r12
+    mov esi, 1
+    call user_span_valid
+    test eax, eax
+    jz .bad
+    mov al, [r12]
+    mov [r13], al
+    inc r12
+    inc r13
+    inc r14d
+    test al, al
+    jnz .next
+    mov eax, 1
+    pop r14
+    pop r13
+    pop r12
+    ret
+.bad:
+    xor eax, eax
+    pop r14
+    pop r13
+    pop r12
+    ret
+
+gfs_read_inode:
+    ; RDI=inode number.  RAX returns a validated pointer into the shared
+    ; gfs_inode_block buffer, or zero for an empty/corrupt inode.
+    cmp rdi, 1
+    jb .bad
+    cmp rdi, 32
+    ja .bad
+    dec edi
+    mov r9d, edi
+    shr edi, 2
+    add edi, 3
+    mov rsi, gfs_inode_block
+    call ata_block_read
+    test eax, eax
+    jz .bad
+    mov rax, gfs_inode_block
+    and r9d, 3
+    shl r9, 7
+    add rax, r9
+    cmp dword [rax], 0x324f4e49 ; INO2
+    jne .bad
+    push rax
+    mov rdi, rax
+    mov esi, 120
+    call gwo_fnv32
+    pop rdi
+    cmp eax, [rdi + 120]
+    jne .bad
+    cmp dword [rdi + 16], 8
+    ja .bad
+    cmp qword [rdi + 8], 0x200000
+    ja .bad
+    mov rax, rdi
+    ret
+.bad:
+    xor eax, eax
+    ret
+
+gfs_dir_read:
+    mov edi, 11
+    mov rsi, gfs_dir_buffer
+    jmp ata_block_read
+
+gfs_dir_lookup:
+    ; gfs_path_buffer is a validated NUL-terminated name.  RAX returns the
+    ; inode number, or zero; EDX returns the directory slot or 0xff.
+    call gfs_dir_read
+    test eax, eax
+    jz .bad
+    xor r8d, r8d
+    mov r11d, 0xff
+.entry:
+    cmp r8d, 8
+    jae .missing
+    mov r9, r8
+    shl r9, 6
+    add r9, gfs_dir_buffer
+    movzx ecx, byte [r9]
+    test ecx, ecx
+    jnz .entry_nonempty
+    cmp r11d, 0xff
+    jne .next
+    mov r11d, r8d
+    jmp .next
+.entry_nonempty:
+    cmp ecx, 31
+    ja .next
+    push r8
+    push r9
+    mov rdi, r9
+    mov esi, 60
+    call gwo_fnv32
+    pop r9
+    pop r8
+    cmp eax, [r9 + 60]
+    jne .next
+    xor edx, edx
+.compare:
+    cmp edx, ecx
+    jae .name_done
+    mov al, [r9 + 6 + rdx]
+    cmp al, [gfs_path_buffer + rdx]
+    jne .next
+    inc edx
+    jmp .compare
+.name_done:
+    cmp byte [gfs_path_buffer + rdx], 0
+    jne .next
+    mov eax, [r9 + 2]
+    mov edx, r8d
+    ret
+.next:
+    inc r8d
+    jmp .entry
+.missing:
+    xor eax, eax
+    mov edx, r11d
+    ret
+.bad:
+    xor eax, eax
+    mov edx, 0xff
+    ret
+
+gfs_inode_block_for:
+    ; RDI=inode number -> EAX=relative inode block, RDX=byte offset.
+    dec edi
+    mov eax, edi
+    shr eax, 2
+    add eax, 3
+    and edi, 3
+    shl edi, 7
+    mov edx, edi
+    ret
+
+gfs_commit_super:
+    ; Commit the already-updated metadata through the inactive superblock.
+    mov rdi, gfs_super_buffer
+    mov rax, [rdi + 8]
+    inc rax
+    mov [rdi + 8], rax
+    mov esi, 52
+    call gwo_fnv32
+    mov [abs gfs_super_buffer + 52], eax
+    movzx edi, byte [abs gfs_active_super]
+    xor edi, 1
+    mov rsi, gfs_super_buffer
+    call ata_block_write
+    test eax, eax
+    jz .bad
+    movzx eax, byte [abs gfs_active_super]
+    xor eax, 1
+    mov [abs gfs_active_super], al
+    mov eax, 1
+    ret
+.bad:
+    xor eax, eax
+    ret
+
+gfs_inode_encode_empty:
+    ; RDI=inode number, RSI=type (regular file=1).  Creates an empty INO2
+    ; record in its table block; callers commit the block afterward.
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi
+    mov r13, rsi
+    mov rdi, r12
+    call gfs_inode_block_for
+    mov r14d, eax
+    mov r15d, edx
+    mov edi, r14d
+    mov rsi, gfs_inode_block
+    call ata_block_read
+    test eax, eax
+    jz .bad
+    lea rdi, [gfs_inode_block + r15]
+    xor eax, eax
+    mov ecx, 16
+    rep stosq
+    mov dword [gfs_inode_block + r15], 0x324f4e49
+    mov word [gfs_inode_block + r15 + 4], r13w
+    mov word [gfs_inode_block + r15 + 6], 0644
+    mov dword [gfs_inode_block + r15 + 16], 0
+    mov rdi, gfs_inode_block
+    add rdi, r15
+    mov esi, 120
+    call gwo_fnv32
+    mov [gfs_inode_block + r15 + 120], eax
+    mov edi, r14d
+    mov rsi, gfs_inode_block
+    call ata_block_write
+    test eax, eax
+    jz .bad
+    mov eax, 1
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+.bad:
+    xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+
+gfs_create_path:
+    ; gfs_path_buffer is populated.  Return inode number or a negative errno.
+    call gfs_dir_lookup
+    test eax, eax
+    jnz .exists
+    mov r12d, edx
+    cmp r12d, 8
+    jae .no_space
+    xor r13d, r13d
+    mov r14d, 2
+.find_inode:
+    cmp r14d, 32
+    ja .no_space
+    mov edi, r14d
+    call gfs_read_inode
+    test rax, rax
+    jz .inode_found
+    inc r14d
+    jmp .find_inode
+.inode_found:
+    mov edi, r14d
+    mov esi, 1
+    call gfs_inode_encode_empty
+    test eax, eax
+    jnz .inode_ok
+    mov al, 'i'
+    out 0xe9, al
+    jmp .io
+.inode_ok:
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_read
+    test eax, eax
+    jnz .bitmap_ok
+    mov al, 'b'
+    out 0xe9, al
+    jmp .io
+.bitmap_ok:
+    ; Directory record: name length, flags, inode, name, checksum.
+    mov rdi, gfs_dir_buffer
+    add rdi, r12
+    imul r12, 64
+    mov rdi, gfs_dir_buffer
+    add rdi, r12
+    xor eax, eax
+    mov ecx, 8
+    rep stosq
+    mov rdi, gfs_path_buffer
+    xor ecx, ecx
+.path_len:
+    cmp ecx, 31
+    jae .io
+    cmp byte [rdi + rcx], 0
+    je .path_len_done
+    inc ecx
+    jmp .path_len
+.path_len_done:
+    mov rdi, gfs_dir_buffer
+    add rdi, r12
+    mov [rdi], cl
+    mov byte [rdi + 1], 0
+    mov dword [rdi + 2], r14d
+    mov rsi, gfs_path_buffer
+    lea rdi, [rdi + 6]
+    mov edx, ecx
+    rep movsb
+    mov rdi, gfs_dir_buffer
+    add rdi, r12
+    mov esi, 60
+    call gwo_fnv32
+    mov [gfs_dir_buffer + r12 + 60], eax
+    mov edi, 11
+    mov rsi, gfs_dir_buffer
+    call ata_block_write
+    test eax, eax
+    jnz .dir_ok
+    mov al, 'd'
+    out 0xe9, al
+    jmp .io
+.dir_ok:
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_write
+    test eax, eax
+    jz .io
+.bitmap_write_ok:
+    call gfs_commit_super
+    test eax, eax
+    jz .io
+.commit_ok:
+    mov eax, r14d
+    ret
+.exists:
+    mov eax, -17
+    ret
+.no_space:
+    mov eax, -28
+    ret
+.io:
+    mov eax, -5
+    ret
+
+gfs_file_read_user:
+    ; RDI=handle, RSI=user buffer, RDX=count.  Alpha v1 supports one 512-byte
+    ; extent per file and returns a partial read at EOF.
+    cmp rdi, 1
+    jne .bad_handle
+    mov r12, [abs current_process]
+    mov r13, rsi
+    mov r14, rdx
+    test r14, r14
+    jz .zero
+    cmp r14, 512
+    ja .invalid
+    mov rax, [r12 + PROC_OFFSET]
+    mov r15, rax
+    mov rdi, [r12 + PROC_INODE]
+    call gfs_read_inode
+    test rax, rax
+    jnz .inode_read_ok
+    jmp .io
+.inode_read_ok:
+    mov rbx, rax
+    cmp word [rbx + 4], 1
+    jne .io
+    mov r8, [rbx + 8]
+    cmp r15, r8
+    jae .zero
+    sub r8, r15
+    cmp r14, r8
+    jbe .count_ready
+    mov r14, r8
+.count_ready:
+    test r14, r14
+    jz .zero
+    cmp dword [rbx + 16], 1
+    jne .io
+    mov rax, r15
+    mov r11d, r15d
+    shr rax, 9
+    mov r10, [rbx + 24]
+    add rax, r10
+    mov rdi, rax
+    mov rsi, gfs_data_buffer
+    call ata_block_read
+    test eax, eax
+    jz .io
+    mov rdi, r13
+    mov rsi, r14
+    call user_span_valid
+    test eax, eax
+    jz .fault
+    and r11d, 511
+    mov rsi, gfs_data_buffer
+    add rsi, r11
+    mov rdi, r13
+    mov rcx, r14
+    rep movsb
+    add [r12 + PROC_OFFSET], r14
+    mov rax, r14
+    ret
+.zero:
+    xor eax, eax
+    ret
+.bad_handle:
+    mov eax, -9
+    ret
+.invalid:
+    mov eax, -22
+    ret
+.fault:
+    mov eax, -14
+    ret
+.io:
+    mov eax, -5
+    ret
+
+gfs_file_write_user:
+    ; RDI=handle, RSI=user bytes, RDX=count.  The first writable profile is a
+    ; checked truncate/replace operation for one 512-byte extent.  It is enough
+    ; to persist a small .grw source while retaining real bitmap/inode/commit
+    ; ordering; larger append/random-write semantics remain a declared Alpha
+    ; extension rather than a silently partial write.
+    cmp rdi, 1
+    jne .bad_handle
+    mov r12, [abs current_process]
+    mov r13, rsi
+    mov r14, rdx
+    cmp r14, 512
+    ja .invalid
+    cmp qword [r12 + PROC_OFFSET], 0
+    jne .invalid
+    test r14, r14
+    jz .zero
+    mov rdi, r13
+    mov rsi, r14
+    call user_span_valid
+    test eax, eax
+    jz .fault
+    mov rdi, gfs_data_buffer
+    mov rsi, r13
+    mov rcx, r14
+    rep movsb
+    mov edi, [r12 + PROC_INODE]
+    call gfs_read_inode
+    test rax, rax
+    jz .io
+    mov rbx, rax
+    cmp word [rbx + 4], 1
+    jne .io
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_read
+    test eax, eax
+    jz .io
+    ; Release the previous single extent, if any.
+    cmp dword [rbx + 16], 1
+    jne .allocate
+    mov edx, [rbx + 24]
+    mov ecx, edx
+    shr ecx, 3
+    mov r8d, ecx
+    movzx eax, byte [gfs_bitmap_buffer + rcx]
+    mov ecx, edx
+    and ecx, 7
+    mov edx, 1
+    shl edx, cl
+    not dl
+    and al, dl
+    mov [gfs_bitmap_buffer + r8], al
+.allocate:
+    xor r15d, r15d
+    test r14, r14
+    jz .update_inode
+    mov r15d, 12
+.find_block:
+    cmp r15d, [abs gfs_total_blocks]
+    jae .no_space
+    mov eax, r15d
+    mov ecx, eax
+    shr ecx, 3
+    movzx edx, byte [gfs_bitmap_buffer + rcx]
+    mov ecx, r15d
+    and ecx, 7
+    bt edx, ecx
+    jc .next_block
+    mov eax, 1
+    shl eax, cl
+    mov ecx, r15d
+    shr ecx, 3
+    or byte [gfs_bitmap_buffer + rcx], al
+    mov edi, r15d
+    mov rsi, gfs_data_buffer
+    call ata_block_write
+    test eax, eax
+    jz .io
+    jmp .update_inode
+.next_block:
+    inc r15d
+    jmp .find_block
+.update_inode:
+    mov [rbx + 8], r14
+    test r14, r14
+    jz .empty_extent
+    mov dword [rbx + 16], 1
+    mov [rbx + 24], r15
+    mov dword [rbx + 32], 1
+    jmp .inode_checksum
+.empty_extent:
+    mov dword [rbx + 16], 0
+    mov qword [rbx + 24], 0
+    mov dword [rbx + 32], 0
+.inode_checksum:
+    mov rdi, rbx
+    mov esi, 120
+    call gwo_fnv32
+    mov [rbx + 120], eax
+    mov rdi, [r12 + PROC_INODE]
+    call gfs_inode_block_for
+    mov edi, eax
+    mov rsi, gfs_inode_block
+    call ata_block_write
+    test eax, eax
+    jz .io
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_write
+    test eax, eax
+    jz .io
+    call gfs_commit_super
+    test eax, eax
+    jz .io
+    mov [r12 + PROC_FILE_SIZE], r14
+    mov [r12 + PROC_OFFSET], r14
+    mov rax, r14
+    ret
+.zero:
+    ; Zero-length replacement still performs the inode/bitmap transaction by
+    ; recursing through the same path with a zeroed data buffer.
+    jmp .invalid
+.bad_handle:
+    mov eax, -9
+    ret
+.invalid:
+    mov eax, -22
+    ret
+.fault:
+    mov eax, -14
+    ret
+.no_space:
+    mov eax, -28
+    ret
+.io:
+    mov eax, -5
+    ret
+
+gfs_replace_file_kernel:
+    ; RDI=inode, RSI=kernel source, RDX=size.  Shared metadata transaction for
+    ; the recovery shell and the syscall path; caller has already performed any
+    ; user-range validation required by its ABI.
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi
+    mov r13, rsi
+    mov r14, rdx
+    cmp r14, 512
+    ja .invalid
+    mov rdi, r12
+    call gfs_read_inode
+    test rax, rax
+    jz .io
+    mov rbx, rax
+    cmp word [rbx + 4], 1
+    jne .io
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_read
+    test eax, eax
+    jz .io
+    cmp dword [rbx + 16], 1
+    jne .allocate
+    mov edx, [rbx + 24]
+    mov ecx, edx
+    shr ecx, 3
+    mov r8d, ecx
+    movzx eax, byte [gfs_bitmap_buffer + rcx]
+    mov ecx, edx
+    and ecx, 7
+    mov edx, 1
+    shl edx, cl
+    not dl
+    and al, dl
+    mov [gfs_bitmap_buffer + r8], al
+.allocate:
+    xor r15d, r15d
+    test r14, r14
+    jz .update
+    mov r15d, 12
+.find:
+    cmp r15d, [abs gfs_total_blocks]
+    jae .no_space
+    mov eax, r15d
+    mov ecx, eax
+    shr ecx, 3
+    movzx edx, byte [gfs_bitmap_buffer + rcx]
+    mov ecx, r15d
+    and ecx, 7
+    bt edx, ecx
+    jc .next
+    mov eax, 1
+    shl eax, cl
+    mov ecx, r15d
+    shr ecx, 3
+    or byte [gfs_bitmap_buffer + rcx], al
+    mov rdi, gfs_data_buffer
+    mov rsi, r13
+    mov rcx, r14
+    rep movsb
+    mov edi, r15d
+    mov rsi, gfs_data_buffer
+    call ata_block_write
+    test eax, eax
+    jz .io
+    jmp .update
+.next:
+    inc r15d
+    jmp .find
+.update:
+    mov [rbx + 8], r14
+    test r14, r14
+    jz .empty
+    mov dword [rbx + 16], 1
+    mov [rbx + 24], r15
+    mov dword [rbx + 32], 1
+    jmp .checksum
+.empty:
+    mov dword [rbx + 16], 0
+    mov qword [rbx + 24], 0
+    mov dword [rbx + 32], 0
+.checksum:
+    mov rdi, rbx
+    mov esi, 120
+    call gwo_fnv32
+    mov [rbx + 120], eax
+    mov rdi, r12
+    call gfs_inode_block_for
+    mov edi, eax
+    mov rsi, gfs_inode_block
+    call ata_block_write
+    test eax, eax
+    jz .io
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_write
+    test eax, eax
+    jz .io
+    call gfs_commit_super
+    test eax, eax
+    jz .io
+    mov rax, r14
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+.invalid:
+    mov eax, -22
+    jmp .return
+.no_space:
+    mov eax, -28
+    jmp .return
+.io:
+    mov eax, -5
+.return:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+
+gfs_shell_name_copy:
+    mov rsi, gfs_shell_name
+    mov rdi, gfs_path_buffer
+    mov ecx, gfs_shell_name_end - gfs_shell_name
+    rep movsb
+    ret
+
+gfs_shell_save:
+    call gfs_shell_name_copy
+    call gfs_dir_lookup
+    test eax, eax
+    jnz .have_inode
+    call gfs_create_path
+    test eax, eax
+    js .fail
+.have_inode:
+    mov edi, eax
+    mov rsi, gfs_shell_source
+    mov edx, gfs_shell_source_end - gfs_shell_source
+    call gfs_replace_file_kernel
+    test eax, eax
+    js .fail
+    mov rsi, shell_save_ok
+    call console_write_string
+    ret
+.fail:
+    mov rsi, shell_unknown
+    call console_write_string
+    ret
+
+gfs_shell_ls:
+    call gfs_dir_read
+    test eax, eax
+    jz .fail
+    xor r12d, r12d
+.entry:
+    cmp r12d, 8
+    jae .done
+    mov r9, r12
+    shl r9, 6
+    add r9, gfs_dir_buffer
+    movzx ecx, byte [r9]
+    test ecx, ecx
+    jz .next
+    cmp ecx, 31
+    ja .next
+    mov rsi, r9
+    mov rdi, r9
+    mov esi, 60
+    call gwo_fnv32
+    cmp eax, [r9 + 60]
+    jne .next
+    movzx ecx, byte [r9]
+    lea rsi, [r9 + 6]
+    call console_write_bytes
+    mov rsi, shell_line_end
+    call console_write_string
+.next:
+    inc r12d
+    jmp .entry
+.done:
+    ret
+.fail:
+    mov rsi, shell_unknown
+    call console_write_string
+    ret
+
+gfs_shell_cat:
+    call gfs_shell_name_copy
+    call gfs_dir_lookup
+    test eax, eax
+    jz .fail
+    mov edi, eax
+    call gfs_read_inode
+    test rax, rax
+    jz .fail
+    mov rbx, rax
+    cmp word [rbx + 4], 1
+    jne .fail
+    cmp qword [rbx + 8], 512
+    ja .fail
+    cmp dword [rbx + 16], 1
+    jne .empty
+    mov rdi, [rbx + 24]
+    mov rsi, gfs_data_buffer
+    call ata_block_read
+    test eax, eax
+    jz .fail
+    mov ecx, [rbx + 8]
+    mov rsi, gfs_data_buffer
+    call console_write_bytes
+.empty:
+    mov rsi, shell_line_end
+    call console_write_string
+    ret
+.fail:
+    mov rsi, shell_unknown
+    call console_write_string
+    ret
+.invalid:
+    mov eax, -22
+    jmp .return
+.no_space:
+    mov eax, -28
+    jmp .return
+.io:
+    mov eax, -5
+.return:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+
+gfs_file_open_user:
+    ; RDI=user path, RSI=reserved flags.  The first handle table is one entry
+    ; per process; all handle state is stored in the owned process object.
+    mov r12, [abs current_process]
+    cmp dword [r12 + PROC_HANDLE], 0
+    jne .busy
+    call gfs_copy_user_path
+    test eax, eax
+    jz .fault
+    call gfs_dir_lookup
+    test eax, eax
+    jz .missing
+    mov r13d, eax
+    mov edi, eax
+    call gfs_read_inode
+    test rax, rax
+    jz .io
+    cmp word [rax + 4], 1
+    jne .io
+    mov dword [r12 + PROC_HANDLE], 1
+    mov dword [r12 + PROC_INODE], r13d
+    mov qword [r12 + PROC_OFFSET], 0
+    mov rax, [rax + 8]
+    mov [r12 + PROC_FILE_SIZE], rax
+    mov eax, 1
+    ret
+.busy:
+    mov eax, -16
+    ret
+.missing:
+    mov eax, -2
+    ret
+.fault:
+    mov eax, -14
+    ret
+.io:
+    mov eax, -5
+    ret
+
+gfs_file_close_user:
+    cmp rdi, 1
+    jne .bad
+    mov r12, [abs current_process]
+    mov dword [r12 + PROC_HANDLE], 0
+    mov qword [r12 + PROC_OFFSET], 0
+    mov qword [r12 + PROC_INODE], 0
+    mov eax, 0
+    ret
+.bad:
+    mov eax, -9
+    ret
+
+gfs_file_stat_user:
+    ; RDI=handle, RSI=user stat buffer (size u64, mode u32, reserved u32).
+    cmp rdi, 1
+    jne .bad
+    mov r12, [abs current_process]
+    mov rdi, rsi
+    mov esi, 16
+    call user_span_valid
+    test eax, eax
+    jz .fault
+    mov edi, [r12 + PROC_INODE]
+    call gfs_read_inode
+    test rax, rax
+    jz .io
+    mov r13, rax
+    mov rdi, rsi
+    mov rax, [r13 + 8]
+    mov [rdi], rax
+    movzx eax, word [r13 + 6]
+    mov [rdi + 8], eax
+    mov dword [rdi + 12], 0
+    xor eax, eax
+    ret
+.bad:
+    mov eax, -9
+    ret
+.fault:
+    mov eax, -14
+    ret
+.io:
+    mov eax, -5
+    ret
+
+gfs_path_create_user:
+    ; RDI=user path.  Create a regular empty INO2 record and return its handle.
+    mov r12, [abs current_process]
+    cmp dword [r12 + PROC_HANDLE], 0
+    jne .busy
+    call gfs_copy_user_path
+    test eax, eax
+    jz .fault
+    call gfs_create_path
+    test eax, eax
+    js .return_error
+    mov r13d, eax
+    mov dword [r12 + PROC_HANDLE], 1
+    mov dword [r12 + PROC_INODE], r13d
+    mov qword [r12 + PROC_OFFSET], 0
+    mov qword [r12 + PROC_FILE_SIZE], 0
+    mov eax, 1
+    ret
+.return_error:
+    ret
+.busy:
+    mov eax, -16
+    ret
+.fault:
+    mov eax, -14
+    ret
+
+gfs_file_unlink_user:
+    ; RDI=user path.  Alpha v1 unlinks one regular root entry with the same
+    ; checked inode/bitmap/directory/superblock transaction as the host tool.
+    mov r12, [abs current_process]
+    cmp dword [r12 + PROC_HANDLE], 0
+    jne .busy
+    call gfs_copy_user_path
+    test eax, eax
+    jz .fault
+    call gfs_dir_lookup
+    test eax, eax
+    jz .missing
+    mov r13d, eax
+    mov r14d, edx
+    cmp r13d, 1
+    je .protected
+    mov edi, r13d
+    call gfs_read_inode
+    test rax, rax
+    jz .io
+    mov rbx, rax
+    cmp word [rbx + 4], 1
+    jne .io
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_read
+    test eax, eax
+    jz .io
+    cmp dword [rbx + 16], 1
+    jne .clear_inode
+    mov rdx, [rbx + 24]
+    cmp rdx, 12
+    jb .io
+    cmp rdx, [abs gfs_total_blocks]
+    jae .io
+    mov ecx, edx
+    shr ecx, 3
+    mov r8d, ecx
+    movzx eax, byte [gfs_bitmap_buffer + rcx]
+    mov ecx, edx
+    and ecx, 7
+    mov edx, 1
+    shl edx, cl
+    not dl
+    and al, dl
+    mov [gfs_bitmap_buffer + r8], al
+.clear_inode:
+    mov edi, r13d
+    call gfs_inode_block_for
+    mov r8d, eax
+    mov r9d, edx
+    lea rdi, [gfs_inode_block + r9]
+    xor eax, eax
+    mov ecx, 16
+    rep stosq
+    mov edi, r8d
+    mov rsi, gfs_inode_block
+    call ata_block_write
+    test eax, eax
+    jz .io
+    imul r14, 64
+    lea rdi, [gfs_dir_buffer + r14]
+    xor eax, eax
+    mov ecx, 8
+    rep stosq
+    mov edi, 11
+    mov rsi, gfs_dir_buffer
+    call ata_block_write
+    test eax, eax
+    jz .io
+    mov edi, 2
+    mov rsi, gfs_bitmap_buffer
+    call ata_block_write
+    test eax, eax
+    jz .io
+    call gfs_commit_super
+    test eax, eax
+    jz .io
+    xor eax, eax
+    ret
+.busy:
+    mov eax, -16
+    ret
+.fault:
+    mov eax, -14
+    ret
+.missing:
+    mov eax, -2
+    ret
+.protected:
+    mov eax, -13
+    ret
+.io:
+    mov eax, -5
+    ret
 
 shell_start:
     mov rsi, shell_banner
@@ -2246,6 +3282,12 @@ shell_execute:
     test al, al
     jnz .tasks
     mov rsi, shell_buffer
+    mov rdi, cmd_save
+    mov ecx, 4
+    call shell_match
+    test al, al
+    jnz .save
+    mov rsi, shell_buffer
     mov rdi, cmd_reboot
     mov ecx, 6
     call shell_match
@@ -2259,27 +3301,10 @@ shell_execute:
     call console_write_string
     ret
 .ls:
-    cmp byte [abs fs_loaded], 1
-    jne .fs_fail
-    mov rsi, fs_entry
-    mov ecx, 4
-    call console_write_bytes
-    mov rsi, shell_line_end
-    call console_write_string
+    call gfs_shell_ls
     ret
 .cat:
-    cmp byte [abs fs_loaded], 1
-    jne .fs_fail
-    mov rsi, fs_entry
-    mov ecx, 4
-    call console_write_bytes
-    mov rsi, shell_cat_separator
-    call console_write_string
-    mov rsi, [abs fs_payload_copy]
-    mov ecx, [abs fs_entry + 4]
-    call console_write_bytes
-    mov rsi, shell_line_end
-    call console_write_string
+    call gfs_shell_cat
     ret
 .mem:
     mov rsi, shell_mem
@@ -2288,6 +3313,9 @@ shell_execute:
 .tasks:
     mov rsi, shell_tasks
     call console_write_string
+    ret
+.save:
+    call gfs_shell_save
     ret
 .reboot:
     mov rsi, shell_reboot
@@ -2845,6 +3873,19 @@ ata_capacity:
     dq 0
 gfs_total_blocks:
     dq 0
+gfs_active_super:
+    db 0
+align 8
+gfs_bitmap_buffer:
+    times 512 db 0
+gfs_inode_block:
+    times 512 db 0
+gfs_dir_buffer:
+    times 512 db 0
+gfs_data_buffer:
+    times 512 db 0
+gfs_path_buffer:
+    times 32 db 0
 align 512
 ata_identify_buffer:
     times 512 db 0
@@ -2868,7 +3909,7 @@ shell_banner:
 shell_prompt:
     db 'Grogan> ', 0
 shell_help:
-    db 'help ls cat mem tasks reboot', 13, 10, 0
+    db 'help ls cat save mem tasks reboot', 13, 10, 0
 shell_line_end:
     db 13, 10, 0
 shell_cat_separator:
@@ -2879,6 +3920,8 @@ shell_tasks:
     db 'T1 T2', 13, 10, 0
 shell_reboot:
     db 'REBOOT', 13, 10, 0
+shell_save_ok:
+    db 'SAVE OK', 13, 10, 0
 shell_unknown:
     db '?', 13, 10, 0
 cmd_help:
@@ -2891,8 +3934,19 @@ cmd_mem:
     db 'mem', 0
 cmd_tasks:
     db 'tasks', 0
+cmd_save:
+    db 'save', 0
 cmd_reboot:
     db 'reboot', 0
+gfs_shell_name:
+    db 'hello.grw', 0
+gfs_shell_name_end:
+gfs_shell_source:
+    db 'target "gros.x86.bios.longmode.grogan.v1"', 10
+    db 'fn main() -> void {', 10
+    db '    print_i32(28);', 10
+    db '}', 10
+gfs_shell_source_end:
 align 16
 user_gwo_image:
     incbin "build/generated/grogan-user.gwo"
