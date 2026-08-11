@@ -8,7 +8,12 @@ require_file() { [ -f "$CONTRACTS/$1" ] || fail "missing contract $1"; }
 require_line() {
     local file=$1
     local line=$2
-    grep -Fqx "$line" "$CONTRACTS/$file" || fail "$file missing exact line: $line"
+    # Contract fixtures historically carry CRLF because they are consumed by
+    # Windows tooling as well as the WSL validation lane.  Compare logical
+    # lines so the gate checks the contract content rather than its checkout
+    # line-ending convention.
+    grep -Fqx "$line" < <(tr -d '\r' < "$CONTRACTS/$file") || \
+        fail "$file missing exact line: $line"
 }
 
 require_file process-layout.txt
@@ -20,11 +25,14 @@ require_line process-layout.txt 'user_code_permission=RX'
 require_line process-layout.txt 'user_data_permission=RW-NX'
 
 require_file syscall-abi-v1.tsv
-[ "$(wc -l < "$CONTRACTS/syscall-abi-v1.tsv" | tr -d ' ')" = 15 ] || fail 'syscall table must contain header plus 14 selectors'
+[ "$(wc -l < "$CONTRACTS/syscall-abi-v1.tsv" | tr -d ' ')" = 18 ] || fail 'syscall table must contain header plus 17 selectors'
 require_line syscall-abi-v1.tsv $'selector\tname\tresult'
 require_line syscall-abi-v1.tsv $'0x01\tconsole_read\tbytes-or-errno'
 require_line syscall-abi-v1.tsv $'0x0b\tprocess_exit\tnoreturn'
 require_line syscall-abi-v1.tsv $'0x0e\tfile_unlink\tzero-or-errno'
+require_line syscall-abi-v1.tsv $'0x0f\tprocess_spawn\tpid-or-errno'
+require_line syscall-abi-v1.tsv $'0x11\tprocess_spawn_args(image,size,args,args_len:R8)\tpid-or-errno'
+require_line syscall-abi-v1.tsv $'0x13\tfile_list\tbytes-or-errno'
 
 require_file gfs2-layout.txt
 require_line gfs2-layout.txt 'schema=gros-gfs2/v1'

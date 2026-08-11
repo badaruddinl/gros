@@ -352,6 +352,13 @@ static int find_entry(const dirent_t entries[8], const char *name) {
     return -1;
 }
 
+static void validate_root_name(const char *name) {
+    size_t length = strlen(name);
+    if (length == 0 || length > MAX_FILENAME) fail("filename exceeds GFS2 limit");
+    for (size_t i = 0; i < length; ++i)
+        if (name[i] == '/' || name[i] == '\\') fail("filename must stay in the GFS2 root directory");
+}
+
 static uint32_t allocate_extent(uint8_t bitmap[BLOCK_SIZE], uint32_t blocks, uint32_t need) {
     if (need == 0) return 0;
     for (uint32_t start = ROOT_DIR_BLOCK + 1; start + need <= blocks; ++start) {
@@ -374,8 +381,8 @@ static void free_inode_blocks(uint8_t bitmap[BLOCK_SIZE], inode_t *inode) {
 
 static void command_put(const char *path, uint64_t base, uint32_t blocks,
                         const char *name, const char *source, int append) {
+    validate_root_name(name);
     size_t name_len = strlen(name);
-    if (name_len == 0 || name_len > MAX_FILENAME) fail("filename exceeds GFS2 limit");
     FILE *input = fopen(source, "rb");
     if (!input) fail_errno("open source");
     if (fseeko(input, 0, SEEK_END) != 0) fail_errno("seek source");
@@ -503,6 +510,7 @@ static void command_ls(const char *path, uint64_t base, uint32_t blocks) {
 }
 
 static void command_unlink(const char *path, uint64_t base, uint32_t blocks, const char *name) {
+    validate_root_name(name);
     volume_t volume;
     open_volume(path, base, blocks, "r+b", &volume);
     unsigned active;

@@ -36,4 +36,13 @@ if "$TOOL" get "$IMAGE" "$OFFSET" "$BLOCKS" hello.grw "$TMP_DIR/missing" > /dev/
     exit 1
 fi
 
-echo 'GFS2 host path: format, remount, write, append, overwrite, unlink, and checker ok'
+truncate -s 59392 "$TMP_DIR/fill.bin"
+"$TOOL" put "$IMAGE" "$OFFSET" "$BLOCKS" fill.bin "$TMP_DIR/fill.bin"
+echo -n 'out of space' > "$TMP_DIR/no-space.txt"
+if "$TOOL" put "$IMAGE" "$OFFSET" "$BLOCKS" no-space.txt "$TMP_DIR/no-space.txt" > /dev/null 2>&1; then
+    echo 'error: disk-full fixture unexpectedly accepted another extent' >&2
+    exit 1
+fi
+"$TOOL" check "$IMAGE" "$OFFSET" "$BLOCKS" > /dev/null
+
+echo 'GFS2 host path: format, remount, write, append, overwrite, unlink, disk-full, and checker ok'

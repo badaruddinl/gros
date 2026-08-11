@@ -27,6 +27,13 @@ expect_failure() {
     echo "ok: $name"
 }
 
+echo -n 'invalid name' > "$TMP_DIR/name"
+if "$TOOL" put "$IMAGE" "$OFFSET" "$BLOCKS" ../escape "$TMP_DIR/name" > "$TMP_DIR/out" 2> "$TMP_DIR/err"; then
+    fail 'root-name: path traversal name was accepted'
+fi
+grep -F 'root directory' "$TMP_DIR/err" > /dev/null || fail 'root-name: wrong diagnostic'
+echo 'ok: root-name'
+
 cp "$IMAGE" "$TMP_DIR/case.img"
 printf '\x00' | dd of="$TMP_DIR/case.img" bs=1 seek=0 conv=notrunc status=none
 printf '\x00' | dd of="$TMP_DIR/case.img" bs=1 seek=512 conv=notrunc status=none

@@ -7,9 +7,12 @@ selector	name	result
 0x06	file_close	zero-or-errno
 0x07	file_stat	zero-or-errno
 0x08	mem_grow	previous-break-or-errno
-0x09	process_spawn	pid-or-errno
-0x0a	process_wait	pid-or-errno
 0x0b	process_exit	noreturn
 0x0c	task_yield	zero-or-errno
 0x0d	path_create	handle-or-errno
 0x0e	file_unlink	zero-or-errno
+0x0f	process_spawn	pid-or-errno
+0x10	process_wait	pid-or-errno
+0x11	process_spawn_args(image,size,args,args_len:R8)	pid-or-errno
+0x12	process_args	bytes-or-errno
+0x13	file_list	bytes-or-errno

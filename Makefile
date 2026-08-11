@@ -7,7 +7,7 @@ STAGE2_DIST_IMAGE := dist/gros-stage2.gwo
 LONGMODE_BUILD_IMAGE := build/gros-longmode.img
 LONGMODE_DIST_IMAGE := dist/gros-longmode.img
 
-.PHONY: grogan-x86_64-image grogan-x86_64-image-failures grogan-x86_64-qemu grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-process-qemu grogan-storage grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-compiler grogan-compiler-failures grogan-self-host grogan-self-host-qemu grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures grogan-shell-qemu
+.PHONY: grogan-x86_64-image grogan-x86_64-image-failures grogan-x86_64-qemu grogan-interrupts grogan-interrupt-failures grogan-scheduler grogan-scheduler-failures grogan-syscalls grogan-syscall-failures grogan-processes grogan-process-failures grogan-process-qemu grogan-storage grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-compiler grogan-compiler-failures grogan-self-host grogan-self-host-qemu grogan-general-shell-qemu grogan-modules-qemu grogan-corruption-qemu grogan-boundaries-qemu grogan-ata-failures-qemu grogan-oom-qemu grogan-reliability-qemu grogan-release grogan-release-failures grogan-shell-check grogan-shell-failures grogan-shell-qemu
 
 build:
 	./scripts/build_boot.sh
@@ -89,7 +89,7 @@ headered-stage2-rejection-failures:
 release-ready: validate-static validate-qemu
 	@echo "ok: release readiness gate"
 
-validate-release: release-ready
+validate-release: release-ready grogan-reliability-qemu
 
 validate-self-host: grogan-self-host grogan-self-host-qemu
 
@@ -156,7 +156,7 @@ validate-static-internal: policy project-policy-failures self-hosting-contracts 
 validate-qemu:
 	./scripts/run_validation_lane.sh qemu "$(MAKE)" --no-print-directory validate-qemu-internal
 
-validate-qemu-internal: smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection grogan-x86_64-qemu grogan-process-qemu grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-shell-qemu grogan-self-host-qemu
+validate-qemu-internal: smoke-stage2 qemu-interaction minimal-main-qemu headered-stage2-rejection grogan-x86_64-qemu grogan-process-qemu grogan-storage-qemu grogan-storage-syscall-qemu grogan-functions-qemu grogan-shell-qemu grogan-general-shell-qemu grogan-modules-qemu grogan-corruption-qemu grogan-boundaries-qemu grogan-ata-failures-qemu grogan-oom-qemu grogan-self-host-qemu
 
 grogan-x86_64-image:
 	./scripts/build_longmode_image.sh $(LONGMODE_BUILD_IMAGE)
@@ -216,6 +216,27 @@ grogan-self-host:
 
 grogan-self-host-qemu: grogan-x86_64-image
 	./scripts/qemu_grogan_self_host.sh
+
+grogan-general-shell-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_general_shell.sh
+
+grogan-modules-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_modules.sh
+
+grogan-corruption-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_corruption.sh
+
+grogan-boundaries-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_boundaries.sh
+
+grogan-ata-failures-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_ata_failures.sh
+
+grogan-oom-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_oom.sh
+
+grogan-reliability-qemu: grogan-x86_64-image
+	./scripts/qemu_grogan_reliability.sh
 
 grogan-release:
 	./scripts/check_grogan_release.sh

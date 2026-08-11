@@ -1,0 +1,10 @@
+target "gros.x86.bios.longmode.grogan.v1"
+
+fn main() -> void {
+    let page: i32 = mem_grow(4096);
+    while (0 < page) {
+        page = mem_grow(4096);
+    }
+    print_i32(page);
+    newline();
+}

@@ -63,8 +63,12 @@ Imports are fixed and verifier-checked: id 1 is `print_i32(i32)`, id 2 is
 `console_read`, `file_open`, `file_read`, `file_write`, `file_close`,
 `file_stat`, `mem_grow`, `path_create`, `file_unlink`, and `print_bytes`.
 IDs 15 and 16 extend the Alpha process ABI with `process_spawn(image, size)`
-and `process_wait(pid)`; both return an i32 status and are bounded by the
-same verified GWO2 loader used at boot.
+and `process_wait(pid)`; IDs 17 and 18 add
+`process_spawn_args(image, size, args, args_len)` and
+`process_args(buffer, capacity)`. All four return an i32 status and are
+bounded by the same verified GWO2 loader used at boot.
+Import 19 is `file_list(buffer, capacity)` and returns a bounded
+NUL-separated root-directory listing.
 `const_bytes` copies a bounded NUL-terminated literal into the runtime's
 owned byte pool; byte load/store operations validate the pointed-to user span.
 Each instruction has a declared stack effect. Jumps target instruction
@@ -78,9 +82,10 @@ and results, i32/pointer locals, assignment, `if/else`, `while`, integer and
 boolean expressions, byte strings, byte load/store, memory growth, and the
 console/file standard-library calls listed above. Function calls use absolute
 bytecode offsets and a bounded call depth; local slots are statically bounded
-per artifact. Source diagnostics carry file, line, and column. Modules,
-arrays-as-a-language-type, and richer structural type checking remain explicit
-follow-on work.
+per artifact. Source diagnostics carry file, line, and column. Modules are
+supported as one-level root-filename source imports in the Alpha compiler;
+recursive module graphs, arrays-as-a-language-type, and richer structural type
+checking remain explicit follow-on work.
 
 ## Bootstrap stages
 

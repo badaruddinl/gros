@@ -185,7 +185,9 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
                         ((import_id == 8 || import_id == 11 || import_id == 12) && argc == 1) ||
                         (import_id == 9 && argc == 2) || (import_id == 10 && argc == 1) ||
                         (import_id == 13 && argc == 2) || (import_id == 14 && argc == 0) ||
-                        (import_id == 15 && argc == 2) || (import_id == 16 && argc == 1);
+                        (import_id == 15 && argc == 2) || (import_id == 16 && argc == 1) ||
+                        (import_id == 17 && argc == 4) || (import_id == 18 && argc == 2) ||
+                        (import_id == 19 && argc == 2);
             if (!valid) { VERIFY_FREE(); set_error(error, error_size, "unsupported GWO2 import signature"); return 0; }
         }
         pc += length;
@@ -234,6 +236,8 @@ int gwo2_verify(const gwo2_image_t *image, char *error, size_t error_size) {
                 else if (id >= 4 && id <= 12) effect = 1 - (int)argc;
                 else if (id == 13) effect = -(int)argc;
                 else if (id == 14) effect = 1 - (int)argc;
+                else if (id == 15 || id == 16 || id == 18 || id == 19) effect = 1 - (int)argc;
+                else if (id == 17) effect = 1 - (int)argc;
             } else if (op == 20) {
                 uint8_t argc = flow_argc[pc];
                 need = argc;

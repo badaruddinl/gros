@@ -36,4 +36,28 @@ fi
 grep -F 'expected integer expression' "$TMP_DIR/stderr" > /dev/null || fail 'syntax: wrong diagnostic'
 echo 'ok: syntax'
 
-echo 'Grogan compiler failures: target, name, and syntax diagnostics rejected invalid source'
+cp "$ROOT/examples/grown-alpha/module-main.grw" "$SOURCE"
+sed -i 's/module-math\.grw/module-missing\.grw/' "$SOURCE"
+if "$ROOT/scripts/grc0.sh" "$SOURCE" "$OUT" > "$TMP_DIR/stdout" 2> "$TMP_DIR/stderr"; then
+    fail 'missing-module: expected failure'
+fi
+grep -F 'cannot read source' "$TMP_DIR/stderr" > /dev/null || fail 'missing-module: wrong diagnostic'
+echo 'ok: missing-module'
+
+cp "$ROOT/examples/grown-alpha/module-main.grw" "$SOURCE"
+sed -i 's/import "module-math.grw";/import module-math.grw;/' "$SOURCE"
+if "$ROOT/scripts/grc0.sh" "$SOURCE" "$OUT" > "$TMP_DIR/stdout" 2> "$TMP_DIR/stderr"; then
+    fail 'malformed-import: expected failure'
+fi
+grep -F 'quoted module path' "$TMP_DIR/stderr" > /dev/null || fail 'malformed-import: wrong diagnostic'
+echo 'ok: malformed-import'
+
+cp "$ROOT/examples/grown-alpha/module-main.grw" "$SOURCE"
+sed -i 's|import "module-math.grw";|import "../module-math.grw";|' "$SOURCE"
+if "$ROOT/scripts/grc0.sh" "$SOURCE" "$OUT" > "$TMP_DIR/stdout" 2> "$TMP_DIR/stderr"; then
+    fail 'root-import: expected failure'
+fi
+grep -F 'bounded root filename' "$TMP_DIR/stderr" > /dev/null || fail 'root-import: wrong diagnostic'
+echo 'ok: root-import'
+
+echo 'Grogan compiler failures: target, module, name, and syntax diagnostics rejected invalid source'

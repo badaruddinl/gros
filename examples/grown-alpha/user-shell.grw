@@ -9,77 +9,389 @@ fn wait_child(pid: i32) -> i32 {
     return status;
 }
 
+fn put32(pointer: i32, offset: i32, value: i32) -> void {
+    store_byte(pointer, offset, value);
+    store_byte(pointer, offset + 1, value / 256);
+    store_byte(pointer, offset + 2, value / 65536);
+    store_byte(pointer, offset + 3, value / 16777216);
+}
+
+fn get32(pointer: i32, offset: i32) -> i32 {
+    let a: i32 = load_byte(pointer, offset);
+    let b: i32 = load_byte(pointer, offset + 1);
+    let c: i32 = load_byte(pointer, offset + 2);
+    let d: i32 = load_byte(pointer, offset + 3);
+    return a + b * 256 + c * 65536 + d * 16777216;
+}
+
+fn skip_spaces(command: i32, size: i32, start: i32) -> i32 {
+    let position: i32 = start;
+    while (position < size) {
+        if (load_byte(command, position) == 32) {
+            position = position + 1;
+        } else {
+            return position;
+        }
+    }
+    return position;
+}
+
+fn copy_token(command: i32, size: i32, start: i32, output: i32) -> i32 {
+    let position: i32 = start;
+    let copied: i32 = 0;
+    while (position < size) {
+        let value: i32 = load_byte(command, position);
+        if (value == 32) {
+            store_byte(output, copied, 0);
+            return copied;
+        }
+        store_byte(output, copied, value);
+        copied = copied + 1;
+        position = position + 1;
+    }
+    store_byte(output, copied, 0);
+    return copied;
+}
+
+fn copy_remainder(command: i32, size: i32, start: i32, output: i32) -> i32 {
+    let position: i32 = start;
+    let copied: i32 = 0;
+    while (position < size) {
+        store_byte(output, copied, load_byte(command, position));
+        copied = copied + 1;
+        position = position + 1;
+    }
+    store_byte(output, copied, 0);
+    return copied;
+}
+
+fn token_is(command: i32, size: i32, start: i32, word: i32, length: i32) -> i32 {
+    let index: i32 = 0;
+    let matched: i32 = 1;
+    while (index < length) {
+        if (size < start + index + 1) {
+            matched = 0;
+        } else if (load_byte(command, start + index) == load_byte(word, index)) {
+        } else {
+            matched = 0;
+        }
+        index = index + 1;
+    }
+    if (matched == 1) {
+        if (start + length < size) {
+            if (load_byte(command, start + length) == 32) {
+            } else {
+                matched = 0;
+            }
+        }
+    }
+    return matched;
+}
+
 fn load_and_spawn(path: i32) -> i32 {
     let handle: i32 = file_open(path, 0);
     if (handle < 0) { return handle; }
-    let image: i32 = mem_grow(64);
-    let image_page1: i32 = mem_grow(64);
-    let image_page2: i32 = mem_grow(64);
-    let image_page3: i32 = mem_grow(64);
-    let size: i32 = file_read(handle, image, 16384);
+    let image: i32 = mem_grow(4096);
+    let image_page1: i32 = mem_grow(4096);
+    let image_page2: i32 = mem_grow(4096);
+    let image_page3: i32 = mem_grow(4096);
+    let image_page4: i32 = mem_grow(4096);
+    let size: i32 = file_read(handle, image, 16432);
     file_close(handle);
     if (size < 1) { return size; }
     return process_spawn(image, size);
 }
 
-fn compile_self() -> i32 {
-    let pid: i32 = load_and_spawn("grc1.gwo");
-    if (pid < 0) { return pid; }
-    return wait_child(pid);
+fn load_and_spawn_args(path: i32, args: i32, args_size: i32) -> i32 {
+    let handle: i32 = file_open(path, 0);
+    if (handle < 0) { return handle; }
+    let image: i32 = mem_grow(4096);
+    let image_page1: i32 = mem_grow(4096);
+    let image_page2: i32 = mem_grow(4096);
+    let image_page3: i32 = mem_grow(4096);
+    let image_page4: i32 = mem_grow(4096);
+    let size: i32 = file_read(handle, image, 16432);
+    file_close(handle);
+    if (size < 1) { return size; }
+    return process_spawn_args(image, size, args, args_size);
 }
 
-fn run_compiled() -> i32 {
-    let pid: i32 = load_and_spawn("grc2.gwo");
-    if (pid < 0) { return pid; }
-    return wait_child(pid);
+fn print_status(status: i32, ok: i32) -> void {
+    if (status == 0) {
+        if (ok == 1) { print_str("OK\n"); }
+    } else {
+        print_i32(status);
+        print_str(" FAIL\n");
+    }
+}
+
+fn list_files() -> void {
+    let listing: i32 = mem_grow(4096);
+    let count: i32 = file_list(listing, 4096);
+    if (count < 0) {
+        print_i32(count);
+        print_str(" LS FAIL\n");
+    } else {
+        let position: i32 = 0;
+        while (position < count) {
+            let name: i32 = listing + position;
+            let length: i32 = 0;
+            while (0 < load_byte(name, length)) {
+                length = length + 1;
+            }
+            print_bytes(name, length);
+            newline();
+            position = position + length + 1;
+        }
+    }
+}
+
+fn cat_path(path: i32) -> void {
+    let handle: i32 = file_open(path, 0);
+    if (handle < 0) {
+        print_i32(handle);
+        print_str(" CAT FAIL\n");
+        return;
+    }
+    let content: i32 = mem_grow(4096);
+    let count: i32 = file_read(handle, content, 4096);
+    file_close(handle);
+    if (count < 0) {
+        print_i32(count);
+        print_str(" CAT FAIL\n");
+    } else {
+        print_bytes(content, count);
+        newline();
+    }
+}
+
+fn remove_path(path: i32) -> void {
+    let status: i32 = file_unlink(path);
+    print_status(status, 1);
+}
+
+fn write_path(path: i32, content: i32, size: i32) -> void {
+    let handle: i32 = file_open(path, 0);
+    if (handle == 0 - 2) { handle = path_create(path); }
+    if (handle < 0) {
+        print_i32(handle);
+        print_str(" WRITE FAIL\n");
+        return;
+    }
+    let written: i32 = file_write(handle, content, size);
+    file_close(handle);
+    if (written < size) {
+        print_i32(written);
+        print_str(" WRITE FAIL\n");
+    } else {
+        print_str("WRITE OK\n");
+    }
+}
+
+fn edit_open(command: i32, size: i32, state: i32) -> void {
+    let path: i32 = get32(state, 16);
+    let start: i32 = skip_spaces(command, size, 4);
+    let path_size: i32 = copy_token(command, size, start, path);
+    if (path_size < 1) {
+        print_str("usage: edit path\n");
+        return;
+    }
+    let handle: i32 = file_open(path, 0);
+    let buffer: i32 = get32(state, 12);
+    let content_size: i32 = 0;
+    if (handle == 0 - 2) {
+        content_size = 0;
+    } else {
+        if (handle < 0) {
+            print_i32(handle);
+            print_str(" EDIT FAIL\n");
+            return;
+        }
+        content_size = file_read(handle, buffer, 4095);
+        file_close(handle);
+        if (content_size < 0) {
+            print_i32(content_size);
+            print_str(" EDIT FAIL\n");
+            return;
+        }
+    }
+    put32(state, 4, content_size);
+    put32(state, 8, 1);
+    print_str("EDIT mode: insert text | delete | save | quit\n");
+}
+
+fn editor_command(command: i32, size: i32, state: i32) -> void {
+    let buffer: i32 = get32(state, 12);
+    let current_size: i32 = get32(state, 4);
+    if (token_is(command, size, 0, "insert", 6) == 1) {
+        let start: i32 = skip_spaces(command, size, 6);
+        let added: i32 = copy_remainder(command, size, start, buffer + current_size);
+        if (4095 < current_size + added + 1) {
+            print_str("EDITOR ENOSPC\n");
+            return;
+        }
+        store_byte(buffer, current_size + added, 10);
+        put32(state, 4, current_size + added + 1);
+        print_str("INSERT OK\n");
+    } else if (token_is(command, size, 0, "delete", 6) == 1) {
+        put32(state, 4, 0);
+        print_str("DELETE OK\n");
+    } else if (token_is(command, size, 0, "save", 4) == 1) {
+        let path: i32 = get32(state, 16);
+        let current: i32 = get32(state, 4);
+        let handle: i32 = file_open(path, 0);
+        if (handle == 0 - 2) { handle = path_create(path); }
+        if (handle < 0) {
+            print_i32(handle);
+            print_str(" SAVE FAIL\n");
+        } else {
+            let written: i32 = file_write(handle, buffer, current);
+            file_close(handle);
+            if (written < current) {
+                print_i32(written);
+                print_str(" SAVE FAIL\n");
+            } else {
+                put32(state, 8, 0);
+                print_str("SAVE OK\n");
+            }
+        }
+    } else if (token_is(command, size, 0, "quit", 4) == 1) {
+        put32(state, 8, 0);
+        print_str("EDITOR CLOSED\n");
+    } else {
+        print_str("EDITOR commands: insert delete save quit\n");
+    }
+}
+
+fn execute_command(command: i32, size: i32, state: i32) -> void {
+    let active: i32 = get32(state, 8);
+    if (active == 1) {
+        editor_command(command, size, state);
+        return;
+    }
+    if (size == 0) { return; }
+    if (token_is(command, size, 0, "help", 4) == 1) {
+        print_str("ls cat rm write edit grc run [args] exit\n");
+    } else if (token_is(command, size, 0, "ls", 2) == 1) {
+        list_files();
+    } else if (token_is(command, size, 0, "cat", 3) == 1) {
+        let cat_path_ptr: i32 = get32(state, 16);
+        let cat_start: i32 = skip_spaces(command, size, 3);
+        let cat_path_size: i32 = copy_token(command, size, cat_start, cat_path_ptr);
+        if (cat_path_size < 1) { print_str("usage: cat path\n"); }
+        else { cat_path(cat_path_ptr); }
+    } else if (token_is(command, size, 0, "rm", 2) == 1) {
+        let rm_path_ptr: i32 = get32(state, 16);
+        let rm_start: i32 = skip_spaces(command, size, 2);
+        let rm_path_size: i32 = copy_token(command, size, rm_start, rm_path_ptr);
+        if (rm_path_size < 1) { print_str("usage: rm path\n"); }
+        else { remove_path(rm_path_ptr); }
+    } else if (token_is(command, size, 0, "write", 5) == 1) {
+        let write_path_ptr: i32 = get32(state, 16);
+        let write_buffer: i32 = get32(state, 12);
+        let write_path_start: i32 = skip_spaces(command, size, 5);
+        let write_path_size: i32 = copy_token(command, size, write_path_start, write_path_ptr);
+        let write_content_start: i32 = skip_spaces(command, size, write_path_start + write_path_size);
+        let write_content_size: i32 = copy_remainder(command, size, write_content_start, write_buffer);
+        if (write_path_size < 1) { print_str("usage: write path text\n"); }
+        else { write_path(write_path_ptr, write_buffer, write_content_size); }
+    } else if (token_is(command, size, 0, "edit", 4) == 1) {
+        edit_open(command, size, state);
+    } else if (token_is(command, size, 0, "grc", 3) == 1) {
+        let grc_args: i32 = mem_grow(4096);
+        let grc_args_size: i32 = 0;
+        let grc_source_start: i32 = skip_spaces(command, size, 3);
+        let grc_source_size: i32 = copy_token(command, size, grc_source_start, grc_args);
+        store_byte(grc_args, grc_source_size, 0);
+        let grc_output_start: i32 = skip_spaces(command, size, grc_source_start + grc_source_size);
+        let grc_output_size: i32 = copy_token(command, size, grc_output_start, grc_args + grc_source_size + 1);
+        grc_args_size = grc_source_size + grc_output_size + 2;
+        if (grc_source_size < 1) {
+            print_str("usage: grc source output\n");
+        } else if (grc_output_size < 1) {
+            print_str("usage: grc source output\n");
+        } else {
+            let grc_pid: i32 = load_and_spawn_args("grc1.gwo", grc_args, grc_args_size);
+            if (grc_pid < 0) { print_i32(grc_pid); print_str(" GRC FAIL\n"); }
+            else { print_status(wait_child(grc_pid), 1); }
+        }
+    } else if (token_is(command, size, 0, "run", 3) == 1) {
+        let run_path_ptr: i32 = get32(state, 16);
+        let run_args_ptr: i32 = get32(state, 20);
+        let run_start: i32 = skip_spaces(command, size, 3);
+        let run_path_size: i32 = copy_token(command, size, run_start, run_path_ptr);
+        if (run_path_size < 1) { print_str("usage: run artifact\n"); }
+        else {
+            let run_args_start: i32 = skip_spaces(command, size, run_start + run_path_size);
+            let run_arg0_size: i32 = copy_token(command, size, run_args_start, run_args_ptr);
+            let run_args_size: i32 = 0;
+            if (run_arg0_size < 1) {
+                run_args_size = 0;
+            } else {
+                let run_arg1_start: i32 = skip_spaces(command, size, run_args_start + run_arg0_size);
+                let run_arg1_size: i32 = copy_token(command, size, run_arg1_start, run_args_ptr + run_arg0_size + 1);
+                if (run_arg1_size < 1) {
+                    print_str("usage: run artifact [arg0 arg1]\n");
+                    return;
+                }
+                let run_tail: i32 = skip_spaces(command, size, run_arg1_start + run_arg1_size);
+                if (run_tail < size) {
+                    print_str("usage: run artifact [arg0 arg1]\n");
+                    return;
+                }
+                run_args_size = run_arg0_size + run_arg1_size + 2;
+            }
+            let run_pid: i32 = 0;
+            if (run_args_size == 0) { run_pid = load_and_spawn(run_path_ptr); }
+            else { run_pid = load_and_spawn_args(run_path_ptr, run_args_ptr, run_args_size); }
+            if (run_pid < 0) { print_i32(run_pid); print_str(" RUN FAIL\n"); }
+            else { print_status(wait_child(run_pid), 1); }
+        }
+    } else if (token_is(command, size, 0, "exit", 4) == 1) {
+        exit(0);
+    } else {
+        print_str("unknown command\n");
+    }
 }
 
 fn main() -> void {
-    let input: i32 = mem_grow(64);
-    let pending: i32 = 0;
-    print_str("GrOS user shell\n");
+    let input: i32 = mem_grow(4096);
+    let command: i32 = mem_grow(4096);
+    let state: i32 = mem_grow(4096);
+    let editor_buffer: i32 = mem_grow(4096);
+    let editor_path: i32 = mem_grow(4096);
+    let argv_buffer: i32 = mem_grow(4096);
+    put32(state, 0, editor_path);
+    put32(state, 4, 0);
+    put32(state, 8, 0);
+    put32(state, 12, editor_buffer);
+    put32(state, 16, editor_path);
+    put32(state, 20, argv_buffer);
+    let command_size: i32 = 0;
+    print_str("GrOS user shell\n> ");
     while (1 < 2) {
-        let count: i32 = console_read(input, 64);
+        let count: i32 = console_read(input, 256);
         if (count < 1) {
             task_yield();
         } else {
-            let first: i32 = load_byte(input, 0);
-            if (pending == 114) {
-                if (first == 109) {
-                    file_unlink("hello.grw");
-                    print_str("RM OK\n");
-                } else if (first == 101) {
-                    exit(0);
+            let index: i32 = 0;
+            while (index < count) {
+                let value: i32 = load_byte(input, index);
+                if (value == 13) {
+                    execute_command(command, command_size, state);
+                    command_size = 0;
+                    store_byte(command, 0, 0);
+                    if (get32(state, 8) == 0) { print_str("> "); }
+                } else {
+                    if (255 < command_size) {
+                        print_str("command too long\n");
+                        command_size = 0;
+                    } else {
+                        store_byte(command, command_size, value);
+                        command_size = command_size + 1;
+                    }
                 }
-                pending = 0;
-            } else if (first == 114) {
-                pending = 114;
-            } else if (first == 108) {
-                print_str("hello.grw\n");
-            } else if (first == 99) {
-                let cat_handle: i32 = file_open("hello.grw", 0);
-                let cat_buffer: i32 = mem_grow(64);
-                let cat_count: i32 = file_read(cat_handle, cat_buffer, 512);
-                print_bytes(cat_buffer, cat_count);
-                file_close(cat_handle);
-            } else if (first == 115) {
-                let save_handle: i32 = path_create("hello.grw");
-                file_write(save_handle, "target \"gros.x86.bios.longmode.grogan.v1\"\nfn main() -> void {\n    print_i32(28);\n}\n", 83);
-                file_close(save_handle);
-                print_str("SAVE OK\n");
-            } else if (first == 101) {
-                let edit_handle: i32 = path_create("hello.grw");
-                file_write(edit_handle, "target \"gros.x86.bios.longmode.grogan.v1\"\nfn main() -> void {\n    print_i32(28);\n}\n", 83);
-                file_close(edit_handle);
-                print_str("SAVE OK\n");
-            } else if (first == 98) {
-                let compile_status: i32 = compile_self();
-                if (compile_status == 0) { print_str("COMPILE OK\n"); }
-                else { print_i32(compile_status); print_str(" COMPILE FAIL\n"); }
-            } else if (first == 120) {
-                let run_status: i32 = run_compiled();
-                if (run_status == 0) { print_str("RUN OK\n"); }
-                else { print_i32(run_status); print_str(" RUN FAIL\n"); }
+                index = index + 1;
             }
         }
     }

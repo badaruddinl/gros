@@ -4,12 +4,13 @@ The first persistent disk path is now connected to the Grogan kernel.
 
 ## Implemented
 
-- The long-mode image reserves a 128-block GFS2 volume at LBA 128, beyond the
+- The long-mode image reserves a 192-block GFS2 volume at LBA 240, beyond the
   BIOS kernel transfer window. The image builder formats both superblock copies
   and checks the result before returning the artifact.
-- The kernel probes the QEMU primary IDE device with IDENTIFY, records its
-  LBA28 capacity, and exposes bounded one-block PIO reads and writes. Status
-  polling has an explicit timeout and converts device errors to failure.
+- The kernel probes the QEMU primary IDE device with IDENTIFY, prefers its
+  validated LBA48 capacity with an LBA28 fallback, and exposes bounded
+  one-block PIO reads and writes. Status polling has an explicit timeout and
+  converts device errors to a bounded boot failure.
 - Mount reads the primary and recovery superblocks, validates the GFS2 magic,
   version, bounds, FNV-1a checksum, and `CMT2` marker, then selects the highest
   valid sequence.
@@ -39,6 +40,8 @@ host checker against the resulting image.
 ## Still deliberately open
 
 The kernel still retains the historical embedded GFS1 seed only as an emergency
-diagnostic fallback. The bounded Alpha profile is one root directory and one
-512-byte regular-file extent per operation; multi-block files, crash-injected
-recovery, and ring-3 editor utilities remain explicit follow-on work.
+diagnostic fallback. The bounded Alpha profile is one root directory with a
+single contiguous extent per regular file (up to the documented 64 KiB limit).
+Crash-injected journal recovery and multiple directories remain explicit
+follow-on work; ring-3 editing and multi-block file I/O are covered by the
+QEMU lanes.

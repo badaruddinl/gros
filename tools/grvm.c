@@ -225,6 +225,15 @@ static int run(const gwo2_image_t *image, uint64_t limit) {
             } else if (id == 16 && argc == 1) {
                 --sp;
                 stack[sp++] = -11;
+            } else if (id == 17 && argc == 4) {
+                sp -= 4;
+                stack[sp++] = -38;
+            } else if (id == 18 && argc == 2) {
+                sp -= 2;
+                stack[sp++] = -38;
+            } else if (id == 19 && argc == 2) {
+                sp -= 2;
+                stack[sp++] = -38;
             } else {
                 return fail("GWO2 VM unsupported import");
             }

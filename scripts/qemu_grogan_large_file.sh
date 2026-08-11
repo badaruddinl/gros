@@ -8,8 +8,8 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 IMAGE="$TMP_DIR/large.img"
 LOG="$TMP_DIR/debug.log"
 MONITOR_LOG="$TMP_DIR/monitor.log"
-FS_OFFSET=114688
-FS_BLOCKS=128
+FS_OFFSET=122880
+FS_BLOCKS=192
 
 fail() { echo "error: $1" >&2; exit 1; }
 command -v qemu-system-x86_64 > /dev/null 2>&1 || fail 'qemu-system-x86_64 is required'

@@ -2,9 +2,9 @@
 set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT=${1:-"$ROOT/build/gros-longmode.img"}
-KERNEL_BYTES=98816
-FS_START_LBA=224
-FS_BLOCKS=128
+KERNEL_BYTES=117248
+FS_START_LBA=240
+FS_BLOCKS=192
 USER_SOURCE=${GROGAN_USER_SOURCE:-"$ROOT/examples/grown-alpha/hello.grw"}
 command -v nasm > /dev/null 2>&1 || { echo 'error: nasm is required' >&2; exit 1; }
 mkdir -p "$(dirname -- "$OUT")"

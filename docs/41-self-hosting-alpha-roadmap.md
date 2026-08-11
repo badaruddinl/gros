@@ -537,11 +537,17 @@ The following roadmap work is now implemented and covered by executable gates:
 | Hosted compiler fixed point | `make grogan-self-host` | complete |
 | Ring-3 GWO2 execution and GFS2 syscalls | `make grogan-processes grogan-storage` and their QEMU gates | complete |
 | In-OS compile/run and persistence | `make grogan-self-host-qemu` | complete |
+| General ring-3 shell, editor, argv, and listing | `make grogan-general-shell-qemu` | complete |
+| One-level multi-module compile and execution | `make grogan-modules-qemu grogan-compiler-failures` | complete |
+| OOM process rollback and malformed-artifact isolation | `make grogan-oom-qemu grogan-corruption-qemu` | complete |
+| Host disk-full, image mutation, and reproducible-build gates | `make gfs2-host-failures grogan-release grogan-release-failures` | complete |
+| Repeated clean-boot development cycles | `CYCLES=100 make grogan-reliability-qemu` | release gate |
 
 The hosted fixed-point proof compares the output produced by `grc1.gwo` with
 the next output produced by that Grown compiler; it does not incorrectly
 compare the Rust bootstrap seed with the canonical Grown output. The C host
 verifier/VM is retained only as a reference oracle. `make validate-self-host`
 is the short gate for both hosted and in-OS proofs; the full Phase 10 release
-gate still requires the reliability, mutation, and reproducible-distribution
-work listed above.
+gate runs the 100-cycle clean-boot reliability campaign, host mutation
+fixtures, and reproducible-distribution check; crash-journal recovery and
+multi-directory GFS2 remain deliberately outside Alpha scope.

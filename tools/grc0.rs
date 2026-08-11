@@ -7,7 +7,7 @@
 
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const GWO2_VERSION: u16 = 2;
 const GWO2_TARGET_GROGAN_X86_64: u16 = 1;
@@ -495,14 +495,21 @@ impl Parser {
             "path_create" => (1, 11),
             "file_unlink" => (1, 12),
             "process_spawn" => (2, 15),
+            "process_spawn_args" => (4, 17),
             "process_wait" => (1, 16),
+            "process_args" => (2, 18),
+            "file_list" => (2, 19),
             "console_read" => (2, 4),
             "task_yield" => {
                 if !self.expect(TokenKind::Rp, "')'") { return false; }
                 self.emit(12);
                 self.emit(14);
                 self.emit(0);
-                return true;
+                // task_yield is a void scheduler boundary.  It must not
+                // leave a synthetic value on the operand stack (otherwise an
+                // idle console loop grows the stack on every poll), and the
+                // statement parser must not emit a matching drop.
+                return false;
             }
             "drop" => {
                 if !self.parse_call_argument(&mut argc) || !self.expect(TokenKind::Rp, "')'") { return false; }
@@ -522,7 +529,7 @@ impl Parser {
         self.emit(12);
         self.emit(import_id);
         self.emit(expected as u8);
-        matches!(import_id, 4..=12 | 15..=16)
+        matches!(import_id, 4..=12 | 15..=19)
     }
 
     fn parse_expression(&mut self, minimum: usize) -> bool {
@@ -776,8 +783,61 @@ fn emit_gwo2(path: &Path, code: &[u8], entry: usize) -> Result<(), String> {
     fs::write(path, bytes).map_err(|error| format!("cannot write GWO2 image: {}", error))
 }
 
+fn parse_import_line(line: &[u8]) -> Result<Option<String>, String> {
+    let mut start = 0usize;
+    while start < line.len() && matches!(line[start], b' ' | b'\t' | b'\r') { start += 1; }
+    if !line[start..].starts_with(b"import") { return Ok(None); }
+    let mut position = start + 6;
+    if position >= line.len() || !matches!(line[position], b' ' | b'\t') {
+        return Err("import must be followed by whitespace".to_owned());
+    }
+    while position < line.len() && matches!(line[position], b' ' | b'\t') { position += 1; }
+    if position >= line.len() || line[position] != b'"' {
+        return Err("import expects a quoted module path".to_owned());
+    }
+    position += 1;
+    let path_start = position;
+    while position < line.len() && line[position] != b'"' { position += 1; }
+    if position >= line.len() { return Err("unterminated import path".to_owned()); }
+    let name = String::from_utf8(line[path_start..position].to_vec())
+        .map_err(|_| "import path is not UTF-8".to_owned())?;
+    if name.is_empty() || name.len() > 31 || name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err("import path must be one bounded root filename".to_owned());
+    }
+    position += 1;
+    while position < line.len() && matches!(line[position], b' ' | b'\t' | b'\r') { position += 1; }
+    if position >= line.len() || line[position] != b';' {
+        return Err("import must end with ';'".to_owned());
+    }
+    Ok(Some(name))
+}
+
+fn expand_source_file(path: &Path, depth: usize, root: bool) -> Result<Vec<u8>, String> {
+    if depth > 8 { return Err("import nesting exceeds Alpha limit".to_owned()); }
+    let source = fs::read(path).map_err(|error| format!("cannot read source {}: {}", path.display(), error))?;
+    let mut output = Vec::with_capacity(source.len());
+    for line in source.split_inclusive(|byte| *byte == b'\n') {
+        match parse_import_line(line)? {
+            Some(name) => {
+                let parent = path.parent().unwrap_or_else(|| Path::new("."));
+                let module_path = parent.join(PathBuf::from(name));
+                let module = expand_source_file(&module_path, depth + 1, false)?;
+                output.extend_from_slice(&module);
+                if !module.ends_with(b"\n") { output.push(b'\n'); }
+            }
+            None => output.extend_from_slice(line),
+        }
+    }
+    if !root {
+        let trimmed = output.iter().copied().skip_while(|byte| matches!(byte, b' ' | b'\t' | b'\r' | b'\n'));
+        let prefix: Vec<u8> = trimmed.take(6).collect();
+        if prefix == b"target" { return Err(format!("module {} must contain functions, not a target declaration", path.display())); }
+    }
+    Ok(output)
+}
+
 fn compile(source_path: &Path, output_path: &Path) -> Result<(), String> {
-    let source = fs::read(source_path).map_err(|error| format!("cannot read source {}: {}", source_path.display(), error))?;
+    let source = expand_source_file(source_path, 0, true)?;
     if source.len() > 1 << 20 { return Err("source exceeds Alpha limit".to_owned()); }
     let declarations = scan_declarations(&source_path.display().to_string(), &source)
         .ok_or_else(|| "source declaration scan failed".to_owned())?;
