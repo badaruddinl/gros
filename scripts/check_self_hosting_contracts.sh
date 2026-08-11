@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CONTRACTS=${CONTRACTS:-"$ROOT/contracts/self-hosting-alpha"}
+GWO2_DOC=${GWO2_DOC:-"$ROOT/docs/45-self-hosting-gwo2-grown-alpha-contract.md"}
 fail() { echo "error: $1" >&2; exit 1; }
 require_file() { [ -f "$CONTRACTS/$1" ] || fail "missing contract $1"; }
 require_line() {
@@ -57,13 +58,12 @@ require_line gwo2-layout.txt 'loader_requires_checksum=true'
 require_line gwo2-layout.txt 'verifier_requires_stack_effects=true'
 require_line gwo2-layout.txt 'runtime_imports=1:print_i32,2:exit,3:newline,4:console_read,5:file_open,6:file_read,7:file_write,8:file_close,9:file_stat,10:mem_grow,11:path_create,12:file_unlink,13:print_bytes,14:task_yield,15:process_spawn,16:process_wait,17:process_spawn_args,18:process_args,19:file_list'
 
-require_root_line() {
-    local file=$1
-    local line=$2
-    grep -Fqx "$line" < <(tr -d '\r' < "$ROOT/$file") || \
-        fail "$file missing exact line: $line"
+require_document_line() {
+    local line=$1
+    grep -Fqx "$line" < <(tr -d '\r' < "$GWO2_DOC") || \
+        fail "GWO2 Markdown contract missing exact line: $line"
 }
 
-require_root_line docs/45-self-hosting-gwo2-grown-alpha-contract.md 'value. IDs 15 and 16 extend the Alpha process ABI with `process_spawn(image, size)`'
+require_document_line 'ID 14 is the void scheduler boundary `task_yield()`; it returns no stack'
 
 echo 'self-hosting contracts: process, syscall, GFS2, and GWO2 definitions ok'

@@ -40,4 +40,35 @@ grep -F 'gwo2-import-abi-v1.tsv missing exact line: 14' "$TMP_DIR/err-task-yield
     exit 1
 }
 
+cp -R "$ROOT/contracts/self-hosting-alpha" "$TMP_DIR/contracts-layout"
+sed -i 's/14:task_yield/14:task_poll/' "$TMP_DIR/contracts-layout/gwo2-layout.txt"
+
+if CONTRACTS="$TMP_DIR/contracts-layout" "$VALIDATOR" > "$TMP_DIR/out-layout" 2> "$TMP_DIR/err-layout"; then
+    echo 'error: GWO2 layout summary mutation was accepted' >&2
+    exit 1
+fi
+
+grep -F 'gwo2-layout.txt missing exact line: runtime_imports=' "$TMP_DIR/err-layout" > /dev/null || {
+    cat "$TMP_DIR/out-layout" >&2
+    cat "$TMP_DIR/err-layout" >&2
+    echo 'error: layout summary mutation was not rejected by the exact-summary gate' >&2
+    exit 1
+}
+
+cp "$ROOT/docs/45-self-hosting-gwo2-grown-alpha-contract.md" "$TMP_DIR/gwo2-contract.md"
+sed -i 's/ID 14 is the void scheduler boundary `task_yield()`;/ID 14 is the void scheduler boundary `task_poll()`;/' \
+    "$TMP_DIR/gwo2-contract.md"
+
+if GWO2_DOC="$TMP_DIR/gwo2-contract.md" "$VALIDATOR" > "$TMP_DIR/out-doc" 2> "$TMP_DIR/err-doc"; then
+    echo 'error: GWO2 Markdown summary mutation was accepted' >&2
+    exit 1
+fi
+
+grep -F 'GWO2 Markdown contract missing exact line:' "$TMP_DIR/err-doc" > /dev/null || {
+    cat "$TMP_DIR/out-doc" >&2
+    cat "$TMP_DIR/err-doc" >&2
+    echo 'error: Markdown summary mutation was not rejected by the exact-summary gate' >&2
+    exit 1
+}
+
 echo 'self-hosting contract failures: malformed GWO2 contract rejected'
